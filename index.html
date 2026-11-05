@@ -36,23 +36,36 @@
 
 <!-- Floating navbar -->
 <div class="floating-navbar">
-    <button class="btn-create" id="createScheduleBtn">
-        <i class="fas fa-plus-circle"></i>
-        <span>Create New Schedule Today</span>
-    </button>
-    <button class="btn-history" id="historyBtn" title="View all schedule history">
-        <i class="fas fa-history"></i>
-        <span>History</span>
-    </button>
-    <button class="btn-export" id="exportBtn" title="Download all schedules as JSON">
-        <i class="fas fa-download"></i>
-        <span>Export</span>
-    </button>
-    <button class="btn-import" id="importBtn" title="Load schedules from JSON file">
-        <i class="fas fa-upload"></i>
-        <span>Import</span>
-    </button>
-    <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+    <div class="nav-left">
+        <button class="btn-import" id="importBtn" title="Load schedules from JSON file">
+            <i class="fas fa-upload"></i>
+            <span>Import</span>
+        </button>
+        <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+
+        <button class="btn-export" id="exportBtn" title="Download all schedules as JSON">
+            <i class="fas fa-download"></i>
+            <span>Export</span>
+        </button>
+    </div>
+
+    <div class="nav-center">
+        <button class="btn-create" id="createScheduleBtn">
+            <i class="fas fa-plus-circle"></i>
+            <span>Create New Schedule Today</span>
+        </button>
+    </div>
+
+    <div class="nav-right">
+        <button class="btn-history" id="historyBtn" title="View all schedule history">
+            <i class="fas fa-history"></i>
+            <span>History</span>
+        </button>
+        <button class="btn-logout" id="logoutBtn" title="Log out">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+        </button>
+    </div>
 </div>
 
 <!-- ========== DAY SCHEDULES LIST MODAL ========== -->
