@@ -209,15 +209,31 @@ body {
     box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.2), 0 8px 20px -6px rgba(0, 0, 0, 0.15);
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 10px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.5);
     z-index: 1000;
     max-width: calc(100vw - 32px);
-    flex-wrap: wrap;
-    justify-content: center;
 }
 
+.nav-left,
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.nav-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Center create button (emphasized) */
 .floating-navbar .btn-create {
     background: #3b82f6;
     color: white;
@@ -234,14 +250,16 @@ body {
     box-shadow: 0 8px 18px -6px #3b82f6;
     white-space: nowrap;
     font-family: 'Inter', sans-serif;
+    margin: 0 auto;
 }
 
 .floating-navbar .btn-create:hover { background: #2563eb; }
 .floating-navbar .btn-create:active { transform: scale(0.97); }
 
-.floating-navbar .btn-history,
+/* Secondary buttons */
+.floating-navbar .btn-import,
 .floating-navbar .btn-export,
-.floating-navbar .btn-import {
+.floating-navbar .btn-history {
     background: #f1f5f9;
     color: #1e293b;
     border: none;
@@ -253,18 +271,39 @@ body {
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
+    transition: background 0.2s, transform 0.1s, color 0.2s;
     white-space: nowrap;
     font-family: 'Inter', sans-serif;
 }
 
-.floating-navbar .btn-history:hover,
+.floating-navbar .btn-import:hover,
 .floating-navbar .btn-export:hover,
-.floating-navbar .btn-import:hover { background: #e2e8f0; }
+.floating-navbar .btn-history:hover { background: #e2e8f0; }
 
-.floating-navbar .btn-history:active,
+/* Logout */
+.floating-navbar .btn-logout {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: none;
+    padding: 12px 18px;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s, color 0.2s;
+    white-space: nowrap;
+    font-family: 'Inter', sans-serif;
+}
+
+.floating-navbar .btn-logout:hover { background: #fecaca; }
+
+.floating-navbar .btn-import:active,
 .floating-navbar .btn-export:active,
-.floating-navbar .btn-import:active { transform: scale(0.97); }
+.floating-navbar .btn-history:active,
+.floating-navbar .btn-logout:active { transform: scale(0.97); }
 
 /* ===== MODAL OVERLAY ===== */
 .modal-overlay {
@@ -999,39 +1038,43 @@ body {
     /* floating navbar mobile */
     .floating-navbar {
         bottom: 14px;
-        padding: 8px 12px;
+        padding: 8px 10px;
         gap: 6px;
         border-radius: 50px;
+        width: calc(100vw - 16px);
+        max-width: 460px;
     }
 
-    .floating-navbar .btn-create {
-        padding: 10px;
-        border-radius: 50%;
-        width: 48px;
-        height: 48px;
-        justify-content: center;
+    .nav-left,
+    .nav-right {
+        gap: 4px;
     }
 
-    .floating-navbar .btn-create span { display: none; }
-    .floating-navbar .btn-create i { font-size: 1.15rem; }
-
-    .floating-navbar .btn-history,
+    /* Icon-only round buttons on mobile */
+    .floating-navbar .btn-create,
+    .floating-navbar .btn-import,
     .floating-navbar .btn-export,
-    .floating-navbar .btn-import {
+    .floating-navbar .btn-history,
+    .floating-navbar .btn-logout {
         padding: 10px;
         border-radius: 50%;
-        width: 48px;
-        height: 48px;
+        width: 46px;
+        height: 46px;
         justify-content: center;
+        gap: 0;
     }
 
-    .floating-navbar .btn-history span,
+    .floating-navbar .btn-create span,
+    .floating-navbar .btn-import span,
     .floating-navbar .btn-export span,
-    .floating-navbar .btn-import span { display: none; }
+    .floating-navbar .btn-history span,
+    .floating-navbar .btn-logout span { display: none; }
 
-    .floating-navbar .btn-history i,
+    .floating-navbar .btn-create i,
+    .floating-navbar .btn-import i,
     .floating-navbar .btn-export i,
-    .floating-navbar .btn-import i { font-size: 1.15rem; }
+    .floating-navbar .btn-history i,
+    .floating-navbar .btn-logout i { font-size: 1.05rem; }
 
     /* modal mobile */
     .modal-overlay {
@@ -1306,17 +1349,19 @@ body {
     }
 
     .floating-navbar .btn-create,
-    .floating-navbar .btn-history,
+    .floating-navbar .btn-import,
     .floating-navbar .btn-export,
-    .floating-navbar .btn-import {
-        width: 42px;
-        height: 42px;
+    .floating-navbar .btn-history,
+    .floating-navbar .btn-logout {
+        width: 40px;
+        height: 40px;
     }
 
     .floating-navbar .btn-create i,
-    .floating-navbar .btn-history i,
+    .floating-navbar .btn-import i,
     .floating-navbar .btn-export i,
-    .floating-navbar .btn-import i {
-        font-size: 1rem;
+    .floating-navbar .btn-history i,
+    .floating-navbar .btn-logout i {
+        font-size: 0.95rem;
     }
 }
