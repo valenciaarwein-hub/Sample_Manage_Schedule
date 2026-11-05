@@ -1,0 +1,556 @@
+(function() {
+    // ---------- DATA ----------
+    let schedules = {};
+
+    // Sample data
+    const today = new Date();
+    const sampleDate = new Date(today.getFullYear(), today.getMonth(), 15);
+    const sampleKey = formatDateKey(sampleDate);
+    schedules[sampleKey] = [
+        { id: 's1', title: 'Project kickoff', description: 'Discuss scope and timeline for Q2 launch' },
+        { id: 's2', title: 'Design review', description: 'Review new mockups with the product team' }
+    ];
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowKey = formatDateKey(tomorrow);
+    schedules[tomorrowKey] = [
+        { id: 's3', title: 'Client call', description: 'Follow-up on proposal and next steps' }
+    ];
+
+    // state
+    let currentDate = new Date();
+    currentDate.setDate(1);
+    let currentYear = currentDate.getFullYear();
+    let currentMonth = currentDate.getMonth();
+
+    // modal state
+    let editingScheduleId = null;
+    let selectedDateKey = null;
+    let activeDayListDateKey = null;
+
+    // DOM elements
+    const monthYearText = document.getElementById('monthYearText');
+    const monthYearTrigger = document.getElementById('monthYearTrigger');
+    const calendarGrid = document.getElementById('calendarGrid');
+    const prevMonthBtn = document.getElementById('prevMonthBtn');
+    const nextMonthBtn = document.getElementById('nextMonthBtn');
+    const todayBtn = document.getElementById('todayBtn');
+    const createScheduleBtn = document.getElementById('createScheduleBtn');
+
+    // day list modal
+    const dayListOverlay = document.getElementById('dayListOverlay');
+    const dayListDateBadge = document.getElementById('dayListDateBadge');
+    const dayScheduleList = document.getElementById('dayScheduleList');
+    const addScheduleFromListBtn = document.getElementById('addScheduleFromListBtn');
+    const closeDayListBtn = document.getElementById('closeDayListBtn');
+
+    // schedule form modal
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDateBadge = document.getElementById('modalDateBadge');
+    const scheduleTitle = document.getElementById('scheduleTitle');
+    const scheduleDescription = document.getElementById('scheduleDescription');
+    const charCount = document.getElementById('charCount');
+    const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const saveScheduleBtn = document.getElementById('saveScheduleBtn');
+
+    // view modal
+    const viewOverlay = document.getElementById('viewOverlay');
+    const viewTitle = document.getElementById('viewTitle');
+    const viewDescription = document.getElementById('viewDescription');
+    const viewDate = document.getElementById('viewDate');
+    const closeViewBtn = document.getElementById('closeViewBtn');
+
+    // date picker modal
+    const datePickerOverlay = document.getElementById('datePickerOverlay');
+    const pickYear = document.getElementById('pickYear');
+    const pickMonth = document.getElementById('pickMonth');
+    const pickDay = document.getElementById('pickDay');
+    const datePreviewText = document.getElementById('datePreviewText');
+    const cancelDatePickerBtn = document.getElementById('cancelDatePickerBtn');
+    const goToDateBtn = document.getElementById('goToDateBtn');
+
+    // ---------- HELPERS ----------
+    function formatDateKey(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function getDateFromKey(key) {
+        const [y, m, d] = key.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    function daysInMonth(year, month) {
+        return new Date(year, month + 1, 0).getDate();
+    }
+
+    function updateCharCounter() {
+        charCount.textContent = scheduleDescription.value.length;
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ---------- RENDER CALENDAR ----------
+    function renderCalendar() {
+        monthYearText.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+        const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+        let startDayOfWeek = firstDayOfMonth.getDay();
+        let offset = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1;
+
+        const daysInCurrentMonth = daysInMonth(currentYear, currentMonth);
+        const daysInPrevMonth = daysInMonth(currentYear, currentMonth - 1);
+
+        const totalCells = 42;
+        let cells = [];
+
+        for (let i = offset - 1; i >= 0; i--) {
+            const day = daysInPrevMonth - i;
+            const date = new Date(currentYear, currentMonth - 1, day);
+            cells.push({ date, isCurrentMonth: false });
+        }
+        for (let d = 1; d <= daysInCurrentMonth; d++) {
+            const date = new Date(currentYear, currentMonth, d);
+            cells.push({ date, isCurrentMonth: true });
+        }
+        let remaining = totalCells - cells.length;
+        for (let d = 1; d <= remaining; d++) {
+            const date = new Date(currentYear, currentMonth + 1, d);
+            cells.push({ date, isCurrentMonth: false });
+        }
+
+        const todayDate = new Date();
+        const todayKey = formatDateKey(todayDate);
+
+        let gridHtml = '';
+        cells.forEach((cell) => {
+            const date = cell.date;
+            const dateKey = formatDateKey(date);
+            const isToday = dateKey === todayKey;
+            const isCurrentMonth = cell.isCurrentMonth;
+            const dayNumber = date.getDate();
+
+            const daySchedules = schedules[dateKey] || [];
+
+            let schedulesHtml = '';
+            const maxVisible = 3;
+            if (daySchedules.length > 0) {
+                const visible = daySchedules.slice(0, maxVisible);
+                visible.forEach(s => {
+                    const shortTitle = s.title.length > 20 ? s.title.slice(0, 18) + '…' : s.title;
+                    schedulesHtml += `
+                        <div class="schedule-item" data-date="${dateKey}" data-id="${s.id}" title="${escapeHtml(s.title)} — ${escapeHtml(s.description || '')}">
+                            <i class="fas fa-circle" style="font-size: 0.35rem;"></i>
+                            <span>${escapeHtml(shortTitle)}</span>
+                        </div>
+                    `;
+                });
+                if (daySchedules.length > maxVisible) {
+                    schedulesHtml += `<div class="empty-hint" style="font-style:normal; text-align:left; padding-left:6px;">+ ${daySchedules.length - maxVisible} more</div>`;
+                }
+            } else {
+                schedulesHtml = `<div class="empty-hint">—</div>`;
+            }
+
+            const cellClasses = [
+                'day-cell',
+                !isCurrentMonth ? 'other-month' : '',
+                isToday ? 'today' : ''
+            ].filter(Boolean).join(' ');
+
+            gridHtml += `
+                <div class="${cellClasses}" data-date-key="${dateKey}" data-is-current-month="${isCurrentMonth}">
+                    <div class="day-header">
+                        <span class="day-number">${dayNumber}</span>
+                    </div>
+                    <div class="schedule-list" data-date="${dateKey}">
+                        ${schedulesHtml}
+                    </div>
+                </div>
+            `;
+        });
+
+        calendarGrid.innerHTML = gridHtml;
+
+        document.querySelectorAll('.schedule-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const dateKey = item.dataset.date;
+                if (dateKey) openDayListModal(dateKey);
+            });
+        });
+
+        document.querySelectorAll('.day-cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+                const dateKey = cell.dataset.dateKey;
+                if (dateKey) openDayListModal(dateKey);
+            });
+        });
+    }
+
+    // ---------- DAY LIST MODAL ----------
+    function openDayListModal(dateKey) {
+        activeDayListDateKey = dateKey;
+        const dateObj = getDateFromKey(dateKey);
+        dayListDateBadge.textContent = dateObj.toLocaleDateString('en-US', {
+            weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+        });
+
+        renderDayScheduleList();
+        dayListOverlay.classList.add('active');
+    }
+
+    function closeDayListModal() {
+        dayListOverlay.classList.remove('active');
+        activeDayListDateKey = null;
+    }
+
+    function renderDayScheduleList() {
+        if (!activeDayListDateKey) return;
+        const daySchedules = schedules[activeDayListDateKey] || [];
+
+        if (daySchedules.length === 0) {
+            dayScheduleList.innerHTML = `
+                <div class="empty-day-message">
+                    <i class="fas fa-calendar-day"></i>
+                    No schedules yet for this day.<br>Click "Add New Schedule" to create one.
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        daySchedules.forEach(s => {
+            const desc = s.description || 'No description';
+            html += `
+                <div class="day-schedule-card">
+                    <div class="card-accent"></div>
+                    <div class="card-body">
+                        <div class="card-title">${escapeHtml(s.title)}</div>
+                        <div class="card-desc">${escapeHtml(desc)}</div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="icon-btn view" data-action="view" data-id="${s.id}" title="View details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="icon-btn edit" data-action="edit" data-id="${s.id}" title="Edit schedule">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="icon-btn delete" data-action="delete" data-id="${s.id}" title="Delete schedule">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        dayScheduleList.innerHTML = html;
+
+        dayScheduleList.querySelectorAll('.icon-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.action;
+                const id = btn.dataset.id;
+                if (!id || !activeDayListDateKey) return;
+
+                if (action === 'view') {
+                    openViewModal(activeDayListDateKey, id);
+                } else if (action === 'edit') {
+                    openEditFormModal(activeDayListDateKey, id);
+                } else if (action === 'delete') {
+                    deleteScheduleFromList(activeDayListDateKey, id);
+                }
+            });
+        });
+    }
+
+    function deleteScheduleFromList(dateKey, id) {
+        const schedule = (schedules[dateKey] || []).find(s => s.id === id);
+        if (!schedule) return;
+        if (!confirm(`Delete schedule "${schedule.title}"?`)) return;
+
+        const daySchedules = schedules[dateKey] || [];
+        schedules[dateKey] = daySchedules.filter(s => s.id !== id);
+        if (schedules[dateKey].length === 0) delete schedules[dateKey];
+
+        renderCalendar();
+        if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
+            renderDayScheduleList();
+        }
+    }
+
+    // ---------- VIEW MODAL ----------
+    function openViewModal(dateKey, scheduleId) {
+        const schedule = (schedules[dateKey] || []).find(s => s.id === scheduleId);
+        if (!schedule) return;
+
+        const dateObj = getDateFromKey(dateKey);
+        viewTitle.textContent = schedule.title;
+        viewDescription.textContent = schedule.description || 'No description provided.';
+        viewDate.textContent = dateObj.toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        viewOverlay.classList.add('active');
+    }
+
+    function closeViewModal() {
+        viewOverlay.classList.remove('active');
+    }
+
+    // ---------- FORM MODAL ----------
+    function openCreateFormModal(dateKey) {
+        editingScheduleId = null;
+        selectedDateKey = dateKey;
+        document.getElementById('editingId').value = '';
+        document.getElementById('selectedDate').value = dateKey;
+
+        const dateObj = getDateFromKey(dateKey);
+        modalTitle.innerHTML = '<i class="fas fa-calendar-plus" style="color:#3b82f6;"></i> New Schedule';
+        modalDateBadge.textContent = dateObj.toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+        });
+
+        scheduleTitle.value = '';
+        scheduleDescription.value = '';
+        updateCharCounter();
+
+        modalOverlay.classList.add('active');
+        scheduleTitle.focus();
+    }
+
+    function openEditFormModal(dateKey, scheduleId) {
+        const schedule = (schedules[dateKey] || []).find(s => s.id === scheduleId);
+        if (!schedule) return;
+
+        editingScheduleId = scheduleId;
+        selectedDateKey = dateKey;
+        document.getElementById('editingId').value = scheduleId;
+        document.getElementById('selectedDate').value = dateKey;
+
+        const dateObj = getDateFromKey(dateKey);
+        modalTitle.innerHTML = '<i class="fas fa-pen" style="color:#3b82f6;"></i> Edit Schedule';
+        modalDateBadge.textContent = dateObj.toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+        });
+
+        scheduleTitle.value = schedule.title;
+        scheduleDescription.value = schedule.description || '';
+        updateCharCounter();
+
+        modalOverlay.classList.add('active');
+        scheduleTitle.focus();
+    }
+
+    function closeFormModal() {
+        modalOverlay.classList.remove('active');
+        editingScheduleId = null;
+        selectedDateKey = null;
+    }
+
+    function saveSchedule() {
+        const title = scheduleTitle.value.trim();
+        if (!title) {
+            alert('Please enter a title.');
+            scheduleTitle.focus();
+            return;
+        }
+
+        const description = scheduleDescription.value.trim().slice(0, 200);
+        const dateKey = selectedDateKey;
+        if (!dateKey) return;
+
+        if (editingScheduleId) {
+            const daySchedules = schedules[dateKey] || [];
+            const index = daySchedules.findIndex(s => s.id === editingScheduleId);
+            if (index !== -1) {
+                daySchedules[index] = { ...daySchedules[index], title, description };
+            }
+        } else {
+            const newId = 'sched_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+            if (!schedules[dateKey]) schedules[dateKey] = [];
+            schedules[dateKey].push({ id: newId, title, description });
+        }
+
+        renderCalendar();
+        closeFormModal();
+
+        if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
+            renderDayScheduleList();
+        }
+    }
+
+    // ---------- DATE PICKER MODAL ----------
+    function populateDatePicker() {
+        const now = new Date();
+        const baseYear = now.getFullYear();
+        const startYear = baseYear - 50;
+        const endYear = baseYear + 50;
+
+        pickYear.innerHTML = '';
+        for (let y = startYear; y <= endYear; y++) {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = y;
+            pickYear.appendChild(opt);
+        }
+
+        pickMonth.innerHTML = '';
+        monthNames.forEach((m, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.textContent = m;
+            pickMonth.appendChild(opt);
+        });
+
+        pickYear.value = currentYear;
+        pickMonth.value = currentMonth;
+        updateDayOptions();
+        updateDatePreview();
+    }
+
+    function updateDayOptions() {
+        const year = parseInt(pickYear.value, 10);
+        const month = parseInt(pickMonth.value, 10);
+        const maxDay = daysInMonth(year, month);
+        const previousDay = parseInt(pickDay.value, 10) || 1;
+
+        pickDay.innerHTML = '';
+        for (let d = 1; d <= maxDay; d++) {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = d;
+            pickDay.appendChild(opt);
+        }
+        pickDay.value = Math.min(previousDay, maxDay);
+        updateDatePreview();
+    }
+
+    function updateDatePreview() {
+        const year = parseInt(pickYear.value, 10);
+        const month = parseInt(pickMonth.value, 10);
+        const day = parseInt(pickDay.value, 10);
+        if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+            const previewDate = new Date(year, month, day);
+            datePreviewText.textContent = previewDate.toLocaleDateString('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+        } else {
+            datePreviewText.textContent = '—';
+        }
+    }
+
+    function openDatePickerModal() {
+        populateDatePicker();
+        pickYear.value = currentYear;
+        pickMonth.value = currentMonth;
+        const now = new Date();
+        if (currentYear === now.getFullYear() && currentMonth === now.getMonth()) {
+            pickDay.value = now.getDate();
+        } else {
+            pickDay.value = 1;
+        }
+        updateDayOptions();
+        updateDatePreview();
+        datePickerOverlay.classList.add('active');
+    }
+
+    function closeDatePickerModal() {
+        datePickerOverlay.classList.remove('active');
+    }
+
+    function goToPickedDate() {
+        const year = parseInt(pickYear.value, 10);
+        const month = parseInt(pickMonth.value, 10);
+        currentYear = year;
+        currentMonth = month;
+        renderCalendar();
+        closeDatePickerModal();
+    }
+
+    // ---------- EVENT LISTENERS ----------
+    prevMonthBtn.addEventListener('click', () => {
+        currentMonth--;
+        if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+        renderCalendar();
+    });
+
+    nextMonthBtn.addEventListener('click', () => {
+        currentMonth++;
+        if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+        renderCalendar();
+    });
+
+    todayBtn.addEventListener('click', () => {
+        const now = new Date();
+        currentYear = now.getFullYear();
+        currentMonth = now.getMonth();
+        renderCalendar();
+    });
+
+    monthYearTrigger.addEventListener('click', openDatePickerModal);
+
+    // floating create button -> opens create form for TODAY
+    createScheduleBtn.addEventListener('click', () => {
+        const todayKey = formatDateKey(new Date());
+        openCreateFormModal(todayKey);
+    });
+
+    // day list modal
+    closeDayListBtn.addEventListener('click', closeDayListModal);
+    dayListOverlay.addEventListener('click', (e) => {
+        if (e.target === dayListOverlay) closeDayListModal();
+    });
+
+    addScheduleFromListBtn.addEventListener('click', () => {
+        if (!activeDayListDateKey) return;
+        const dateKey = activeDayListDateKey;
+        closeDayListModal();
+        openCreateFormModal(dateKey);
+    });
+
+    // form modal
+    cancelModalBtn.addEventListener('click', closeFormModal);
+    saveScheduleBtn.addEventListener('click', saveSchedule);
+    scheduleDescription.addEventListener('input', updateCharCounter);
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeFormModal();
+    });
+
+    // view modal
+    closeViewBtn.addEventListener('click', closeViewModal);
+    viewOverlay.addEventListener('click', (e) => {
+        if (e.target === viewOverlay) closeViewModal();
+    });
+
+    // date picker modal
+    pickYear.addEventListener('change', updateDayOptions);
+    pickMonth.addEventListener('change', updateDayOptions);
+    pickDay.addEventListener('change', updateDatePreview);
+    cancelDatePickerBtn.addEventListener('click', closeDatePickerModal);
+    goToDateBtn.addEventListener('click', goToPickedDate);
+    datePickerOverlay.addEventListener('click', (e) => {
+        if (e.target === datePickerOverlay) closeDatePickerModal();
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (dayListOverlay.classList.contains('active')) closeDayListModal();
+            if (modalOverlay.classList.contains('active')) closeFormModal();
+            if (viewOverlay.classList.contains('active')) closeViewModal();
+            if (datePickerOverlay.classList.contains('active')) closeDatePickerModal();
+        }
+    });
+
+    // initial render
+    renderCalendar();
+})();
