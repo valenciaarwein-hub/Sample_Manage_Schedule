@@ -1,47 +1,57 @@
 // script.js
 (function() {
-    // ---------- PERSISTENT STORAGE ----------
-    const STORAGE_KEY = 'schedule_manager_data_v1';
+    // ---------- IN-MEMORY JAVASCRIPT STORE (no localStorage) ----------
+    let schedules = {}; // plain JS object, kept in memory for the page session
 
-    function loadSchedules() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed && typeof parsed === 'object') return parsed;
-            }
-        } catch (err) {
-            console.warn('Failed to load schedules from storage:', err);
-        }
-        return null;
-    }
-
-    function saveSchedulesToStorage() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules));
-        } catch (err) {
-            console.warn('Failed to save schedules to storage:', err);
-        }
-    }
-
-    // Load from storage, or fall back to sample data on first run
-    let schedules = loadSchedules();
-    if (!schedules) {
-        schedules = {};
+    // Seed sample data on first load (purely in memory)
+    (function seedSampleData() {
         const today = new Date();
         const sampleDate = new Date(today.getFullYear(), today.getMonth(), 15);
-        const sampleKey = formatDateKey(sampleDate);
-        schedules[sampleKey] = [
+        schedules[formatDateKey(sampleDate)] = [
             { id: 's1', title: 'Project kickoff', description: 'Discuss scope and timeline for Q2 launch' },
             { id: 's2', title: 'Design review', description: 'Review new mockups with the product team' }
         ];
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowKey = formatDateKey(tomorrow);
-        schedules[tomorrowKey] = [
+        schedules[formatDateKey(tomorrow)] = [
             { id: 's3', title: 'Client call', description: 'Follow-up on proposal and next steps' }
         ];
-        saveSchedulesToStorage();
+    })();
+
+    // No-op — data lives in `schedules`. Use Export to persist to a file.
+    function saveSchedulesToStorage() { /* in-memory only */ }
+
+    // ---------- EXPORT / IMPORT (pure JS file I/O) ----------
+    function exportSchedulesToFile() {
+        const dataStr = JSON.stringify(schedules, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `schedules_${formatDateKey(new Date())}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function importSchedulesFromFile(file, onDone) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    schedules = parsed;
+                    onDone(true);
+                } else {
+                    onDone(false, 'Invalid file format.');
+                }
+            } catch (err) {
+                onDone(false, 'Could not parse JSON file.');
+            }
+        };
+        reader.onerror = () => onDone(false, 'Failed to read file.');
+        reader.readAsText(file);
     }
 
     // ---------- STATE ----------
@@ -63,6 +73,9 @@
     const todayBtn = document.getElementById('todayBtn');
     const createScheduleBtn = document.getElementById('createScheduleBtn');
     const historyBtn = document.getElementById('historyBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    const importFileInput = document.getElementById('importFileInput');
 
     // day list modal
     const dayListOverlay = document.getElementById('dayListOverlay');
@@ -122,7 +135,7 @@
         return new Date(y, m - 1, d);
     }
 
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
     function daysInMonth(year, month) {
         return new Date(year, month + 1, 0).getDate();
@@ -244,7 +257,6 @@
         dayListDateBadge.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
         });
-
         renderDayScheduleList();
         dayListOverlay.classList.add('active');
     }
@@ -279,15 +291,9 @@
                         <div class="card-desc">${escapeHtml(desc)}</div>
                     </div>
                     <div class="card-actions">
-                        <button class="icon-btn view" data-action="view" data-id="${s.id}" title="View details">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="icon-btn edit" data-action="edit" data-id="${s.id}" title="Edit schedule">
-                            <i class="fas fa-pen"></i>
-                        </button>
-                        <button class="icon-btn delete" data-action="delete" data-id="${s.id}" title="Delete schedule">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                        <button class="icon-btn view" data-action="view" data-id="${s.id}" title="View details"><i class="fas fa-eye"></i></button>
+                        <button class="icon-btn edit" data-action="edit" data-id="${s.id}" title="Edit schedule"><i class="fas fa-pen"></i></button>
+                        <button class="icon-btn delete" data-action="delete" data-id="${s.id}" title="Delete schedule"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 </div>
             `;
@@ -300,14 +306,9 @@
                 const action = btn.dataset.action;
                 const id = btn.dataset.id;
                 if (!id || !activeDayListDateKey) return;
-
-                if (action === 'view') {
-                    openViewModal(activeDayListDateKey, id);
-                } else if (action === 'edit') {
-                    openEditFormModal(activeDayListDateKey, id);
-                } else if (action === 'delete') {
-                    deleteScheduleFromList(activeDayListDateKey, id);
-                }
+                if (action === 'view') openViewModal(activeDayListDateKey, id);
+                else if (action === 'edit') openEditFormModal(activeDayListDateKey, id);
+                else if (action === 'delete') deleteScheduleFromList(activeDayListDateKey, id);
             });
         });
     }
@@ -326,29 +327,23 @@
         if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
             renderDayScheduleList();
         }
-        if (historyOverlay.classList.contains('active')) {
-            renderHistory();
-        }
+        if (historyOverlay.classList.contains('active')) renderHistory();
     }
 
     // ---------- VIEW MODAL ----------
     function openViewModal(dateKey, scheduleId) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === scheduleId);
         if (!schedule) return;
-
         const dateObj = getDateFromKey(dateKey);
         viewTitle.textContent = schedule.title;
         viewDescription.textContent = schedule.description || 'No description provided.';
         viewDate.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
-
         viewOverlay.classList.add('active');
     }
 
-    function closeViewModal() {
-        viewOverlay.classList.remove('active');
-    }
+    function closeViewModal() { viewOverlay.classList.remove('active'); }
 
     // ---------- FORM MODAL ----------
     function openCreateFormModal(dateKey) {
@@ -366,7 +361,6 @@
         scheduleTitle.value = '';
         scheduleDescription.value = '';
         updateCharCounter();
-
         modalOverlay.classList.add('active');
         scheduleTitle.focus();
     }
@@ -389,7 +383,6 @@
         scheduleTitle.value = schedule.title;
         scheduleDescription.value = schedule.description || '';
         updateCharCounter();
-
         modalOverlay.classList.add('active');
         scheduleTitle.focus();
     }
@@ -402,11 +395,7 @@
 
     function saveSchedule() {
         const title = scheduleTitle.value.trim();
-        if (!title) {
-            alert('Please enter a title.');
-            scheduleTitle.focus();
-            return;
-        }
+        if (!title) { alert('Please enter a title.'); scheduleTitle.focus(); return; }
 
         const description = scheduleDescription.value.trim().slice(0, 200);
         const dateKey = selectedDateKey;
@@ -415,9 +404,7 @@
         if (editingScheduleId) {
             const daySchedules = schedules[dateKey] || [];
             const index = daySchedules.findIndex(s => s.id === editingScheduleId);
-            if (index !== -1) {
-                daySchedules[index] = { ...daySchedules[index], title, description };
-            }
+            if (index !== -1) daySchedules[index] = { ...daySchedules[index], title, description };
         } else {
             const newId = 'sched_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
             if (!schedules[dateKey]) schedules[dateKey] = [];
@@ -428,12 +415,8 @@
         renderCalendar();
         closeFormModal();
 
-        if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
-            renderDayScheduleList();
-        }
-        if (historyOverlay.classList.contains('active')) {
-            renderHistory();
-        }
+        if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) renderDayScheduleList();
+        if (historyOverlay.classList.contains('active')) renderHistory();
     }
 
     // ---------- DATE PICKER MODAL ----------
@@ -446,16 +429,14 @@
         pickYear.innerHTML = '';
         for (let y = startYear; y <= endYear; y++) {
             const opt = document.createElement('option');
-            opt.value = y;
-            opt.textContent = y;
+            opt.value = y; opt.textContent = y;
             pickYear.appendChild(opt);
         }
 
         pickMonth.innerHTML = '';
         monthNames.forEach((m, idx) => {
             const opt = document.createElement('option');
-            opt.value = idx;
-            opt.textContent = m;
+            opt.value = idx; opt.textContent = m;
             pickMonth.appendChild(opt);
         });
 
@@ -474,8 +455,7 @@
         pickDay.innerHTML = '';
         for (let d = 1; d <= maxDay; d++) {
             const opt = document.createElement('option');
-            opt.value = d;
-            opt.textContent = d;
+            opt.value = d; opt.textContent = d;
             pickDay.appendChild(opt);
         }
         pickDay.value = Math.min(previousDay, maxDay);
@@ -501,25 +481,18 @@
         pickYear.value = currentYear;
         pickMonth.value = currentMonth;
         const now = new Date();
-        if (currentYear === now.getFullYear() && currentMonth === now.getMonth()) {
-            pickDay.value = now.getDate();
-        } else {
-            pickDay.value = 1;
-        }
+        pickDay.value = (currentYear === now.getFullYear() && currentMonth === now.getMonth())
+            ? now.getDate() : 1;
         updateDayOptions();
         updateDatePreview();
         datePickerOverlay.classList.add('active');
     }
 
-    function closeDatePickerModal() {
-        datePickerOverlay.classList.remove('active');
-    }
+    function closeDatePickerModal() { datePickerOverlay.classList.remove('active'); }
 
     function goToPickedDate() {
-        const year = parseInt(pickYear.value, 10);
-        const month = parseInt(pickMonth.value, 10);
-        currentYear = year;
-        currentMonth = month;
+        currentYear = parseInt(pickYear.value, 10);
+        currentMonth = parseInt(pickMonth.value, 10);
         renderCalendar();
         closeDatePickerModal();
     }
@@ -528,9 +501,7 @@
     function getAllSchedulesFlat() {
         const flat = [];
         Object.keys(schedules).forEach(dateKey => {
-            (schedules[dateKey] || []).forEach(s => {
-                flat.push({ dateKey, ...s });
-            });
+            (schedules[dateKey] || []).forEach(s => flat.push({ dateKey, ...s }));
         });
         return flat;
     }
@@ -542,13 +513,11 @@
             if (y) years.add(parseInt(y, 10));
         });
         const sorted = Array.from(years).sort((a, b) => b - a);
-
         const currentVal = historyYearFilter.value;
         historyYearFilter.innerHTML = '<option value="all">All Years</option>';
         sorted.forEach(y => {
             const opt = document.createElement('option');
-            opt.value = y;
-            opt.textContent = y;
+            opt.value = y; opt.textContent = y;
             historyYearFilter.appendChild(opt);
         });
         if (currentVal && (currentVal === 'all' || sorted.includes(parseInt(currentVal, 10)))) {
@@ -560,28 +529,18 @@
         populateHistoryYearFilter();
 
         const all = getAllSchedulesFlat();
-        const totalSchedules = all.length;
-        const uniqueDays = new Set(all.map(s => s.dateKey));
-        const uniqueMonths = new Set(all.map(s => s.dateKey.slice(0, 7)));
-        totalSchedulesCount.textContent = totalSchedules;
-        totalDaysCount.textContent = uniqueDays.size;
-        totalMonthsCount.textContent = uniqueMonths.size;
+        totalSchedulesCount.textContent = all.length;
+        totalDaysCount.textContent = new Set(all.map(s => s.dateKey)).size;
+        totalMonthsCount.textContent = new Set(all.map(s => s.dateKey.slice(0, 7))).size;
 
         const query = historySearch.value.trim().toLowerCase();
         const yearFilter = historyYearFilter.value;
 
         let filtered = all;
-        if (query) {
-            filtered = filtered.filter(s =>
-                s.title.toLowerCase().includes(query) ||
-                (s.description || '').toLowerCase().includes(query)
-            );
-        }
-        if (yearFilter !== 'all') {
-            filtered = filtered.filter(s => s.dateKey.startsWith(yearFilter + '-'));
-        }
+        if (query) filtered = filtered.filter(s =>
+            s.title.toLowerCase().includes(query) || (s.description || '').toLowerCase().includes(query));
+        if (yearFilter !== 'all') filtered = filtered.filter(s => s.dateKey.startsWith(yearFilter + '-'));
 
-        // sort by date key descending (newest first)
         filtered.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
 
         if (filtered.length === 0) {
@@ -595,7 +554,6 @@
             return;
         }
 
-        // Group by month -> date
         const monthGroups = {};
         filtered.forEach(s => {
             const [y, m] = s.dateKey.split('-');
@@ -614,24 +572,14 @@
             const dates = monthGroups[monthKey];
             const sortedDateKeys = Object.keys(dates).sort((a, b) => b.localeCompare(a));
 
-            html += `
-                <div class="history-month-group">
-                    <div class="history-month-header">
-                        <i class="fas fa-calendar-alt"></i> ${monthLabel}
-                    </div>
-            `;
+            html += `<div class="history-month-group"><div class="history-month-header"><i class="fas fa-calendar-alt"></i> ${monthLabel}</div>`;
 
             sortedDateKeys.forEach(dateKey => {
                 const dateObj = getDateFromKey(dateKey);
                 const dateLabel = dateObj.toLocaleDateString('en-US', {
                     weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
                 });
-                html += `
-                    <div class="history-date-group">
-                        <div class="history-date-header">
-                            <i class="fas fa-calendar-day"></i> ${dateLabel}
-                        </div>
-                `;
+                html += `<div class="history-date-group"><div class="history-date-header"><i class="fas fa-calendar-day"></i> ${dateLabel}</div>`;
 
                 dates[dateKey].forEach(s => {
                     html += `
@@ -642,23 +590,15 @@
                                 ${s.description ? `<div class="hs-desc">${escapeHtml(s.description)}</div>` : ''}
                             </div>
                             <div class="hs-actions">
-                                <button class="icon-btn view" data-history-action="view" data-date="${dateKey}" data-id="${s.id}" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button class="icon-btn edit" data-history-action="edit" data-date="${dateKey}" data-id="${s.id}" title="Edit">
-                                    <i class="fas fa-pen"></i>
-                                </button>
-                                <button class="icon-btn delete" data-history-action="delete" data-date="${dateKey}" data-id="${s.id}" title="Delete">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
+                                <button class="icon-btn view" data-history-action="view" data-date="${dateKey}" data-id="${s.id}" title="View"><i class="fas fa-eye"></i></button>
+                                <button class="icon-btn edit" data-history-action="edit" data-date="${dateKey}" data-id="${s.id}" title="Edit"><i class="fas fa-pen"></i></button>
+                                <button class="icon-btn delete" data-history-action="delete" data-date="${dateKey}" data-id="${s.id}" title="Delete"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </div>
                     `;
                 });
-
                 html += `</div>`;
             });
-
             html += `</div>`;
         });
 
@@ -672,14 +612,9 @@
                 const dateKey = btn.dataset.date;
                 const id = btn.dataset.id;
                 if (!dateKey || !id) return;
-
-                if (action === 'view') {
-                    openViewModal(dateKey, id);
-                } else if (action === 'edit') {
-                    openEditFormModal(dateKey, id);
-                } else if (action === 'delete') {
-                    deleteScheduleFromList(dateKey, id);
-                }
+                if (action === 'view') openViewModal(dateKey, id);
+                else if (action === 'edit') openEditFormModal(dateKey, id);
+                else if (action === 'delete') deleteScheduleFromList(dateKey, id);
             });
         });
     }
@@ -691,14 +626,10 @@
         historyOverlay.classList.add('active');
     }
 
-    function closeHistoryModal() {
-        historyOverlay.classList.remove('active');
-    }
+    function closeHistoryModal() { historyOverlay.classList.remove('active'); }
 
     function clearAllHistory() {
-        if (!confirm('Are you sure you want to delete ALL schedules across every year, month, and date? This cannot be undone.')) {
-            return;
-        }
+        if (!confirm('Are you sure you want to delete ALL schedules across every year, month, and date? This cannot be undone.')) return;
         schedules = {};
         saveSchedulesToStorage();
         renderCalendar();
@@ -729,13 +660,29 @@
     monthYearTrigger.addEventListener('click', openDatePickerModal);
 
     createScheduleBtn.addEventListener('click', () => {
-        const todayKey = formatDateKey(new Date());
-        openCreateFormModal(todayKey);
+        openCreateFormModal(formatDateKey(new Date()));
     });
 
     historyBtn.addEventListener('click', openHistoryModal);
 
-    // day list modal
+    // Export / Import wiring
+    exportBtn.addEventListener('click', exportSchedulesToFile);
+    importBtn.addEventListener('click', () => importFileInput.click());
+    importFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        importSchedulesFromFile(file, (ok, msg) => {
+            if (ok) {
+                renderCalendar();
+                if (historyOverlay.classList.contains('active')) renderHistory();
+                alert('Schedules imported successfully.');
+            } else {
+                alert('Import failed: ' + (msg || 'unknown error'));
+            }
+            importFileInput.value = '';
+        });
+    });
+
     closeDayListBtn.addEventListener('click', closeDayListModal);
     dayListOverlay.addEventListener('click', (e) => {
         if (e.target === dayListOverlay) closeDayListModal();
@@ -748,7 +695,6 @@
         openCreateFormModal(dateKey);
     });
 
-    // form modal
     cancelModalBtn.addEventListener('click', closeFormModal);
     saveScheduleBtn.addEventListener('click', saveSchedule);
     scheduleDescription.addEventListener('input', updateCharCounter);
@@ -756,13 +702,11 @@
         if (e.target === modalOverlay) closeFormModal();
     });
 
-    // view modal
     closeViewBtn.addEventListener('click', closeViewModal);
     viewOverlay.addEventListener('click', (e) => {
         if (e.target === viewOverlay) closeViewModal();
     });
 
-    // date picker modal
     pickYear.addEventListener('change', updateDayOptions);
     pickMonth.addEventListener('change', updateDayOptions);
     pickDay.addEventListener('change', updateDatePreview);
@@ -772,7 +716,6 @@
         if (e.target === datePickerOverlay) closeDatePickerModal();
     });
 
-    // history modal
     closeHistoryBtn.addEventListener('click', closeHistoryModal);
     historyOverlay.addEventListener('click', (e) => {
         if (e.target === historyOverlay) closeHistoryModal();
@@ -791,6 +734,6 @@
         }
     });
 
-    // initial render
+    // Initial render
     renderCalendar();
 })();
