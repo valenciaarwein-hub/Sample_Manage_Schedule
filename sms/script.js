@@ -76,6 +76,7 @@
     const exportBtn = document.getElementById('exportBtn');
     const importBtn = document.getElementById('importBtn');
     const importFileInput = document.getElementById('importFileInput');
+    const logoutBtn = document.getElementById('logoutBtn');
 
     // day list modal
     const dayListOverlay = document.getElementById('dayListOverlay');
@@ -681,6 +682,31 @@
             }
             importFileInput.value = '';
         });
+    });
+
+    // ---------- LOGOUT ----------
+    logoutBtn.addEventListener('click', () => {
+        if (!confirm('Are you sure you want to log out?')) return;
+
+        // Clear in-memory schedules (session data)
+        schedules = {};
+
+        // Reset UI state
+        editingScheduleId = null;
+        selectedDateKey = null;
+        activeDayListDateKey = null;
+
+        // Close all open modals
+        dayListOverlay.classList.remove('active');
+        modalOverlay.classList.remove('active');
+        viewOverlay.classList.remove('active');
+        datePickerOverlay.classList.remove('active');
+        historyOverlay.classList.remove('active');
+
+        // Redirect to login page — replace with your actual route
+        // window.location.href = 'login.html';
+
+        alert('You have been logged out.');
     });
 
     closeDayListBtn.addEventListener('click', closeDayListModal);
