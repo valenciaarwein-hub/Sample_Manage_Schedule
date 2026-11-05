@@ -1,3 +1,5 @@
+/* style.css */
+/* ===== RESET & BASE ===== */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -5,73 +7,86 @@ body {
     background: #f8fafc;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     min-height: 100vh;
-    padding: 20px;
+    padding: 16px;
     padding-bottom: 100px;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .app-container {
     max-width: 1300px;
     width: 100%;
     background: white;
-    border-radius: 32px;
+    border-radius: 28px;
     box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.1), 0 10px 15px -6px rgba(0, 0, 0, 0.05);
-    padding: 30px 30px 40px;
+    padding: 24px 24px 32px;
+    overflow: hidden;
 }
 
-/* header */
+/* ===== HEADER ===== */
 .calendar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 28px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
-    gap: 15px;
+    gap: 12px;
 }
 
-.month-year { display: flex; align-items: center; gap: 10px; }
+.month-year { display: flex; align-items: center; gap: 8px; }
 
 .month-year-trigger {
     background: transparent;
     border: none;
     font-family: 'Inter', sans-serif;
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 600;
     color: #0f172a;
     letter-spacing: -0.02em;
     cursor: pointer;
-    padding: 4px 12px;
-    border-radius: 16px;
+    padding: 6px 12px;
+    border-radius: 14px;
     transition: background 0.15s, color 0.15s;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    white-space: nowrap;
 }
 
 .month-year-trigger:hover { background: #f1f5f9; color: #3b82f6; }
-.month-year-trigger i { font-size: 1rem; color: #94a3b8; transition: color 0.15s; }
+.month-year-trigger i { font-size: 0.9rem; color: #94a3b8; transition: color 0.15s; }
 .month-year-trigger:hover i { color: #3b82f6; }
 
-.nav-buttons { display: flex; gap: 8px; }
+.nav-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .nav-btn {
     background: #f1f5f9;
     border: none;
     width: 44px;
     height: 44px;
-    border-radius: 16px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     color: #1e293b;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 
 .nav-btn:hover { background: #e2e8f0; transform: scale(0.96); }
 
+#todayBtn {
+    width: auto;
+    padding: 0 16px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ===== WEEKDAYS ===== */
 .weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -79,24 +94,25 @@ body {
     font-weight: 600;
     color: #64748b;
     text-transform: uppercase;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     letter-spacing: 0.5px;
-    margin-bottom: 10px;
-    padding: 0 4px;
+    margin-bottom: 8px;
+    padding: 0 2px;
 }
 
+/* ===== CALENDAR GRID ===== */
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
-    margin-bottom: 20px;
+    gap: 6px;
+    margin-bottom: 16px;
 }
 
 .day-cell {
     background: white;
-    border-radius: 20px;
-    padding: 10px 8px 12px 8px;
-    min-height: 140px;
+    border-radius: 16px;
+    padding: 8px 6px 10px 6px;
+    min-height: 120px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.05);
     border: 1.5px solid #eef2f6;
     display: flex;
@@ -104,6 +120,8 @@ body {
     transition: border 0.15s, box-shadow 0.15s;
     cursor: pointer;
     position: relative;
+    overflow: hidden;
+    word-break: break-word;
 }
 
 .day-cell:hover { border-color: #cbd5e1; box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.12); }
@@ -114,11 +132,12 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: #334155;
     flex-shrink: 0;
+    min-height: 24px;
 }
 
 .day-number {
@@ -127,7 +146,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 12px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    flex-shrink: 0;
 }
 
 .today .day-number { background: #3b82f6; color: white; font-weight: 600; }
@@ -135,18 +156,18 @@ body {
 .schedule-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    overflow-y: auto;
+    gap: 3px;
+    overflow: hidden;
     flex: 1;
-    padding-right: 2px;
-    margin-bottom: 4px;
+    min-height: 0;
+    padding-right: 1px;
 }
 
 .schedule-item {
     background: #f1f5f9;
-    border-radius: 10px;
-    padding: 5px 8px;
-    font-size: 0.75rem;
+    border-radius: 8px;
+    padding: 4px 6px;
+    font-size: 0.65rem;
     font-weight: 500;
     color: #1e293b;
     white-space: nowrap;
@@ -157,54 +178,60 @@ body {
     transition: background 0.15s;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
+    flex-shrink: 0;
+    max-width: 100%;
 }
 
-.schedule-item i { font-size: 0.6rem; color: #3b82f6; flex-shrink: 0; }
+.schedule-item i { font-size: 0.5rem; color: #3b82f6; flex-shrink: 0; }
+.schedule-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .schedule-item:hover { background: #e2e8f0; }
 
 .empty-hint {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: #94a3b8;
     font-style: italic;
     text-align: center;
-    margin-top: 6px;
+    margin-top: 4px;
     opacity: 0.7;
+    flex-shrink: 0;
 }
 
-/* floating navbar */
+/* ===== FLOATING NAVBAR ===== */
 .floating-navbar {
     position: fixed;
-    bottom: 28px;
+    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     background: white;
-    padding: 12px 20px;
+    padding: 10px 16px;
     border-radius: 60px;
     box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.2), 0 8px 20px -6px rgba(0, 0, 0, 0.15);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.5);
     z-index: 1000;
+    max-width: calc(100vw - 32px);
 }
 
 .floating-navbar .btn-create {
     background: #3b82f6;
     color: white;
     border: none;
-    padding: 12px 28px;
+    padding: 12px 24px;
     border-radius: 40px;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     cursor: pointer;
     transition: background 0.2s, transform 0.1s;
     box-shadow: 0 8px 18px -6px #3b82f6;
     white-space: nowrap;
+    font-family: 'Inter', sans-serif;
 }
 
 .floating-navbar .btn-create:hover { background: #2563eb; }
@@ -214,10 +241,10 @@ body {
     background: #f1f5f9;
     color: #1e293b;
     border: none;
-    padding: 12px 20px;
+    padding: 12px 18px;
     border-radius: 40px;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -230,7 +257,7 @@ body {
 .floating-navbar .btn-history:hover { background: #e2e8f0; }
 .floating-navbar .btn-history:active { transform: scale(0.97); }
 
-/* modal shared */
+/* ===== MODAL OVERLAY ===== */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -243,7 +270,7 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 2000;
-    padding: 20px;
+    padding: 16px;
     visibility: hidden;
     opacity: 0;
     transition: opacity 0.2s, visibility 0.2s;
@@ -253,8 +280,8 @@ body {
 
 .modal {
     background: white;
-    border-radius: 36px;
-    padding: 30px;
+    border-radius: 28px;
+    padding: 24px;
     width: 100%;
     max-width: 520px;
     box-shadow: 0 30px 50px -12px rgba(0, 0, 0, 0.3);
@@ -263,49 +290,52 @@ body {
     max-height: 90vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .active .modal { transform: scale(1); }
 
 .modal h3 {
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     color: #0f172a;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-shrink: 0;
+    flex-wrap: wrap;
 }
 
 .modal .date-badge {
     background: #eff6ff;
     color: #2563eb;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 500;
     padding: 4px 12px;
     border-radius: 40px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     display: inline-block;
     flex-shrink: 0;
+    align-self: flex-start;
 }
 
-.field { margin-bottom: 20px; }
+.field { margin-bottom: 16px; }
 
 .field label {
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 500;
     color: #334155;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .field input, .field textarea {
     width: 100%;
-    padding: 14px 18px;
+    padding: 12px 16px;
     border: 1.5px solid #e2e8f0;
-    border-radius: 20px;
-    font-size: 1rem;
+    border-radius: 16px;
+    font-size: 0.95rem;
     font-family: 'Inter', sans-serif;
     background: #f8fafc;
     transition: border 0.15s, box-shadow 0.15s;
@@ -318,31 +348,32 @@ body {
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
-.field textarea { resize: vertical; min-height: 100px; max-height: 200px; }
+.field textarea { resize: vertical; min-height: 80px; max-height: 160px; }
 
-.char-counter { text-align: right; font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
+.char-counter { text-align: right; font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
 
 .modal-actions {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     justify-content: flex-end;
-    margin-top: 28px;
+    margin-top: 20px;
     flex-wrap: wrap;
     flex-shrink: 0;
 }
 
 .btn {
-    padding: 12px 22px;
+    padding: 10px 20px;
     border-radius: 30px;
     font-weight: 600;
     border: none;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     transition: background 0.15s, transform 0.1s;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-family: 'Inter', sans-serif;
+    white-space: nowrap;
 }
 
 .btn:active { transform: scale(0.97); }
@@ -353,16 +384,17 @@ body {
 .btn-danger { background: #fee2e2; color: #b91c1c; }
 .btn-danger:hover { background: #fecaca; }
 
-/* day schedule list modal */
+/* ===== DAY SCHEDULE LIST MODAL ===== */
 .day-schedule-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     overflow-y: auto;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     padding-right: 4px;
     flex: 1;
-    min-height: 100px;
+    min-height: 80px;
+    max-height: 50vh;
 }
 
 .day-schedule-list::-webkit-scrollbar { width: 4px; }
@@ -371,12 +403,13 @@ body {
 .day-schedule-card {
     background: #f8fafc;
     border: 1.5px solid #eef2f6;
-    border-radius: 18px;
-    padding: 14px 16px;
+    border-radius: 16px;
+    padding: 12px 14px;
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
     transition: border-color 0.15s, box-shadow 0.15s;
+    flex-wrap: wrap;
 }
 
 .day-schedule-card:hover {
@@ -390,7 +423,7 @@ body {
     background: #3b82f6;
     border-radius: 4px;
     flex-shrink: 0;
-    min-height: 36px;
+    min-height: 32px;
 }
 
 .day-schedule-card .card-body {
@@ -400,25 +433,22 @@ body {
 
 .day-schedule-card .card-title {
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: #0f172a;
     margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
 }
 
 .day-schedule-card .card-desc {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #64748b;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
+    white-space: pre-wrap;
 }
 
 .day-schedule-card .card-actions {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     flex-shrink: 0;
     align-self: center;
 }
@@ -426,14 +456,15 @@ body {
 .icon-btn {
     width: 34px;
     height: 34px;
-    border-radius: 12px;
+    border-radius: 10px;
     border: none;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     transition: background 0.15s, transform 0.1s, color 0.15s;
+    flex-shrink: 0;
 }
 
 .icon-btn:active { transform: scale(0.92); }
@@ -449,14 +480,14 @@ body {
     background: #eff6ff;
     color: #2563eb;
     border: 1.5px dashed #93c5fd;
-    padding: 14px 20px;
-    border-radius: 18px;
+    padding: 12px 18px;
+    border-radius: 16px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
     width: 100%;
@@ -468,71 +499,73 @@ body {
 
 .empty-day-message {
     text-align: center;
-    padding: 30px 20px;
+    padding: 24px 16px;
     color: #94a3b8;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
 .empty-day-message i {
-    font-size: 2rem;
+    font-size: 1.8rem;
     color: #cbd5e1;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     display: block;
 }
 
-/* view modal (detail) */
+/* ===== VIEW MODAL ===== */
 .detail-view {
     background: #f8fafc;
-    border-radius: 20px;
-    padding: 20px;
-    margin-bottom: 8px;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 6px;
     border: 1.5px solid #eef2f6;
+    overflow-y: auto;
+    max-height: 50vh;
 }
 
 .detail-view .detail-label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
     color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 .detail-view .detail-value {
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: #0f172a;
     font-weight: 500;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     word-break: break-word;
     white-space: pre-wrap;
 }
 
 .detail-view .detail-value:last-child { margin-bottom: 0; }
 
-/* date picker modal */
+/* ===== DATE PICKER MODAL ===== */
 .date-picker-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
 .date-picker-field label {
     display: block;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .date-picker-field select {
     width: 100%;
-    padding: 12px 14px;
+    padding: 10px 12px;
     border: 1.5px solid #e2e8f0;
-    border-radius: 16px;
-    font-size: 0.95rem;
+    border-radius: 14px;
+    font-size: 0.9rem;
     font-family: 'Inter', sans-serif;
     background: #f8fafc;
     outline: none;
@@ -548,34 +581,35 @@ body {
 
 .date-preview {
     background: #eff6ff;
-    border-radius: 16px;
-    padding: 14px 20px;
-    margin-bottom: 24px;
+    border-radius: 14px;
+    padding: 12px 18px;
+    margin-bottom: 20px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     font-weight: 500;
     color: #1e40af;
+    flex-wrap: wrap;
 }
 
-.date-preview i { font-size: 1.2rem; color: #3b82f6; }
-.date-preview span { font-size: 1.05rem; }
+.date-preview i { font-size: 1.1rem; color: #3b82f6; flex-shrink: 0; }
+.date-preview span { font-size: 0.95rem; }
 
-/* history modal */
+/* ===== HISTORY MODAL ===== */
 .history-modal {
     max-width: 640px;
 }
 
 .history-controls {
     display: flex;
-    gap: 10px;
-    margin-bottom: 16px;
+    gap: 8px;
+    margin-bottom: 12px;
     flex-wrap: wrap;
 }
 
 .history-search-wrap {
     flex: 1;
-    min-width: 180px;
+    min-width: 160px;
     position: relative;
     display: flex;
     align-items: center;
@@ -583,18 +617,18 @@ body {
 
 .history-search-wrap i {
     position: absolute;
-    left: 16px;
+    left: 14px;
     color: #94a3b8;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     pointer-events: none;
 }
 
 .history-search-wrap input {
     width: 100%;
-    padding: 12px 16px 12px 40px;
+    padding: 10px 14px 10px 36px;
     border: 1.5px solid #e2e8f0;
-    border-radius: 16px;
-    font-size: 0.9rem;
+    border-radius: 14px;
+    font-size: 0.85rem;
     font-family: 'Inter', sans-serif;
     background: #f8fafc;
     outline: none;
@@ -608,16 +642,16 @@ body {
 }
 
 .history-select {
-    padding: 12px 16px;
+    padding: 10px 14px;
     border: 1.5px solid #e2e8f0;
-    border-radius: 16px;
-    font-size: 0.9rem;
+    border-radius: 14px;
+    font-size: 0.85rem;
     font-family: 'Inter', sans-serif;
     background: #f8fafc;
     outline: none;
     cursor: pointer;
     transition: border 0.15s;
-    min-width: 130px;
+    min-width: 110px;
 }
 
 .history-select:focus {
@@ -628,13 +662,13 @@ body {
 
 .history-stats {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
     background: #eff6ff;
-    border-radius: 16px;
-    padding: 12px 18px;
-    margin-bottom: 16px;
-    font-size: 0.85rem;
+    border-radius: 14px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 0.8rem;
     color: #1e40af;
     font-weight: 500;
 }
@@ -642,72 +676,74 @@ body {
 .history-stats span {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
 }
 
 .history-stats i {
     color: #3b82f6;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
 }
 
 .history-list {
     overflow-y: auto;
     flex: 1;
-    min-height: 120px;
+    min-height: 100px;
+    max-height: 50vh;
     padding-right: 4px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .history-list::-webkit-scrollbar { width: 4px; }
 .history-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
 .history-month-group {
-    margin-bottom: 18px;
+    margin-bottom: 14px;
 }
 
 .history-month-header {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 6px 0;
+    padding: 4px 0;
     border-bottom: 1.5px solid #eef2f6;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.history-month-header i { color: #3b82f6; font-size: 0.8rem; }
-
-.history-date-group {
-    margin-bottom: 12px;
-    padding-left: 6px;
-}
-
-.history-date-header {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #64748b;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.history-date-header i { color: #94a3b8; font-size: 0.7rem; }
+.history-month-header i { color: #3b82f6; font-size: 0.75rem; }
+
+.history-date-group {
+    margin-bottom: 10px;
+    padding-left: 4px;
+}
+
+.history-date-header {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.history-date-header i { color: #94a3b8; font-size: 0.65rem; }
 
 .history-schedule-item {
     background: #f8fafc;
     border: 1.5px solid #eef2f6;
-    border-radius: 14px;
-    padding: 10px 14px;
-    margin-bottom: 6px;
+    border-radius: 12px;
+    padding: 8px 12px;
+    margin-bottom: 5px;
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: 8px;
     transition: border-color 0.15s, box-shadow 0.15s;
+    flex-wrap: wrap;
 }
 
 .history-schedule-item:hover {
@@ -721,7 +757,7 @@ body {
     background: #3b82f6;
     border-radius: 3px;
     flex-shrink: 0;
-    min-height: 30px;
+    min-height: 28px;
 }
 
 .history-schedule-item .hs-body {
@@ -731,14 +767,14 @@ body {
 
 .history-schedule-item .hs-title {
     font-weight: 600;
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     color: #0f172a;
     margin-bottom: 1px;
     word-break: break-word;
 }
 
 .history-schedule-item .hs-desc {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #64748b;
     word-break: break-word;
     white-space: pre-wrap;
@@ -746,45 +782,521 @@ body {
 
 .history-schedule-item .hs-actions {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     flex-shrink: 0;
     align-self: center;
 }
 
 .history-schedule-item .hs-actions .icon-btn {
-    width: 30px;
-    height: 30px;
-    font-size: 0.75rem;
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
 }
 
 .history-empty {
     text-align: center;
-    padding: 30px 20px;
+    padding: 24px 16px;
     color: #94a3b8;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
 .history-empty i {
-    font-size: 2rem;
+    font-size: 1.8rem;
     color: #cbd5e1;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     display: block;
 }
 
-@media (max-width: 800px) {
-    .app-container { padding: 16px; }
-    .day-cell { min-height: 110px; padding: 6px; }
-    .schedule-item { font-size: 0.65rem; padding: 4px 6px; }
-    .month-year-trigger { font-size: 1.4rem; padding: 2px 8px; }
-    .month-year-trigger i { font-size: 0.8rem; }
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+
+/* Tablet */
+@media (max-width: 900px) {
+    .app-container {
+        padding: 18px 16px 24px;
+        border-radius: 22px;
+    }
+
+    .day-cell {
+        min-height: 100px;
+        padding: 6px 4px 8px 4px;
+        border-radius: 14px;
+    }
+
+    .day-header {
+        font-size: 0.78rem;
+        margin-bottom: 4px;
+        min-height: 20px;
+    }
+
+    .day-number {
+        width: 20px;
+        height: 20px;
+        font-size: 0.75rem;
+        border-radius: 8px;
+    }
+
+    .schedule-item {
+        font-size: 0.6rem;
+        padding: 3px 5px;
+        border-radius: 6px;
+        border-left-width: 2px;
+    }
+
+    .schedule-item i {
+        font-size: 0.4rem;
+    }
+
+    .empty-hint {
+        font-size: 0.6rem;
+    }
+
+    .calendar-grid {
+        gap: 4px;
+    }
+
+    .month-year-trigger {
+        font-size: 1.3rem;
+        padding: 4px 10px;
+    }
+
+    .month-year-trigger i {
+        font-size: 0.75rem;
+    }
+
+    .nav-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 0.95rem;
+        border-radius: 12px;
+    }
+
+    #todayBtn {
+        padding: 0 12px;
+        font-size: 0.8rem;
+    }
+
+    .weekdays {
+        font-size: 0.62rem;
+        margin-bottom: 6px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    body {
+        padding: 8px;
+        padding-bottom: 90px;
+        align-items: flex-start;
+    }
+
+    .app-container {
+        padding: 14px 10px 20px;
+        border-radius: 18px;
+    }
+
+    .calendar-header {
+        margin-bottom: 14px;
+        gap: 8px;
+    }
+
+    .month-year-trigger {
+        font-size: 1.05rem;
+        padding: 4px 8px;
+        gap: 6px;
+        border-radius: 12px;
+    }
+
+    .month-year-trigger i {
+        font-size: 0.65rem;
+    }
+
+    .nav-buttons {
+        gap: 4px;
+    }
+
+    .nav-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 0.85rem;
+        border-radius: 10px;
+    }
+
+    #todayBtn {
+        padding: 0 10px;
+        font-size: 0.75rem;
+        height: 34px;
+    }
+
+    .weekdays {
+        font-size: 0.55rem;
+        letter-spacing: 0.3px;
+        margin-bottom: 4px;
+        padding: 0;
+    }
+
+    .calendar-grid {
+        gap: 3px;
+        margin-bottom: 12px;
+    }
+
+    .day-cell {
+        min-height: 72px;
+        padding: 4px 3px 6px 3px;
+        border-radius: 10px;
+        border-width: 1px;
+    }
+
+    .day-cell.today {
+        border-width: 1.5px;
+    }
+
+    .day-header {
+        margin-bottom: 2px;
+        min-height: 16px;
+    }
+
+    .day-number {
+        width: 18px;
+        height: 18px;
+        font-size: 0.65rem;
+        border-radius: 7px;
+    }
+
+    .schedule-list {
+        gap: 2px;
+    }
+
+    .schedule-item {
+        font-size: 0.5rem;
+        padding: 2px 3px;
+        border-radius: 4px;
+        border-left-width: 2px;
+        gap: 2px;
+    }
+
+    .schedule-item i {
+        display: none;
+    }
+
+    .schedule-item span {
+        font-size: 0.5rem;
+    }
+
+    .empty-hint {
+        font-size: 0.5rem;
+        margin-top: 2px;
+    }
+
+    /* floating navbar mobile */
+    .floating-navbar {
+        bottom: 14px;
+        padding: 8px 12px;
+        gap: 6px;
+        border-radius: 50px;
+    }
+
+    .floating-navbar .btn-create {
+        padding: 10px;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        justify-content: center;
+    }
+
     .floating-navbar .btn-create span { display: none; }
-    .floating-navbar .btn-create { padding: 14px; border-radius: 50%; }
-    .floating-navbar .btn-create i { font-size: 1.2rem; }
+    .floating-navbar .btn-create i { font-size: 1.15rem; }
+
+    .floating-navbar .btn-history {
+        padding: 10px;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        justify-content: center;
+    }
+
     .floating-navbar .btn-history span { display: none; }
-    .floating-navbar .btn-history { padding: 14px; border-radius: 50%; }
-    .floating-navbar .btn-history i { font-size: 1.2rem; }
-    .date-picker-row { grid-template-columns: 1fr 1fr; }
-    .date-picker-row .date-picker-field:last-child { grid-column: 1 / -1; }
-    .modal { padding: 22px; max-height: 92vh; }
-    .day-schedule-card { padding: 12px; }
+    .floating-navbar .btn-history i { font-size: 1.15rem; }
+
+    /* modal mobile */
+    .modal-overlay {
+        padding: 10px;
+        align-items: flex-end;
+    }
+
+    .modal {
+        padding: 18px;
+        border-radius: 22px;
+        max-height: 92vh;
+        border-bottom-left-radius: 22px;
+        border-bottom-right-radius: 22px;
+    }
+
+    .modal h3 {
+        font-size: 1.15rem;
+        gap: 6px;
+    }
+
+    .modal .date-badge {
+        font-size: 0.78rem;
+        padding: 3px 10px;
+        margin-bottom: 12px;
+    }
+
+    .field input, .field textarea {
+        padding: 10px 14px;
+        font-size: 0.9rem;
+        border-radius: 14px;
+    }
+
+    .field textarea {
+        min-height: 70px;
+    }
+
+    .btn {
+        padding: 9px 16px;
+        font-size: 0.82rem;
+        border-radius: 24px;
+    }
+
+    .modal-actions {
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .date-picker-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .date-picker-row .date-picker-field:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .date-picker-field select {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+        border-radius: 12px;
+    }
+
+    .date-preview {
+        padding: 10px 14px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        gap: 8px;
+    }
+
+    .date-preview i {
+        font-size: 0.95rem;
+    }
+
+    .date-preview span {
+        font-size: 0.85rem;
+    }
+
+    /* day list modal mobile */
+    .day-schedule-card {
+        padding: 10px 12px;
+        border-radius: 14px;
+        gap: 8px;
+    }
+
+    .day-schedule-card .card-title {
+        font-size: 0.82rem;
+    }
+
+    .day-schedule-card .card-desc {
+        font-size: 0.68rem;
+    }
+
+    .day-schedule-card .card-actions {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 4px;
+        padding-top: 6px;
+        border-top: 1px solid #eef2f6;
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.75rem;
+        border-radius: 9px;
+    }
+
+    .btn-add-schedule {
+        padding: 10px 16px;
+        font-size: 0.8rem;
+        border-radius: 14px;
+    }
+
+    /* history modal mobile */
+    .history-controls {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .history-search-wrap {
+        min-width: 100%;
+    }
+
+    .history-search-wrap input {
+        padding: 9px 12px 9px 32px;
+        font-size: 0.8rem;
+        border-radius: 12px;
+    }
+
+    .history-search-wrap i {
+        left: 12px;
+        font-size: 0.72rem;
+    }
+
+    .history-select {
+        padding: 9px 12px;
+        font-size: 0.8rem;
+        border-radius: 12px;
+        width: 100%;
+    }
+
+    .history-stats {
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 0.72rem;
+        border-radius: 12px;
+    }
+
+    .history-stats i {
+        font-size: 0.7rem;
+    }
+
+    .history-month-header {
+        font-size: 0.72rem;
+        padding: 3px 0;
+        margin-bottom: 6px;
+    }
+
+    .history-date-header {
+        font-size: 0.65rem;
+        margin-bottom: 3px;
+    }
+
+    .history-schedule-item {
+        padding: 7px 10px;
+        border-radius: 10px;
+        gap: 6px;
+    }
+
+    .history-schedule-item .hs-title {
+        font-size: 0.75rem;
+    }
+
+    .history-schedule-item .hs-desc {
+        font-size: 0.65rem;
+    }
+
+    .history-schedule-item .hs-actions {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 3px;
+        padding-top: 5px;
+        border-top: 1px solid #eef2f6;
+    }
+
+    .history-schedule-item .hs-actions .icon-btn {
+        width: 26px;
+        height: 26px;
+        font-size: 0.65rem;
+        border-radius: 8px;
+    }
+
+    .detail-view {
+        padding: 12px;
+        border-radius: 14px;
+    }
+
+    .detail-view .detail-label {
+        font-size: 0.65rem;
+    }
+
+    .detail-view .detail-value {
+        font-size: 0.88rem;
+        margin-bottom: 12px;
+    }
+}
+
+/* Very small mobile (e.g. iPhone SE) */
+@media (max-width: 380px) {
+    .app-container {
+        padding: 10px 6px 16px;
+        border-radius: 14px;
+    }
+
+    .month-year-trigger {
+        font-size: 0.9rem;
+        padding: 3px 6px;
+    }
+
+    .nav-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 0.75rem;
+        border-radius: 8px;
+    }
+
+    #todayBtn {
+        height: 30px;
+        font-size: 0.68rem;
+        padding: 0 8px;
+    }
+
+    .weekdays {
+        font-size: 0.48rem;
+    }
+
+    .day-cell {
+        min-height: 62px;
+        padding: 3px 2px 4px 2px;
+        border-radius: 8px;
+    }
+
+    .day-number {
+        width: 16px;
+        height: 16px;
+        font-size: 0.58rem;
+        border-radius: 6px;
+    }
+
+    .day-header {
+        min-height: 14px;
+        margin-bottom: 1px;
+    }
+
+    .schedule-item {
+        font-size: 0.42rem;
+        padding: 1px 2px;
+        border-radius: 3px;
+    }
+
+    .schedule-item span {
+        font-size: 0.42rem;
+    }
+
+    .empty-hint {
+        font-size: 0.42rem;
+    }
+
+    .floating-navbar {
+        padding: 6px 8px;
+        gap: 4px;
+    }
+
+    .floating-navbar .btn-create,
+    .floating-navbar .btn-history {
+        width: 42px;
+        height: 42px;
+    }
+
+    .floating-navbar .btn-create i,
+    .floating-navbar .btn-history i {
+        font-size: 1rem;
+    }
 }
