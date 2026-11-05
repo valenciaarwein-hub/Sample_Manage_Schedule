@@ -1,34 +1,59 @@
 (function() {
-    // ---------- DATA ----------
-    let schedules = {};
+    // ---------- PERSISTENT STORAGE ----------
+    const STORAGE_KEY = 'schedule_manager_data_v1';
 
-    // Sample data
-    const today = new Date();
-    const sampleDate = new Date(today.getFullYear(), today.getMonth(), 15);
-    const sampleKey = formatDateKey(sampleDate);
-    schedules[sampleKey] = [
-        { id: 's1', title: 'Project kickoff', description: 'Discuss scope and timeline for Q2 launch' },
-        { id: 's2', title: 'Design review', description: 'Review new mockups with the product team' }
-    ];
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowKey = formatDateKey(tomorrow);
-    schedules[tomorrowKey] = [
-        { id: 's3', title: 'Client call', description: 'Follow-up on proposal and next steps' }
-    ];
+    function loadSchedules() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') return parsed;
+            }
+        } catch (err) {
+            console.warn('Failed to load schedules from storage:', err);
+        }
+        return null;
+    }
 
-    // state
+    function saveSchedulesToStorage() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules));
+        } catch (err) {
+            console.warn('Failed to save schedules to storage:', err);
+        }
+    }
+
+    // Load from storage, or fall back to sample data on first run
+    let schedules = loadSchedules();
+    if (!schedules) {
+        schedules = {};
+        const today = new Date();
+        const sampleDate = new Date(today.getFullYear(), today.getMonth(), 15);
+        const sampleKey = formatDateKey(sampleDate);
+        schedules[sampleKey] = [
+            { id: 's1', title: 'Project kickoff', description: 'Discuss scope and timeline for Q2 launch' },
+            { id: 's2', title: 'Design review', description: 'Review new mockups with the product team' }
+        ];
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowKey = formatDateKey(tomorrow);
+        schedules[tomorrowKey] = [
+            { id: 's3', title: 'Client call', description: 'Follow-up on proposal and next steps' }
+        ];
+        saveSchedulesToStorage();
+    }
+
+    // ---------- STATE ----------
     let currentDate = new Date();
     currentDate.setDate(1);
     let currentYear = currentDate.getFullYear();
     let currentMonth = currentDate.getMonth();
 
-    // modal state
     let editingScheduleId = null;
     let selectedDateKey = null;
     let activeDayListDateKey = null;
 
-    // DOM elements
+    // ---------- DOM ELEMENTS ----------
     const monthYearText = document.getElementById('monthYearText');
     const monthYearTrigger = document.getElementById('monthYearTrigger');
     const calendarGrid = document.getElementById('calendarGrid');
@@ -36,6 +61,7 @@
     const nextMonthBtn = document.getElementById('nextMonthBtn');
     const todayBtn = document.getElementById('todayBtn');
     const createScheduleBtn = document.getElementById('createScheduleBtn');
+    const historyBtn = document.getElementById('historyBtn');
 
     // day list modal
     const dayListOverlay = document.getElementById('dayListOverlay');
@@ -69,6 +95,18 @@
     const datePreviewText = document.getElementById('datePreviewText');
     const cancelDatePickerBtn = document.getElementById('cancelDatePickerBtn');
     const goToDateBtn = document.getElementById('goToDateBtn');
+
+    // history modal
+    const historyOverlay = document.getElementById('historyOverlay');
+    const historySearch = document.getElementById('historySearch');
+    const historyYearFilter = document.getElementById('historyYearFilter');
+    const historyStats = document.getElementById('historyStats');
+    const totalSchedulesCount = document.getElementById('totalSchedulesCount');
+    const totalDaysCount = document.getElementById('totalDaysCount');
+    const totalMonthsCount = document.getElementById('totalMonthsCount');
+    const historyList = document.getElementById('historyList');
+    const clearAllHistoryBtn = document.getElementById('clearAllHistoryBtn');
+    const closeHistoryBtn = document.getElementById('closeHistoryBtn');
 
     // ---------- HELPERS ----------
     function formatDateKey(date) {
@@ -282,9 +320,13 @@
         schedules[dateKey] = daySchedules.filter(s => s.id !== id);
         if (schedules[dateKey].length === 0) delete schedules[dateKey];
 
+        saveSchedulesToStorage();
         renderCalendar();
         if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
             renderDayScheduleList();
+        }
+        if (historyOverlay.classList.contains('active')) {
+            renderHistory();
         }
     }
 
@@ -381,11 +423,15 @@
             schedules[dateKey].push({ id: newId, title, description });
         }
 
+        saveSchedulesToStorage();
         renderCalendar();
         closeFormModal();
 
         if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
             renderDayScheduleList();
+        }
+        if (historyOverlay.classList.contains('active')) {
+            renderHistory();
         }
     }
 
@@ -477,6 +523,188 @@
         closeDatePickerModal();
     }
 
+    // ---------- HISTORY MODAL ----------
+    function getAllSchedulesFlat() {
+        const flat = [];
+        Object.keys(schedules).forEach(dateKey => {
+            (schedules[dateKey] || []).forEach(s => {
+                flat.push({ dateKey, ...s });
+            });
+        });
+        return flat;
+    }
+
+    function populateHistoryYearFilter() {
+        const years = new Set();
+        Object.keys(schedules).forEach(dateKey => {
+            const y = dateKey.split('-')[0];
+            if (y) years.add(parseInt(y, 10));
+        });
+        const sorted = Array.from(years).sort((a, b) => b - a);
+
+        const currentVal = historyYearFilter.value;
+        historyYearFilter.innerHTML = '<option value="all">All Years</option>';
+        sorted.forEach(y => {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = y;
+            historyYearFilter.appendChild(opt);
+        });
+        if (currentVal && (currentVal === 'all' || sorted.includes(parseInt(currentVal, 10)))) {
+            historyYearFilter.value = currentVal;
+        }
+    }
+
+    function renderHistory() {
+        populateHistoryYearFilter();
+
+        const all = getAllSchedulesFlat();
+        const totalSchedules = all.length;
+        const uniqueDays = new Set(all.map(s => s.dateKey));
+        const uniqueMonths = new Set(all.map(s => s.dateKey.slice(0, 7)));
+        totalSchedulesCount.textContent = totalSchedules;
+        totalDaysCount.textContent = uniqueDays.size;
+        totalMonthsCount.textContent = uniqueMonths.size;
+
+        const query = historySearch.value.trim().toLowerCase();
+        const yearFilter = historyYearFilter.value;
+
+        let filtered = all;
+        if (query) {
+            filtered = filtered.filter(s =>
+                s.title.toLowerCase().includes(query) ||
+                (s.description || '').toLowerCase().includes(query)
+            );
+        }
+        if (yearFilter !== 'all') {
+            filtered = filtered.filter(s => s.dateKey.startsWith(yearFilter + '-'));
+        }
+
+        // sort by date key descending (newest first)
+        filtered.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+
+        if (filtered.length === 0) {
+            historyList.innerHTML = `
+                <div class="history-empty">
+                    <i class="fas fa-folder-open"></i>
+                    No schedules found${query || yearFilter !== 'all' ? ' matching your filters' : ' yet'}.
+                </div>
+            `;
+            clearAllHistoryBtn.style.display = all.length > 0 ? 'inline-flex' : 'none';
+            return;
+        }
+
+        // Group by month -> date
+        const monthGroups = {};
+        filtered.forEach(s => {
+            const [y, m] = s.dateKey.split('-');
+            const monthKey = `${y}-${m}`;
+            if (!monthGroups[monthKey]) monthGroups[monthKey] = {};
+            if (!monthGroups[monthKey][s.dateKey]) monthGroups[monthKey][s.dateKey] = [];
+            monthGroups[monthKey][s.dateKey].push(s);
+        });
+
+        const sortedMonthKeys = Object.keys(monthGroups).sort((a, b) => b.localeCompare(a));
+
+        let html = '';
+        sortedMonthKeys.forEach(monthKey => {
+            const [y, m] = monthKey.split('-');
+            const monthLabel = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+            const dates = monthGroups[monthKey];
+            const sortedDateKeys = Object.keys(dates).sort((a, b) => b.localeCompare(a));
+
+            html += `
+                <div class="history-month-group">
+                    <div class="history-month-header">
+                        <i class="fas fa-calendar-alt"></i> ${monthLabel}
+                    </div>
+            `;
+
+            sortedDateKeys.forEach(dateKey => {
+                const dateObj = getDateFromKey(dateKey);
+                const dateLabel = dateObj.toLocaleDateString('en-US', {
+                    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+                });
+                html += `
+                    <div class="history-date-group">
+                        <div class="history-date-header">
+                            <i class="fas fa-calendar-day"></i> ${dateLabel}
+                        </div>
+                `;
+
+                dates[dateKey].forEach(s => {
+                    html += `
+                        <div class="history-schedule-item">
+                            <div class="hs-accent"></div>
+                            <div class="hs-body">
+                                <div class="hs-title">${escapeHtml(s.title)}</div>
+                                ${s.description ? `<div class="hs-desc">${escapeHtml(s.description)}</div>` : ''}
+                            </div>
+                            <div class="hs-actions">
+                                <button class="icon-btn view" data-history-action="view" data-date="${dateKey}" data-id="${s.id}" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="icon-btn edit" data-history-action="edit" data-date="${dateKey}" data-id="${s.id}" title="Edit">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button class="icon-btn delete" data-history-action="delete" data-date="${dateKey}" data-id="${s.id}" title="Delete">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+            });
+
+            html += `</div>`;
+        });
+
+        historyList.innerHTML = html;
+        clearAllHistoryBtn.style.display = all.length > 0 ? 'inline-flex' : 'none';
+
+        historyList.querySelectorAll('[data-history-action]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.historyAction;
+                const dateKey = btn.dataset.date;
+                const id = btn.dataset.id;
+                if (!dateKey || !id) return;
+
+                if (action === 'view') {
+                    openViewModal(dateKey, id);
+                } else if (action === 'edit') {
+                    openEditFormModal(dateKey, id);
+                } else if (action === 'delete') {
+                    deleteScheduleFromList(dateKey, id);
+                }
+            });
+        });
+    }
+
+    function openHistoryModal() {
+        historySearch.value = '';
+        historyYearFilter.value = 'all';
+        renderHistory();
+        historyOverlay.classList.add('active');
+    }
+
+    function closeHistoryModal() {
+        historyOverlay.classList.remove('active');
+    }
+
+    function clearAllHistory() {
+        if (!confirm('Are you sure you want to delete ALL schedules across every year, month, and date? This cannot be undone.')) {
+            return;
+        }
+        schedules = {};
+        saveSchedulesToStorage();
+        renderCalendar();
+        closeHistoryModal();
+        if (dayListOverlay.classList.contains('active')) closeDayListModal();
+    }
+
     // ---------- EVENT LISTENERS ----------
     prevMonthBtn.addEventListener('click', () => {
         currentMonth--;
@@ -499,11 +727,12 @@
 
     monthYearTrigger.addEventListener('click', openDatePickerModal);
 
-    // floating create button -> opens create form for TODAY
     createScheduleBtn.addEventListener('click', () => {
         const todayKey = formatDateKey(new Date());
         openCreateFormModal(todayKey);
     });
+
+    historyBtn.addEventListener('click', openHistoryModal);
 
     // day list modal
     closeDayListBtn.addEventListener('click', closeDayListModal);
@@ -542,8 +771,18 @@
         if (e.target === datePickerOverlay) closeDatePickerModal();
     });
 
+    // history modal
+    closeHistoryBtn.addEventListener('click', closeHistoryModal);
+    historyOverlay.addEventListener('click', (e) => {
+        if (e.target === historyOverlay) closeHistoryModal();
+    });
+    historySearch.addEventListener('input', renderHistory);
+    historyYearFilter.addEventListener('change', renderHistory);
+    clearAllHistoryBtn.addEventListener('click', clearAllHistory);
+
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            if (historyOverlay.classList.contains('active')) closeHistoryModal();
             if (dayListOverlay.classList.contains('active')) closeDayListModal();
             if (modalOverlay.classList.contains('active')) closeFormModal();
             if (viewOverlay.classList.contains('active')) closeViewModal();
