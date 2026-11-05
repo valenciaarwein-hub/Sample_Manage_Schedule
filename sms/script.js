@@ -62,7 +62,7 @@
     let editingScheduleId = null;
     let selectedDateKey = null;
     let activeDayListDateKey = null;
-    let reopenHistoryAfterEdit = false; // ← tracks if edit was launched from history
+    let reopenHistoryAfterEdit = false; // tracks if form/view was opened from history
 
     // ---------- DOM ELEMENTS ----------
     const monthYearText = document.getElementById('monthYearText');
@@ -134,15 +134,6 @@
     // ---------- CONFIRMATION MODAL HELPER ----------
     let pendingConfirmAction = null;
 
-    /**
-     * Opens the custom confirmation modal.
-     * @param {Object} opts
-     * @param {string} opts.title       - Title text
-     * @param {string} opts.message     - Body message
-     * @param {string} opts.okText      - OK button label
-     * @param {string} opts.iconClass   - 'danger' | 'warning' | 'info'
-     * @param {Function} opts.onConfirm - Callback fired when user confirms
-     */
     function openConfirmModal(opts) {
         const {
             title = 'Are you sure?',
@@ -371,7 +362,7 @@
                 const id = btn.dataset.id;
                 if (!id || !activeDayListDateKey) return;
                 if (action === 'view') openViewModal(activeDayListDateKey, id);
-                else if (action === 'edit') openEditFormModal(activeDayListDateKey, id);
+                else if (action === 'edit') openEditFormModal(activeDayListDateKey, id, false);
                 else if (action === 'delete') deleteScheduleFromList(activeDayListDateKey, id);
             });
         });
@@ -403,9 +394,11 @@
     }
 
     // ---------- VIEW MODAL ----------
-    function openViewModal(dateKey, scheduleId) {
+    function openViewModal(dateKey, scheduleId, fromHistory = false) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === scheduleId);
         if (!schedule) return;
+        reopenHistoryAfterEdit = fromHistory;
+
         const dateObj = getDateFromKey(dateKey);
         viewTitle.textContent = schedule.title;
         viewDescription.textContent = schedule.description || 'No description provided.';
@@ -415,10 +408,19 @@
         viewOverlay.classList.add('active');
     }
 
-    function closeViewModal() { viewOverlay.classList.remove('active'); }
+    function closeViewModal() {
+        viewOverlay.classList.remove('active');
+
+        // If opened from history, go back to history
+        if (reopenHistoryAfterEdit) {
+            reopenHistoryAfterEdit = false;
+            openHistoryModal();
+        }
+    }
 
     // ---------- FORM MODAL ----------
     function openCreateFormModal(dateKey) {
+        reopenHistoryAfterEdit = false; // create never comes from history
         editingScheduleId = null;
         selectedDateKey = dateKey;
         document.getElementById('editingId').value = '';
@@ -437,9 +439,11 @@
         scheduleTitle.focus();
     }
 
-    function openEditFormModal(dateKey, scheduleId) {
+    function openEditFormModal(dateKey, scheduleId, fromHistory = false) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === scheduleId);
         if (!schedule) return;
+
+        reopenHistoryAfterEdit = fromHistory;
 
         editingScheduleId = scheduleId;
         selectedDateKey = dateKey;
@@ -463,7 +467,12 @@
         modalOverlay.classList.remove('active');
         editingScheduleId = null;
         selectedDateKey = null;
-        reopenHistoryAfterEdit = false; // reset flag
+
+        // If the form was opened from History, reopen it on close/cancel
+        if (reopenHistoryAfterEdit) {
+            reopenHistoryAfterEdit = false;
+            openHistoryModal();
+        }
     }
 
     function saveSchedule() {
@@ -487,8 +496,14 @@
         saveSchedulesToStorage();
         renderCalendar();
 
+        // Capture flag BEFORE closeFormModal resets it
         const shouldReopenHistory = reopenHistoryAfterEdit;
-        closeFormModal();
+        reopenHistoryAfterEdit = false;
+
+        // Close form without triggering closeFormModal's reopen
+        modalOverlay.classList.remove('active');
+        editingScheduleId = null;
+        selectedDateKey = null;
 
         if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
             renderDayScheduleList();
@@ -695,12 +710,10 @@
 
                 if (action === 'view') {
                     closeHistoryModal();
-                    openViewModal(dateKey, id);
+                    openViewModal(dateKey, id, true); // fromHistory = true
                 } else if (action === 'edit') {
-                    // ← FIX: close history first so edit form is on top
-                    reopenHistoryAfterEdit = true;
                     closeHistoryModal();
-                    openEditFormModal(dateKey, id);
+                    openEditFormModal(dateKey, id, true); // fromHistory = true
                 } else if (action === 'delete') {
                     deleteScheduleFromList(dateKey, id);
                 }
