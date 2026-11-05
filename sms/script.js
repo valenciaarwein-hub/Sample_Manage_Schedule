@@ -1,9 +1,9 @@
 // script.js
 (function() {
     // ---------- IN-MEMORY JAVASCRIPT STORE (no localStorage) ----------
-    let schedules = {}; // plain JS object, kept in memory for the page session
+    let schedules = {};
 
-    // Seed sample data on first load (purely in memory)
+    // Seed sample data on first load
     (function seedSampleData() {
         const today = new Date();
         const sampleDate = new Date(today.getFullYear(), today.getMonth(), 15);
@@ -18,10 +18,9 @@
         ];
     })();
 
-    // No-op — data lives in `schedules`. Use Export to persist to a file.
     function saveSchedulesToStorage() { /* in-memory only */ }
 
-    // ---------- EXPORT / IMPORT (pure JS file I/O) ----------
+    // ---------- EXPORT / IMPORT ----------
     function exportSchedulesToFile() {
         const dataStr = JSON.stringify(schedules, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
@@ -122,6 +121,71 @@
     const historyList = document.getElementById('historyList');
     const clearAllHistoryBtn = document.getElementById('clearAllHistoryBtn');
     const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+
+    // confirm modal
+    const confirmOverlay = document.getElementById('confirmOverlay');
+    const confirmIcon = document.getElementById('confirmIcon');
+    const confirmTitle = document.getElementById('confirmTitle');
+    const confirmMessage = document.getElementById('confirmMessage');
+    const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+    const confirmOkBtn = document.getElementById('confirmOkBtn');
+
+    // ---------- CONFIRMATION MODAL HELPER ----------
+    let pendingConfirmAction = null;
+
+    /**
+     * Opens the custom confirmation modal.
+     * @param {Object} opts
+     * @param {string} opts.title       - Title text
+     * @param {string} opts.message     - Body message
+     * @param {string} opts.okText      - OK button label
+     * @param {string} opts.iconClass   - 'danger' | 'warning' | 'info'
+     * @param {Function} opts.onConfirm - Callback fired when user confirms
+     */
+    function openConfirmModal(opts) {
+        const {
+            title = 'Are you sure?',
+            message = 'This action cannot be undone.',
+            okText = 'Delete',
+            iconClass = 'danger',
+            onConfirm = () => {}
+        } = opts || {};
+
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+
+        // Set icon + theme
+        const iconName =
+            iconClass === 'warning' ? 'fa-exclamation-triangle'
+            : iconClass === 'info' ? 'fa-info-circle'
+            : 'fa-trash-alt';
+
+        confirmIcon.className = 'confirm-icon ' + iconClass;
+        confirmIcon.innerHTML = `<i class="fas ${iconName}"></i>`;
+
+        // Set OK button style + label
+        confirmOkBtn.className = 'btn ' + (iconClass === 'danger' ? 'btn-danger' : 'btn-primary');
+        confirmOkBtn.innerHTML = `<i class="fas ${iconName}"></i> ${okText}`;
+
+        pendingConfirmAction = onConfirm;
+        confirmOverlay.classList.add('active');
+    }
+
+    function closeConfirmModal() {
+        confirmOverlay.classList.remove('active');
+        pendingConfirmAction = null;
+    }
+
+    confirmOkBtn.addEventListener('click', () => {
+        const action = pendingConfirmAction;
+        closeConfirmModal();
+        if (typeof action === 'function') action();
+    });
+
+    confirmCancelBtn.addEventListener('click', closeConfirmModal);
+    confirmOverlay.addEventListener('click', (e) => {
+        if (e.target === confirmOverlay) closeConfirmModal();
+    });
 
     // ---------- HELPERS ----------
     function formatDateKey(date) {
@@ -314,21 +378,29 @@
         });
     }
 
+    // ---------- DELETE (confirmation modal) ----------
     function deleteScheduleFromList(dateKey, id) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === id);
         if (!schedule) return;
-        if (!confirm(`Delete schedule "${schedule.title}"?`)) return;
 
-        const daySchedules = schedules[dateKey] || [];
-        schedules[dateKey] = daySchedules.filter(s => s.id !== id);
-        if (schedules[dateKey].length === 0) delete schedules[dateKey];
+        openConfirmModal({
+            title: 'Delete this schedule?',
+            message: `"${schedule.title}" will be permanently removed. This action cannot be undone.`,
+            okText: 'Delete',
+            iconClass: 'danger',
+            onConfirm: () => {
+                const daySchedules = schedules[dateKey] || [];
+                schedules[dateKey] = daySchedules.filter(s => s.id !== id);
+                if (schedules[dateKey].length === 0) delete schedules[dateKey];
 
-        saveSchedulesToStorage();
-        renderCalendar();
-        if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
-            renderDayScheduleList();
-        }
-        if (historyOverlay.classList.contains('active')) renderHistory();
+                saveSchedulesToStorage();
+                renderCalendar();
+                if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
+                    renderDayScheduleList();
+                }
+                if (historyOverlay.classList.contains('active')) renderHistory();
+            }
+        });
     }
 
     // ---------- VIEW MODAL ----------
@@ -629,13 +701,21 @@
 
     function closeHistoryModal() { historyOverlay.classList.remove('active'); }
 
+    // ---------- CLEAR ALL (confirmation modal) ----------
     function clearAllHistory() {
-        if (!confirm('Are you sure you want to delete ALL schedules across every year, month, and date? This cannot be undone.')) return;
-        schedules = {};
-        saveSchedulesToStorage();
-        renderCalendar();
-        closeHistoryModal();
-        if (dayListOverlay.classList.contains('active')) closeDayListModal();
+        openConfirmModal({
+            title: 'Delete ALL schedules?',
+            message: 'Every schedule across every year, month, and date will be permanently removed. This action cannot be undone.',
+            okText: 'Delete All',
+            iconClass: 'danger',
+            onConfirm: () => {
+                schedules = {};
+                saveSchedulesToStorage();
+                renderCalendar();
+                closeHistoryModal();
+                if (dayListOverlay.classList.contains('active')) closeDayListModal();
+            }
+        });
     }
 
     // ---------- EVENT LISTENERS ----------
@@ -684,29 +764,29 @@
         });
     });
 
-    // ---------- LOGOUT ----------
+    // ---------- LOGOUT (confirmation modal) ----------
     logoutBtn.addEventListener('click', () => {
-        if (!confirm('Are you sure you want to log out?')) return;
+        openConfirmModal({
+            title: 'Log out?',
+            message: 'You will be signed out and your current session data will be cleared.',
+            okText: 'Log Out',
+            iconClass: 'warning',
+            onConfirm: () => {
+                schedules = {};
+                editingScheduleId = null;
+                selectedDateKey = null;
+                activeDayListDateKey = null;
 
-        // Clear in-memory schedules (session data)
-        schedules = {};
+                dayListOverlay.classList.remove('active');
+                modalOverlay.classList.remove('active');
+                viewOverlay.classList.remove('active');
+                datePickerOverlay.classList.remove('active');
+                historyOverlay.classList.remove('active');
 
-        // Reset UI state
-        editingScheduleId = null;
-        selectedDateKey = null;
-        activeDayListDateKey = null;
-
-        // Close all open modals
-        dayListOverlay.classList.remove('active');
-        modalOverlay.classList.remove('active');
-        viewOverlay.classList.remove('active');
-        datePickerOverlay.classList.remove('active');
-        historyOverlay.classList.remove('active');
-
-        // Redirect to login page — replace with your actual route
-        // window.location.href = 'login.html';
-
-        alert('You have been logged out.');
+                // Redirect to login page — uncomment and update route:
+                // window.location.href = 'login.html';
+            }
+        });
     });
 
     closeDayListBtn.addEventListener('click', closeDayListModal);
@@ -752,6 +832,7 @@
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            if (confirmOverlay.classList.contains('active')) { closeConfirmModal(); return; }
             if (historyOverlay.classList.contains('active')) closeHistoryModal();
             if (dayListOverlay.classList.contains('active')) closeDayListModal();
             if (modalOverlay.classList.contains('active')) closeFormModal();
