@@ -214,6 +214,8 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.5);
     z-index: 1000;
     max-width: calc(100vw - 32px);
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 .floating-navbar .btn-create {
@@ -237,7 +239,9 @@ body {
 .floating-navbar .btn-create:hover { background: #2563eb; }
 .floating-navbar .btn-create:active { transform: scale(0.97); }
 
-.floating-navbar .btn-history {
+.floating-navbar .btn-history,
+.floating-navbar .btn-export,
+.floating-navbar .btn-import {
     background: #f1f5f9;
     color: #1e293b;
     border: none;
@@ -254,8 +258,13 @@ body {
     font-family: 'Inter', sans-serif;
 }
 
-.floating-navbar .btn-history:hover { background: #e2e8f0; }
-.floating-navbar .btn-history:active { transform: scale(0.97); }
+.floating-navbar .btn-history:hover,
+.floating-navbar .btn-export:hover,
+.floating-navbar .btn-import:hover { background: #e2e8f0; }
+
+.floating-navbar .btn-history:active,
+.floating-navbar .btn-export:active,
+.floating-navbar .btn-import:active { transform: scale(0.97); }
 
 /* ===== MODAL OVERLAY ===== */
 .modal-overlay {
@@ -1006,7 +1015,9 @@ body {
     .floating-navbar .btn-create span { display: none; }
     .floating-navbar .btn-create i { font-size: 1.15rem; }
 
-    .floating-navbar .btn-history {
+    .floating-navbar .btn-history,
+    .floating-navbar .btn-export,
+    .floating-navbar .btn-import {
         padding: 10px;
         border-radius: 50%;
         width: 48px;
@@ -1014,8 +1025,13 @@ body {
         justify-content: center;
     }
 
-    .floating-navbar .btn-history span { display: none; }
-    .floating-navbar .btn-history i { font-size: 1.15rem; }
+    .floating-navbar .btn-history span,
+    .floating-navbar .btn-export span,
+    .floating-navbar .btn-import span { display: none; }
+
+    .floating-navbar .btn-history i,
+    .floating-navbar .btn-export i,
+    .floating-navbar .btn-import i { font-size: 1.15rem; }
 
     /* modal mobile */
     .modal-overlay {
@@ -1290,13 +1306,17 @@ body {
     }
 
     .floating-navbar .btn-create,
-    .floating-navbar .btn-history {
+    .floating-navbar .btn-history,
+    .floating-navbar .btn-export,
+    .floating-navbar .btn-import {
         width: 42px;
         height: 42px;
     }
 
     .floating-navbar .btn-create i,
-    .floating-navbar .btn-history i {
+    .floating-navbar .btn-history i,
+    .floating-navbar .btn-export i,
+    .floating-navbar .btn-import i {
         font-size: 1rem;
     }
 }
