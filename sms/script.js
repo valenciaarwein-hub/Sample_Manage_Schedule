@@ -77,6 +77,7 @@
     const importBtn = document.getElementById('importBtn');
     const importFileInput = document.getElementById('importFileInput');
     const logoutBtn = document.getElementById('logoutBtn');
+    const trashBtn = document.getElementById('trashBtn');
 
     // day list modal
     const dayListOverlay = document.getElementById('dayListOverlay');
@@ -140,6 +141,7 @@
             message = 'This action cannot be undone.',
             okText = 'Delete',
             iconClass = 'danger',
+            showCancel = true,
             onConfirm = () => {}
         } = opts || {};
 
@@ -156,6 +158,8 @@
 
         confirmOkBtn.className = 'btn ' + (iconClass === 'danger' ? 'btn-danger' : 'btn-primary');
         confirmOkBtn.innerHTML = `<i class="fas ${iconName}"></i> ${okText}`;
+
+        confirmCancelBtn.style.display = showCancel ? '' : 'none';
 
         pendingConfirmAction = onConfirm;
         confirmOverlay.classList.add('active');
@@ -411,7 +415,6 @@
     function closeViewModal() {
         viewOverlay.classList.remove('active');
 
-        // If opened from history, go back to history
         if (reopenHistoryAfterEdit) {
             reopenHistoryAfterEdit = false;
             openHistoryModal();
@@ -420,7 +423,7 @@
 
     // ---------- FORM MODAL ----------
     function openCreateFormModal(dateKey) {
-        reopenHistoryAfterEdit = false; // create never comes from history
+        reopenHistoryAfterEdit = false;
         editingScheduleId = null;
         selectedDateKey = dateKey;
         document.getElementById('editingId').value = '';
@@ -468,7 +471,6 @@
         editingScheduleId = null;
         selectedDateKey = null;
 
-        // If the form was opened from History, reopen it on close/cancel
         if (reopenHistoryAfterEdit) {
             reopenHistoryAfterEdit = false;
             openHistoryModal();
@@ -496,11 +498,9 @@
         saveSchedulesToStorage();
         renderCalendar();
 
-        // Capture flag BEFORE closeFormModal resets it
         const shouldReopenHistory = reopenHistoryAfterEdit;
         reopenHistoryAfterEdit = false;
 
-        // Close form without triggering closeFormModal's reopen
         modalOverlay.classList.remove('active');
         editingScheduleId = null;
         selectedDateKey = null;
@@ -710,10 +710,10 @@
 
                 if (action === 'view') {
                     closeHistoryModal();
-                    openViewModal(dateKey, id, true); // fromHistory = true
+                    openViewModal(dateKey, id, true);
                 } else if (action === 'edit') {
                     closeHistoryModal();
-                    openEditFormModal(dateKey, id, true); // fromHistory = true
+                    openEditFormModal(dateKey, id, true);
                 } else if (action === 'delete') {
                     deleteScheduleFromList(dateKey, id);
                 }
@@ -730,7 +730,7 @@
 
     function closeHistoryModal() { historyOverlay.classList.remove('active'); }
 
-    // ---------- CLEAR ALL (confirmation modal) ----------
+    // ---------- CLEAR ALL ----------
     function clearAllHistory() {
         openConfirmModal({
             title: 'Delete ALL schedules?',
@@ -815,6 +815,39 @@
 
                 // Redirect to login page — uncomment and update route:
                 // window.location.href = 'login.html';
+            }
+        });
+    });
+
+    // ---------- TRASH (Clear All — icon-only, right side) ----------
+    trashBtn.addEventListener('click', () => {
+        const total = Object.keys(schedules).reduce(
+            (sum, k) => sum + (schedules[k] || []).length, 0
+        );
+
+        if (total === 0) {
+            openConfirmModal({
+                title: 'Nothing to delete',
+                message: 'You have no schedules to clear. Create one first!',
+                okText: 'OK',
+                iconClass: 'info',
+                showCancel: false,
+                onConfirm: () => {}
+            });
+            return;
+        }
+
+        openConfirmModal({
+            title: 'Delete ALL schedules?',
+            message: `You are about to permanently delete ${total} schedule${total === 1 ? '' : 's'} across every year, month, and date. This action cannot be undone.`,
+            okText: 'Delete All',
+            iconClass: 'danger',
+            onConfirm: () => {
+                schedules = {};
+                saveSchedulesToStorage();
+                renderCalendar();
+                closeHistoryModal();
+                closeDayListModal();
             }
         });
     });
