@@ -201,6 +201,22 @@
     </div>
 </div>
 
+<!-- ========== CONFIRMATION MODAL ========== -->
+<div class="modal-overlay" id="confirmOverlay">
+    <div class="modal confirm-modal">
+        <div class="confirm-icon danger" id="confirmIcon">
+            <i class="fas fa-trash-alt"></i>
+        </div>
+        <h3 id="confirmTitle">Are you sure?</h3>
+        <p class="confirm-message" id="confirmMessage">This action cannot be undone.</p>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary" id="confirmCancelBtn">Cancel</button>
+            <button class="btn btn-danger" id="confirmOkBtn"><i class="fas fa-trash-alt"></i> Delete</button>
+        </div>
+    </div>
+</div>
+
 <script src="sms/script.js"></script>
 </body>
 </html>
