@@ -1,3 +1,4 @@
+// script.js
 (function() {
     // ---------- PERSISTENT STORAGE ----------
     const STORAGE_KEY = 'schedule_manager_data_v1';
@@ -185,7 +186,7 @@
             if (daySchedules.length > 0) {
                 const visible = daySchedules.slice(0, maxVisible);
                 visible.forEach(s => {
-                    const shortTitle = s.title.length > 20 ? s.title.slice(0, 18) + '…' : s.title;
+                    const shortTitle = s.title.length > 16 ? s.title.slice(0, 14) + '…' : s.title;
                     schedulesHtml += `
                         <div class="schedule-item" data-date="${dateKey}" data-id="${s.id}" title="${escapeHtml(s.title)} — ${escapeHtml(s.description || '')}">
                             <i class="fas fa-circle" style="font-size: 0.35rem;"></i>
@@ -194,7 +195,7 @@
                     `;
                 });
                 if (daySchedules.length > maxVisible) {
-                    schedulesHtml += `<div class="empty-hint" style="font-style:normal; text-align:left; padding-left:6px;">+ ${daySchedules.length - maxVisible} more</div>`;
+                    schedulesHtml += `<div class="empty-hint" style="font-style:normal; text-align:left; padding-left:4px;">+ ${daySchedules.length - maxVisible} more</div>`;
                 }
             } else {
                 schedulesHtml = `<div class="empty-hint">—</div>`;
