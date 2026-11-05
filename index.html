@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule Manager · Calendar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="calendar-header">
+        <div class="month-year">
+            <button class="month-year-trigger" id="monthYearTrigger" title="Click to pick a date">
+                <span id="monthYearText">April 2025</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+        <div class="nav-buttons">
+            <button class="nav-btn" id="prevMonthBtn" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
+            <button class="nav-btn" id="nextMonthBtn" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
+            <button class="nav-btn" id="todayBtn" aria-label="Today" style="width: auto; padding: 0 16px; font-weight: 500; font-size:0.9rem;">Today</button>
+        </div>
+    </div>
+
+    <div class="weekdays">
+        <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+    </div>
+
+    <div class="calendar-grid" id="calendarGrid"></div>
+</div>
+
+<!-- Floating navbar with updated button text -->
+<div class="floating-navbar">
+    <button class="btn-create" id="createScheduleBtn">
+        <i class="fas fa-plus-circle"></i>
+        <span>Create New Schedule Today</span>
+    </button>
+</div>
+
+<!-- ========== DAY SCHEDULES LIST MODAL ========== -->
+<div class="modal-overlay" id="dayListOverlay">
+    <div class="modal">
+        <h3><i class="fas fa-list-ul" style="color:#3b82f6;"></i> Schedules</h3>
+        <div class="date-badge" id="dayListDateBadge">April 15, 2025</div>
+
+        <div class="day-schedule-list" id="dayScheduleList"></div>
+
+        <button class="btn-add-schedule" id="addScheduleFromListBtn">
+            <i class="fas fa-plus-circle"></i> Add New Schedule
+        </button>
+
+        <div class="modal-actions" style="margin-top: 20px;">
+            <button class="btn btn-secondary" id="closeDayListBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SCHEDULE FORM MODAL ========== -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h3 id="modalTitle"><i class="fas fa-calendar-plus" style="color:#3b82f6;"></i> New Schedule</h3>
+        <div class="date-badge" id="modalDateBadge">April 15, 2025</div>
+
+        <input type="hidden" id="editingId" value="">
+        <input type="hidden" id="selectedDate" value="">
+
+        <div class="field">
+            <label>Title</label>
+            <input type="text" id="scheduleTitle" placeholder="e.g. Team meeting" maxlength="60" autocomplete="off">
+        </div>
+
+        <div class="field">
+            <label>Description <span style="font-weight:400; color:#64748b;">(max 200 characters)</span></label>
+            <textarea id="scheduleDescription" placeholder="Add details..." maxlength="200"></textarea>
+            <div class="char-counter"><span id="charCount">0</span> / 200</div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
+            <button class="btn btn-primary" id="saveScheduleBtn"><i class="fas fa-save"></i> Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== VIEW SCHEDULE DETAIL MODAL ========== -->
+<div class="modal-overlay" id="viewOverlay">
+    <div class="modal">
+        <h3><i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details</h3>
+
+        <div class="detail-view">
+            <div class="detail-label">Title</div>
+            <div class="detail-value" id="viewTitle">—</div>
+
+            <div class="detail-label">Description</div>
+            <div class="detail-value" id="viewDescription">—</div>
+
+            <div class="detail-label">Date</div>
+            <div class="detail-value" id="viewDate">—</div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-primary" id="closeViewBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== DATE PICKER MODAL ========== -->
+<div class="modal-overlay" id="datePickerOverlay">
+    <div class="modal">
+        <h3><i class="fas fa-calendar-alt" style="color:#3b82f6;"></i> Jump to Date</h3>
+        <p style="color:#64748b; font-size:0.9rem; margin-bottom: 20px;">Pick a year, month, and day to jump to that date.</p>
+
+        <div class="date-picker-row">
+            <div class="date-picker-field">
+                <label for="pickYear">Year</label>
+                <select id="pickYear"></select>
+            </div>
+            <div class="date-picker-field">
+                <label for="pickMonth">Month</label>
+                <select id="pickMonth"></select>
+            </div>
+            <div class="date-picker-field">
+                <label for="pickDay">Day</label>
+                <select id="pickDay"></select>
+            </div>
+        </div>
+
+        <div class="date-preview">
+            <i class="fas fa-arrow-right"></i>
+            <span id="datePreviewText">—</span>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary" id="cancelDatePickerBtn">Cancel</button>
+            <button class="btn btn-primary" id="goToDateBtn"><i class="fas fa-location-arrow"></i> Go to Date</button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
