@@ -297,6 +297,28 @@ body {
 
 .floating-navbar .btn-logout:hover { background: #fecaca; }
 
+/* Trash button (icon only, right side) */
+.floating-navbar .btn-trash {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s, transform 0.1s, color 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+.floating-navbar .btn-trash:hover { background: #fecaca; }
+.floating-navbar .btn-trash:active { transform: scale(0.94); }
+
 .floating-navbar .btn-import:active,
 .floating-navbar .btn-export:active,
 .floating-navbar .btn-history:active,
@@ -1116,7 +1138,8 @@ body {
     .floating-navbar .btn-import,
     .floating-navbar .btn-export,
     .floating-navbar .btn-history,
-    .floating-navbar .btn-logout {
+    .floating-navbar .btn-logout,
+    .floating-navbar .btn-trash {
         padding: 10px;
         border-radius: 50%;
         width: 46px;
@@ -1135,7 +1158,8 @@ body {
     .floating-navbar .btn-import i,
     .floating-navbar .btn-export i,
     .floating-navbar .btn-history i,
-    .floating-navbar .btn-logout i { font-size: 1.05rem; }
+    .floating-navbar .btn-logout i,
+    .floating-navbar .btn-trash i { font-size: 1.05rem; }
 
     /* modal mobile */
     .modal-overlay {
@@ -1433,7 +1457,8 @@ body {
     .floating-navbar .btn-import,
     .floating-navbar .btn-export,
     .floating-navbar .btn-history,
-    .floating-navbar .btn-logout {
+    .floating-navbar .btn-logout,
+    .floating-navbar .btn-trash {
         width: 40px;
         height: 40px;
     }
@@ -1442,7 +1467,8 @@ body {
     .floating-navbar .btn-import i,
     .floating-navbar .btn-export i,
     .floating-navbar .btn-history i,
-    .floating-navbar .btn-logout i {
+    .floating-navbar .btn-logout i,
+    .floating-navbar .btn-trash i {
         font-size: 0.95rem;
     }
 }
