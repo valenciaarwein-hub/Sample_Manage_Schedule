@@ -62,6 +62,7 @@
     let editingScheduleId = null;
     let selectedDateKey = null;
     let activeDayListDateKey = null;
+    let reopenHistoryAfterEdit = false; // ← tracks if edit was launched from history
 
     // ---------- DOM ELEMENTS ----------
     const monthYearText = document.getElementById('monthYearText');
@@ -154,7 +155,6 @@
         confirmTitle.textContent = title;
         confirmMessage.textContent = message;
 
-        // Set icon + theme
         const iconName =
             iconClass === 'warning' ? 'fa-exclamation-triangle'
             : iconClass === 'info' ? 'fa-info-circle'
@@ -163,7 +163,6 @@
         confirmIcon.className = 'confirm-icon ' + iconClass;
         confirmIcon.innerHTML = `<i class="fas ${iconName}"></i>`;
 
-        // Set OK button style + label
         confirmOkBtn.className = 'btn ' + (iconClass === 'danger' ? 'btn-danger' : 'btn-primary');
         confirmOkBtn.innerHTML = `<i class="fas ${iconName}"></i> ${okText}`;
 
@@ -464,6 +463,7 @@
         modalOverlay.classList.remove('active');
         editingScheduleId = null;
         selectedDateKey = null;
+        reopenHistoryAfterEdit = false; // reset flag
     }
 
     function saveSchedule() {
@@ -486,10 +486,17 @@
 
         saveSchedulesToStorage();
         renderCalendar();
+
+        const shouldReopenHistory = reopenHistoryAfterEdit;
         closeFormModal();
 
-        if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) renderDayScheduleList();
-        if (historyOverlay.classList.contains('active')) renderHistory();
+        if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
+            renderDayScheduleList();
+        }
+
+        if (shouldReopenHistory) {
+            openHistoryModal();
+        }
     }
 
     // ---------- DATE PICKER MODAL ----------
@@ -685,9 +692,18 @@
                 const dateKey = btn.dataset.date;
                 const id = btn.dataset.id;
                 if (!dateKey || !id) return;
-                if (action === 'view') openViewModal(dateKey, id);
-                else if (action === 'edit') openEditFormModal(dateKey, id);
-                else if (action === 'delete') deleteScheduleFromList(dateKey, id);
+
+                if (action === 'view') {
+                    closeHistoryModal();
+                    openViewModal(dateKey, id);
+                } else if (action === 'edit') {
+                    // ← FIX: close history first so edit form is on top
+                    reopenHistoryAfterEdit = true;
+                    closeHistoryModal();
+                    openEditFormModal(dateKey, id);
+                } else if (action === 'delete') {
+                    deleteScheduleFromList(dateKey, id);
+                }
             });
         });
     }
@@ -776,6 +792,7 @@
                 editingScheduleId = null;
                 selectedDateKey = null;
                 activeDayListDateKey = null;
+                reopenHistoryAfterEdit = false;
 
                 dayListOverlay.classList.remove('active');
                 modalOverlay.classList.remove('active');
