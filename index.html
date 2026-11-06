@@ -32,6 +32,37 @@
     </div>
 
     <div class="calendar-grid" id="calendarGrid"></div>
+
+    <!-- ========== UPCOMING 7 DAYS TABLE ========== -->
+    <section class="upcoming-section" id="upcomingSection">
+        <div class="upcoming-header">
+            <h2 class="upcoming-title">
+                <i class="fas fa-calendar-week" style="color:#3b82f6;"></i>
+                Upcoming 7 Days
+            </h2>
+            <span class="upcoming-range" id="upcomingRange">—</span>
+        </div>
+
+        <div class="upcoming-table-wrap">
+            <table class="upcoming-table">
+                <thead>
+                    <tr>
+                        <th class="col-date">Date</th>
+                        <th class="col-day">Day</th>
+                        <th class="col-title">Title</th>
+                        <th class="col-desc">Description</th>
+                        <th class="col-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="upcomingTableBody"></tbody>
+            </table>
+        </div>
+
+        <div class="upcoming-empty" id="upcomingEmpty" style="display:none;">
+            <i class="fas fa-mug-hot"></i>
+            <p>No schedules in the next 7 days.<br>Enjoy the calm — or add something new!</p>
+        </div>
+    </section>
 </div>
 
 <!-- Floating navbar -->
@@ -200,8 +231,36 @@
 <!-- ========== HISTORY MODAL ========== -->
 <div class="modal-overlay" id="historyOverlay">
     <div class="modal history-modal">
-        <h3><i class="fas fa-history" style="color:#3b82f6;"></i> Schedule History</h3>
-        <p style="color:#64748b; font-size:0.82rem; margin-bottom: 16px;">All your saved schedules across every year, month, and date.</p>
+        <div class="history-title-row">
+            <h3><i class="fas fa-history" style="color:#3b82f6;"></i> Schedule History</h3>
+            <div class="sort-wrap">
+                <button class="sort-icon-btn" id="historySortBtn" title="Sort history" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-sort-amount-down"></i>
+                </button>
+                <div class="sort-popover" id="historySortPopover" role="menu">
+                    <div class="sort-popover-label">Sort by</div>
+                    <button class="sort-option" data-sort-kind="title" role="menuitemradio">
+                        <span>Title</span>
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button class="sort-option" data-sort-kind="date-created" role="menuitemradio">
+                        <span>Date created</span>
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <div class="sort-popover-divider"></div>
+                    <div class="sort-popover-label">Order</div>
+                    <button class="sort-option" data-sort-order="asc" role="menuitemradio">
+                        <span><i class="fas fa-arrow-up sort-order-icon"></i> Ascending</span>
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button class="sort-option" data-sort-order="desc" role="menuitemradio">
+                        <span><i class="fas fa-arrow-down sort-order-icon"></i> Descending</span>
+                        <i class="fas fa-check"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <p style="color:#64748b; font-size:0.82rem; margin-bottom: 12px;">All your saved schedules across every year, month, and date.</p>
 
         <div class="history-controls">
             <div class="history-search-wrap">
@@ -210,12 +269,6 @@
             </div>
             <select id="historyYearFilter" class="history-select">
                 <option value="all">All Years</option>
-            </select>
-            <select id="historySortSelect" class="history-select" title="Sort history">
-                <option value="date-desc">Date (newest first)</option>
-                <option value="date-asc">Date (oldest first)</option>
-                <option value="added-desc">Recently Added</option>
-                <option value="added-asc">Added (oldest first)</option>
             </select>
         </div>
 
@@ -275,17 +328,36 @@
 <!-- ========== RECYCLE BIN MODAL ========== -->
 <div class="modal-overlay" id="trashOverlay">
     <div class="modal trash-modal">
-        <h3><i class="fas fa-trash-alt" style="color:#3b82f6;"></i> Recycle Bin</h3>
-        <p style="color:#64748b; font-size:0.82rem; margin-bottom: 12px;">Deleted schedules are kept here until you recover or permanently delete them.</p>
-
-        <div class="trash-sort-row">
-            <select id="trashSortSelect" class="history-select" title="Sort recycle bin">
-                <option value="added-desc">Recently Added</option>
-                <option value="added-asc">Added (oldest first)</option>
-                <option value="date-desc">Date (newest first)</option>
-                <option value="date-asc">Date (oldest first)</option>
-            </select>
+        <div class="trash-title-row">
+            <h3><i class="fas fa-trash-alt" style="color:#3b82f6;"></i> Recycle Bin</h3>
+            <div class="sort-wrap">
+                <button class="sort-icon-btn" id="trashSortBtn" title="Sort recycle bin" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-sort-amount-down"></i>
+                </button>
+                <div class="sort-popover" id="trashSortPopover" role="menu">
+                    <div class="sort-popover-label">Sort by</div>
+                    <button class="sort-option" data-sort-kind="title" role="menuitemradio">
+                        <span>Title</span>
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button class="sort-option" data-sort-kind="date-created" role="menuitemradio">
+                        <span>Date created</span>
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <div class="sort-popover-divider"></div>
+                    <div class="sort-popover-label">Order</div>
+                    <button class="sort-option" data-sort-order="asc" role="menuitemradio">
+                        <span><i class="fas fa-arrow-up sort-order-icon"></i> Ascending</span>
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button class="sort-option" data-sort-order="desc" role="menuitemradio">
+                        <span><i class="fas fa-arrow-down sort-order-icon"></i> Descending</span>
+                        <i class="fas fa-check"></i>
+                    </button>
+                </div>
+            </div>
         </div>
+        <p style="color:#64748b; font-size:0.82rem; margin-bottom: 12px;">Deleted schedules are kept here until you recover or permanently delete them.</p>
 
         <div class="trash-toolbar">
             <label class="trash-select-all">
