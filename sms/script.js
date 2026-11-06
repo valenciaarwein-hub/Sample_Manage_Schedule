@@ -2,6 +2,7 @@
 (function() {
     // ---------- IN-MEMORY JAVASCRIPT STORE (no localStorage) ----------
     let schedules = {};
+    let trash = []; // deleted schedules: { id, title, description, dateKey, deletedAt }
 
     // Seed sample data on first load
     (function seedSampleData() {
@@ -62,7 +63,8 @@
     let editingScheduleId = null;
     let selectedDateKey = null;
     let activeDayListDateKey = null;
-    let reopenHistoryAfterEdit = false; // tracks if form/view was opened from history
+    let reopenHistoryAfterEdit = false;
+    let trashSelection = new Set(); // ids selected in the recycle bin
 
     // ---------- DOM ELEMENTS ----------
     const monthYearText = document.getElementById('monthYearText');
@@ -77,7 +79,7 @@
     const importBtn = document.getElementById('importBtn');
     const importFileInput = document.getElementById('importFileInput');
     const logoutBtn = document.getElementById('logoutBtn');
-    const trashBtn = document.getElementById('trashBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
 
     // day list modal
     const dayListOverlay = document.getElementById('dayListOverlay');
@@ -124,6 +126,20 @@
     const clearAllHistoryBtn = document.getElementById('clearAllHistoryBtn');
     const closeHistoryBtn = document.getElementById('closeHistoryBtn');
 
+    // settings modal
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    const openTrashBtn = document.getElementById('openTrashBtn');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+
+    // trash modal
+    const trashOverlay = document.getElementById('trashOverlay');
+    const trashSelectAll = document.getElementById('trashSelectAll');
+    const trashList = document.getElementById('trashList');
+    const trashRecoverSelectedBtn = document.getElementById('trashRecoverSelectedBtn');
+    const trashDeleteSelectedBtn = document.getElementById('trashDeleteSelectedBtn');
+    const emptyTrashBtn = document.getElementById('emptyTrashBtn');
+    const closeTrashBtn = document.getElementById('closeTrashBtn');
+
     // confirm modal
     const confirmOverlay = document.getElementById('confirmOverlay');
     const confirmIcon = document.getElementById('confirmIcon');
@@ -151,9 +167,10 @@
         const iconName =
             iconClass === 'warning' ? 'fa-exclamation-triangle'
             : iconClass === 'info' ? 'fa-info-circle'
+            : iconClass === 'success' ? 'fa-check-circle'
             : 'fa-trash-alt';
 
-        confirmIcon.className = 'confirm-icon ' + iconClass;
+        confirmIcon.className = 'confirm-icon ' + (iconClass === 'success' ? 'info' : iconClass);
         confirmIcon.innerHTML = `<i class="fas ${iconName}"></i>`;
 
         confirmOkBtn.className = 'btn ' + (iconClass === 'danger' ? 'btn-danger' : 'btn-primary');
@@ -209,6 +226,53 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    function formatDateTime(iso) {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '—';
+        return d.toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: 'numeric', minute: '2-digit'
+        });
+    }
+
+    // ---------- TRASH HELPERS ----------
+    function moveToTrash(dateKey, schedule) {
+        trash.unshift({
+            id: schedule.id,
+            title: schedule.title,
+            description: schedule.description || '',
+            dateKey: dateKey,
+            deletedAt: new Date().toISOString()
+        });
+    }
+
+    function removeFromTrashById(id) {
+        trash = trash.filter(t => t.id !== id);
+        trashSelection.delete(id);
+    }
+
+    function recoverTrashItem(id) {
+        const item = trash.find(t => t.id === id);
+        if (!item) return false;
+
+        // If an item with the same id somehow already exists on that date, regenerate id
+        let targetId = item.id;
+        const existing = schedules[item.dateKey] || [];
+        if (existing.some(s => s.id === targetId)) {
+            targetId = 'sched_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        }
+
+        if (!schedules[item.dateKey]) schedules[item.dateKey] = [];
+        schedules[item.dateKey].push({
+            id: targetId,
+            title: item.title,
+            description: item.description
+        });
+
+        removeFromTrashById(id);
+        return true;
     }
 
     // ---------- RENDER CALENDAR ----------
@@ -352,7 +416,7 @@
                     <div class="card-actions">
                         <button class="icon-btn view" data-action="view" data-id="${s.id}" title="View details"><i class="fas fa-eye"></i></button>
                         <button class="icon-btn edit" data-action="edit" data-id="${s.id}" title="Edit schedule"><i class="fas fa-pen"></i></button>
-                        <button class="icon-btn delete" data-action="delete" data-id="${s.id}" title="Delete schedule"><i class="fas fa-trash-alt"></i></button>
+                        <button class="icon-btn delete" data-action="delete" data-id="${s.id}" title="Move to recycle bin"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 </div>
             `;
@@ -372,17 +436,19 @@
         });
     }
 
-    // ---------- DELETE (confirmation modal) ----------
+    // ---------- DELETE (moves to recycle bin) ----------
     function deleteScheduleFromList(dateKey, id) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === id);
         if (!schedule) return;
 
         openConfirmModal({
-            title: 'Delete this schedule?',
-            message: `"${schedule.title}" will be permanently removed. This action cannot be undone.`,
-            okText: 'Delete',
-            iconClass: 'danger',
+            title: 'Move to Recycle Bin?',
+            message: `"${schedule.title}" will be moved to the Recycle Bin. You can recover it later from Settings.`,
+            okText: 'Move to Bin',
+            iconClass: 'warning',
             onConfirm: () => {
+                moveToTrash(dateKey, schedule);
+
                 const daySchedules = schedules[dateKey] || [];
                 schedules[dateKey] = daySchedules.filter(s => s.id !== id);
                 if (schedules[dateKey].length === 0) delete schedules[dateKey];
@@ -393,6 +459,7 @@
                     renderDayScheduleList();
                 }
                 if (historyOverlay.classList.contains('active')) renderHistory();
+                if (trashOverlay.classList.contains('active')) renderTrash();
             }
         });
     }
@@ -687,7 +754,7 @@
                             <div class="hs-actions">
                                 <button class="icon-btn view" data-history-action="view" data-date="${dateKey}" data-id="${s.id}" title="View"><i class="fas fa-eye"></i></button>
                                 <button class="icon-btn edit" data-history-action="edit" data-date="${dateKey}" data-id="${s.id}" title="Edit"><i class="fas fa-pen"></i></button>
-                                <button class="icon-btn delete" data-history-action="delete" data-date="${dateKey}" data-id="${s.id}" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                                <button class="icon-btn delete" data-history-action="delete" data-date="${dateKey}" data-id="${s.id}" title="Move to recycle bin"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </div>
                     `;
@@ -730,19 +797,204 @@
 
     function closeHistoryModal() { historyOverlay.classList.remove('active'); }
 
-    // ---------- CLEAR ALL ----------
+    // ---------- CLEAR ALL (moves all to trash) ----------
     function clearAllHistory() {
+        const all = getAllSchedulesFlat();
+        if (all.length === 0) return;
+
         openConfirmModal({
-            title: 'Delete ALL schedules?',
-            message: 'Every schedule across every year, month, and date will be permanently removed. This action cannot be undone.',
-            okText: 'Delete All',
-            iconClass: 'danger',
+            title: 'Move ALL schedules to Recycle Bin?',
+            message: `${all.length} schedule${all.length === 1 ? '' : 's'} will be moved to the Recycle Bin. You can recover them from Settings.`,
+            okText: 'Move All to Bin',
+            iconClass: 'warning',
             onConfirm: () => {
+                all.forEach(s => moveToTrash(s.dateKey, s));
                 schedules = {};
                 saveSchedulesToStorage();
                 renderCalendar();
                 closeHistoryModal();
                 if (dayListOverlay.classList.contains('active')) closeDayListModal();
+            }
+        });
+    }
+
+    // ---------- SETTINGS MODAL ----------
+    function openSettingsModal() {
+        settingsOverlay.classList.add('active');
+    }
+    function closeSettingsModal() {
+        settingsOverlay.classList.remove('active');
+    }
+
+    // ---------- RECYCLE BIN ----------
+    function openTrashModal() {
+        trashSelection.clear();
+        renderTrash();
+        trashOverlay.classList.add('active');
+    }
+    function closeTrashModal() {
+        trashOverlay.classList.remove('active');
+        trashSelection.clear();
+    }
+
+    function updateTrashBulkButtons() {
+        const hasSelection = trashSelection.size > 0;
+        trashRecoverSelectedBtn.disabled = !hasSelection;
+        trashDeleteSelectedBtn.disabled = !hasSelection;
+
+        // Select-all state
+        const total = trash.length;
+        const selected = trashSelection.size;
+        if (total === 0) {
+            trashSelectAll.checked = false;
+            trashSelectAll.indeterminate = false;
+            trashSelectAll.disabled = true;
+        } else {
+            trashSelectAll.disabled = false;
+            trashSelectAll.checked = selected === total;
+            trashSelectAll.indeterminate = selected > 0 && selected < total;
+        }
+    }
+
+    function renderTrash() {
+        // Prune stale ids from selection
+        const validIds = new Set(trash.map(t => t.id));
+        Array.from(trashSelection).forEach(id => {
+            if (!validIds.has(id)) trashSelection.delete(id);
+        });
+
+        if (trash.length === 0) {
+            trashList.innerHTML = `
+                <div class="trash-empty">
+                    <i class="fas fa-trash-can"></i>
+                    Recycle Bin is empty.<br>Deleted schedules will appear here.
+                </div>
+            `;
+            emptyTrashBtn.style.display = 'none';
+            updateTrashBulkButtons();
+            return;
+        }
+
+        emptyTrashBtn.style.display = 'inline-flex';
+
+        let html = '';
+        // Sort newest first
+        const sorted = [...trash].sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''));
+
+        sorted.forEach(t => {
+            const isChecked = trashSelection.has(t.id);
+            const dateObj = getDateFromKey(t.dateKey);
+            const dateLabel = dateObj.toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric'
+            });
+
+            html += `
+                <div class="trash-item" data-trash-id="${t.id}">
+                    <input type="checkbox" class="trash-checkbox" data-trash-id="${t.id}" ${isChecked ? 'checked' : ''}>
+                    <div class="ti-body">
+                        <div class="ti-title">${escapeHtml(t.title)}</div>
+                        ${t.description ? `<div class="ti-desc">${escapeHtml(t.description)}</div>` : ''}
+                        <div class="ti-meta">
+                            <span><i class="fas fa-calendar-day"></i> ${dateLabel}</span>
+                            <span><i class="fas fa-clock"></i> Deleted ${formatDateTime(t.deletedAt)}</span>
+                        </div>
+                    </div>
+                    <div class="ti-actions">
+                        <button class="icon-btn recover" data-trash-action="recover" data-trash-id="${t.id}" title="Recover"><i class="fas fa-undo-alt"></i></button>
+                        <button class="icon-btn delete" data-trash-action="delete" data-trash-id="${t.id}" title="Delete permanently"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            `;
+        });
+
+        trashList.innerHTML = html;
+
+        trashList.querySelectorAll('.trash-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const id = cb.dataset.trashId;
+                if (cb.checked) trashSelection.add(id);
+                else trashSelection.delete(id);
+                updateTrashBulkButtons();
+            });
+        });
+
+        trashList.querySelectorAll('[data-trash-action]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.trashAction;
+                const id = btn.dataset.trashId;
+                if (!id) return;
+                if (action === 'recover') recoverOne(id);
+                else if (action === 'delete') deleteOnePermanently(id);
+            });
+        });
+
+        updateTrashBulkButtons();
+    }
+
+    function recoverOne(id) {
+        if (recoverTrashItem(id)) {
+            saveSchedulesToStorage();
+            renderCalendar();
+            renderTrash();
+            if (historyOverlay.classList.contains('active')) renderHistory();
+        }
+    }
+
+    function deleteOnePermanently(id) {
+        const item = trash.find(t => t.id === id);
+        if (!item) return;
+        openConfirmModal({
+            title: 'Delete permanently?',
+            message: `"${item.title}" will be permanently deleted. This action cannot be undone.`,
+            okText: 'Delete Forever',
+            iconClass: 'danger',
+            onConfirm: () => {
+                removeFromTrashById(id);
+                renderTrash();
+            }
+        });
+    }
+
+    function recoverSelected() {
+        if (trashSelection.size === 0) return;
+        const ids = Array.from(trashSelection);
+        ids.forEach(id => recoverTrashItem(id));
+        trashSelection.clear();
+        saveSchedulesToStorage();
+        renderCalendar();
+        renderTrash();
+        if (historyOverlay.classList.contains('active')) renderHistory();
+    }
+
+    function deleteSelectedPermanently() {
+        if (trashSelection.size === 0) return;
+        const count = trashSelection.size;
+        openConfirmModal({
+            title: `Delete ${count} schedule${count === 1 ? '' : 's'} permanently?`,
+            message: 'The selected schedules will be permanently deleted. This action cannot be undone.',
+            okText: 'Delete Forever',
+            iconClass: 'danger',
+            onConfirm: () => {
+                Array.from(trashSelection).forEach(id => removeFromTrashById(id));
+                trashSelection.clear();
+                renderTrash();
+            }
+        });
+    }
+
+    function emptyTrash() {
+        if (trash.length === 0) return;
+        const count = trash.length;
+        openConfirmModal({
+            title: 'Empty Recycle Bin?',
+            message: `All ${count} deleted schedule${count === 1 ? '' : 's'} will be permanently deleted. This action cannot be undone.`,
+            okText: 'Empty Bin',
+            iconClass: 'danger',
+            onConfirm: () => {
+                trash = [];
+                trashSelection.clear();
+                renderTrash();
             }
         });
     }
@@ -793,8 +1045,21 @@
         });
     });
 
+    // ---------- SETTINGS ----------
+    settingsBtn.addEventListener('click', openSettingsModal);
+    closeSettingsBtn.addEventListener('click', closeSettingsModal);
+    settingsOverlay.addEventListener('click', (e) => {
+        if (e.target === settingsOverlay) closeSettingsModal();
+    });
+
+    openTrashBtn.addEventListener('click', () => {
+        closeSettingsModal();
+        openTrashModal();
+    });
+
     // ---------- LOGOUT (confirmation modal) ----------
     logoutBtn.addEventListener('click', () => {
+        closeSettingsModal();
         openConfirmModal({
             title: 'Log out?',
             message: 'You will be signed out and your current session data will be cleared.',
@@ -802,6 +1067,8 @@
             iconClass: 'warning',
             onConfirm: () => {
                 schedules = {};
+                trash = [];
+                trashSelection.clear();
                 editingScheduleId = null;
                 selectedDateKey = null;
                 activeDayListDateKey = null;
@@ -812,6 +1079,10 @@
                 viewOverlay.classList.remove('active');
                 datePickerOverlay.classList.remove('active');
                 historyOverlay.classList.remove('active');
+                trashOverlay.classList.remove('active');
+                settingsOverlay.classList.remove('active');
+
+                renderCalendar();
 
                 // Redirect to login page — uncomment and update route:
                 // window.location.href = 'login.html';
@@ -819,39 +1090,30 @@
         });
     });
 
-    // ---------- TRASH (Clear All — icon-only, right side) ----------
-    trashBtn.addEventListener('click', () => {
-        const total = Object.keys(schedules).reduce(
-            (sum, k) => sum + (schedules[k] || []).length, 0
-        );
-
-        if (total === 0) {
-            openConfirmModal({
-                title: 'Nothing to delete',
-                message: 'You have no schedules to clear. Create one first!',
-                okText: 'OK',
-                iconClass: 'info',
-                showCancel: false,
-                onConfirm: () => {}
-            });
-            return;
-        }
-
-        openConfirmModal({
-            title: 'Delete ALL schedules?',
-            message: `You are about to permanently delete ${total} schedule${total === 1 ? '' : 's'} across every year, month, and date. This action cannot be undone.`,
-            okText: 'Delete All',
-            iconClass: 'danger',
-            onConfirm: () => {
-                schedules = {};
-                saveSchedulesToStorage();
-                renderCalendar();
-                closeHistoryModal();
-                closeDayListModal();
-            }
-        });
+    // ---------- TRASH EVENTS ----------
+    closeTrashBtn.addEventListener('click', closeTrashModal);
+    trashOverlay.addEventListener('click', (e) => {
+        if (e.target === trashOverlay) closeTrashModal();
     });
 
+    trashSelectAll.addEventListener('change', () => {
+        if (trashSelectAll.checked) {
+            trash.forEach(t => trashSelection.add(t.id));
+        } else {
+            trashSelection.clear();
+        }
+        // Reflect on each checkbox
+        trashList.querySelectorAll('.trash-checkbox').forEach(cb => {
+            cb.checked = trashSelection.has(cb.dataset.trashId);
+        });
+        updateTrashBulkButtons();
+    });
+
+    trashRecoverSelectedBtn.addEventListener('click', recoverSelected);
+    trashDeleteSelectedBtn.addEventListener('click', deleteSelectedPermanently);
+    emptyTrashBtn.addEventListener('click', emptyTrash);
+
+    // ---------- OTHER MODAL EVENTS ----------
     closeDayListBtn.addEventListener('click', closeDayListModal);
     dayListOverlay.addEventListener('click', (e) => {
         if (e.target === dayListOverlay) closeDayListModal();
@@ -893,9 +1155,12 @@
     historyYearFilter.addEventListener('change', renderHistory);
     clearAllHistoryBtn.addEventListener('click', clearAllHistory);
 
+    // Escape key: close topmost open modal
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (confirmOverlay.classList.contains('active')) { closeConfirmModal(); return; }
+            if (trashOverlay.classList.contains('active')) { closeTrashModal(); return; }
+            if (settingsOverlay.classList.contains('active')) { closeSettingsModal(); return; }
             if (historyOverlay.classList.contains('active')) closeHistoryModal();
             if (dayListOverlay.classList.contains('active')) closeDayListModal();
             if (modalOverlay.classList.contains('active')) closeFormModal();
