@@ -83,7 +83,7 @@
     <div class="nav-center">
         <button class="btn-create" id="createScheduleBtn">
             <i class="fas fa-plus-circle"></i>
-            <span>Create Schedule Today</span>
+            <span>Create New Schedule Today</span>
         </button>
     </div>
 
@@ -137,14 +137,34 @@
         <input type="hidden" id="selectedDate" value="">
 
         <div class="field">
-            <label>Title</label>
+            <label>Title <span class="required-mark">*</span></label>
             <input type="text" id="scheduleTitle" placeholder="e.g. Team meeting" maxlength="60" autocomplete="off">
         </div>
 
         <div class="field">
-            <label>Description <span style="font-weight:400; color:#64748b;">(max 200 characters)</span></label>
+            <label>Description <span class="required-mark">*</span> <span style="font-weight:400; color:#64748b;">(max 200 characters)</span></label>
             <textarea id="scheduleDescription" placeholder="Add details..." maxlength="200"></textarea>
             <div class="char-counter"><span id="charCount">0</span> / 200</div>
+        </div>
+
+        <div class="field">
+            <label>Schedule type <span class="required-mark">*</span></label>
+            <div class="type-button-group" id="typeButtonGroup">
+                <button type="button" class="type-btn" data-type="Meeting">
+                    <i class="fas fa-users"></i> Meeting
+                </button>
+                <button type="button" class="type-btn" data-type="Seminar">
+                    <i class="fas fa-chalkboard-teacher"></i> Seminar
+                </button>
+                <button type="button" class="type-btn" data-type="Special Event">
+                    <i class="fas fa-star"></i> Special Event
+                </button>
+                <button type="button" class="type-btn" data-type="Other">
+                    <i class="fas fa-ellipsis-h"></i> Other
+                </button>
+                <input type="text" id="customTypeInput" class="custom-type-input"
+                       placeholder="Specify type..." maxlength="40" style="display:none;">
+            </div>
         </div>
 
         <div class="modal-actions">
@@ -176,21 +196,35 @@
 <!-- ========== VIEW SCHEDULE DETAIL MODAL ========== -->
 <div class="modal-overlay" id="viewOverlay">
     <div class="modal">
-        <h3><i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details</h3>
+        <h3 id="viewModalTitle"><i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details</h3>
 
         <div class="detail-view">
             <div class="detail-label">Title</div>
             <div class="detail-value" id="viewTitle">—</div>
+
+            <div class="detail-label">Type</div>
+            <div class="detail-value" id="viewType">—</div>
 
             <div class="detail-label">Description</div>
             <div class="detail-value" id="viewDescription">—</div>
 
             <div class="detail-label">Date</div>
             <div class="detail-value" id="viewDate">—</div>
+
+            <div id="viewTrashDetails" style="display:none;">
+                <div class="detail-label">Created</div>
+                <div class="detail-value" id="viewCreatedAt">—</div>
+
+                <div class="detail-label">Deleted</div>
+                <div class="detail-value" id="viewDeletedAt">—</div>
+            </div>
         </div>
 
         <div class="modal-actions">
-            <button class="btn btn-primary" id="closeViewBtn">Close</button>
+            <button class="btn btn-secondary" id="closeViewBtn">Close</button>
+            <button class="btn btn-primary" id="recoverFromViewBtn" style="display:none;">
+                <i class="fas fa-undo-alt"></i> Recover
+            </button>
         </div>
     </div>
 </div>
@@ -397,6 +431,22 @@
         <div class="modal-actions">
             <button class="btn btn-secondary" id="confirmCancelBtn">Cancel</button>
             <button class="btn btn-danger" id="confirmOkBtn"><i class="fas fa-trash-alt"></i> Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== VALIDATION MODAL ========== -->
+<div class="modal-overlay" id="validationOverlay">
+    <div class="modal validation-modal">
+        <div class="confirm-icon warning">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h3>Please fill in required fields</h3>
+        <p class="confirm-message" id="validationMessage">Some required fields are missing.</p>
+        <ul class="validation-list" id="validationList"></ul>
+
+        <div class="modal-actions">
+            <button class="btn btn-primary" id="validationOkBtn"><i class="fas fa-check"></i> Got it</button>
         </div>
     </div>
 </div>
