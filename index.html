@@ -74,7 +74,6 @@
         <h3><i class="fas fa-list-ul" style="color:#3b82f6;"></i> Schedules</h3>
         <div class="date-badge" id="dayListDateBadge">April 15, 2025</div>
 
-        <!-- Day list bulk toolbar -->
         <div class="day-list-toolbar" id="dayListToolbar" style="display:none;">
             <label class="day-select-all">
                 <input type="checkbox" id="daySelectAll">
@@ -120,6 +119,25 @@
         <div class="modal-actions">
             <button class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
             <button class="btn btn-primary" id="saveScheduleBtn"><i class="fas fa-save"></i> Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== REVIEW / CONFIRM SAVE MODAL ========== -->
+<div class="modal-overlay" id="reviewOverlay">
+    <div class="modal review-modal">
+        <h3><i class="fas fa-clipboard-check" style="color:#3b82f6;"></i> <span id="reviewTitleText">Review Changes</span></h3>
+        <p class="review-subtitle" id="reviewSubtitle">Please review the changes below before saving.</p>
+
+        <div class="review-body" id="reviewBody"></div>
+
+        <div class="review-actions">
+            <button class="btn btn-secondary" id="reviewGoBackBtn">
+                <i class="fas fa-arrow-left"></i> Go Back
+            </button>
+            <button class="btn btn-primary" id="reviewConfirmBtn">
+                <i class="fas fa-check"></i> Confirm &amp; Save
+            </button>
         </div>
     </div>
 </div>
