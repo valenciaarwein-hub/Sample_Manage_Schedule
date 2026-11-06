@@ -64,7 +64,8 @@
     let selectedDateKey = null;
     let activeDayListDateKey = null;
     let reopenHistoryAfterEdit = false;
-    let trashSelection = new Set(); // ids selected in the recycle bin
+    let trashSelection = new Set();       // ids selected in the recycle bin
+    let dayListSelection = new Set();     // ids selected in the day list modal
 
     // ---------- DOM ELEMENTS ----------
     const monthYearText = document.getElementById('monthYearText');
@@ -87,6 +88,9 @@
     const dayScheduleList = document.getElementById('dayScheduleList');
     const addScheduleFromListBtn = document.getElementById('addScheduleFromListBtn');
     const closeDayListBtn = document.getElementById('closeDayListBtn');
+    const dayListToolbar = document.getElementById('dayListToolbar');
+    const daySelectAll = document.getElementById('daySelectAll');
+    const dayDeleteSelectedBtn = document.getElementById('dayDeleteSelectedBtn');
 
     // schedule form modal
     const modalOverlay = document.getElementById('modalOverlay');
@@ -257,7 +261,6 @@
         const item = trash.find(t => t.id === id);
         if (!item) return false;
 
-        // If an item with the same id somehow already exists on that date, regenerate id
         let targetId = item.id;
         const existing = schedules[item.dateKey] || [];
         if (existing.some(s => s.id === targetId)) {
@@ -376,6 +379,7 @@
     // ---------- DAY LIST MODAL ----------
     function openDayListModal(dateKey) {
         activeDayListDateKey = dateKey;
+        dayListSelection.clear();
         const dateObj = getDateFromKey(dateKey);
         dayListDateBadge.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
@@ -387,11 +391,39 @@
     function closeDayListModal() {
         dayListOverlay.classList.remove('active');
         activeDayListDateKey = null;
+        dayListSelection.clear();
+    }
+
+    function updateDayListBulkUI() {
+        const daySchedules = activeDayListDateKey ? (schedules[activeDayListDateKey] || []) : [];
+        const total = daySchedules.length;
+
+        // Show toolbar only if there is at least one schedule
+        dayListToolbar.style.display = total > 0 ? 'flex' : 'none';
+
+        const selected = dayListSelection.size;
+        dayDeleteSelectedBtn.disabled = selected === 0;
+
+        if (total === 0) {
+            daySelectAll.checked = false;
+            daySelectAll.indeterminate = false;
+            daySelectAll.disabled = true;
+        } else {
+            daySelectAll.disabled = false;
+            daySelectAll.checked = selected === total;
+            daySelectAll.indeterminate = selected > 0 && selected < total;
+        }
     }
 
     function renderDayScheduleList() {
         if (!activeDayListDateKey) return;
         const daySchedules = schedules[activeDayListDateKey] || [];
+
+        // Prune stale ids from selection
+        const validIds = new Set(daySchedules.map(s => s.id));
+        Array.from(dayListSelection).forEach(id => {
+            if (!validIds.has(id)) dayListSelection.delete(id);
+        });
 
         if (daySchedules.length === 0) {
             dayScheduleList.innerHTML = `
@@ -400,14 +432,17 @@
                     No schedules yet for this day.<br>Click "Add New Schedule" to create one.
                 </div>
             `;
+            updateDayListBulkUI();
             return;
         }
 
         let html = '';
         daySchedules.forEach(s => {
             const desc = s.description || 'No description';
+            const isChecked = dayListSelection.has(s.id);
             html += `
                 <div class="day-schedule-card">
+                    <input type="checkbox" class="day-checkbox" data-day-id="${s.id}" ${isChecked ? 'checked' : ''}>
                     <div class="card-accent"></div>
                     <div class="card-body">
                         <div class="card-title">${escapeHtml(s.title)}</div>
@@ -423,6 +458,16 @@
         });
         dayScheduleList.innerHTML = html;
 
+        // Per-card checkbox handlers
+        dayScheduleList.querySelectorAll('.day-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const id = cb.dataset.dayId;
+                if (cb.checked) dayListSelection.add(id);
+                else dayListSelection.delete(id);
+                updateDayListBulkUI();
+            });
+        });
+
         dayScheduleList.querySelectorAll('.icon-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -434,9 +479,11 @@
                 else if (action === 'delete') deleteScheduleFromList(activeDayListDateKey, id);
             });
         });
+
+        updateDayListBulkUI();
     }
 
-    // ---------- DELETE (moves to recycle bin) ----------
+    // ---------- DELETE (single — moves to recycle bin) ----------
     function deleteScheduleFromList(dateKey, id) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === id);
         if (!schedule) return;
@@ -452,6 +499,42 @@
                 const daySchedules = schedules[dateKey] || [];
                 schedules[dateKey] = daySchedules.filter(s => s.id !== id);
                 if (schedules[dateKey].length === 0) delete schedules[dateKey];
+
+                dayListSelection.delete(id);
+
+                saveSchedulesToStorage();
+                renderCalendar();
+                if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
+                    renderDayScheduleList();
+                }
+                if (historyOverlay.classList.contains('active')) renderHistory();
+                if (trashOverlay.classList.contains('active')) renderTrash();
+            }
+        });
+    }
+
+    // ---------- BULK DELETE (selected in day list) ----------
+    function deleteSelectedDaySchedules() {
+        if (!activeDayListDateKey || dayListSelection.size === 0) return;
+        const dateKey = activeDayListDateKey;
+        const ids = Array.from(dayListSelection);
+        const count = ids.length;
+
+        openConfirmModal({
+            title: `Move ${count} schedule${count === 1 ? '' : 's'} to Recycle Bin?`,
+            message: `The selected schedule${count === 1 ? '' : 's'} will be moved to the Recycle Bin. You can recover them later from Settings.`,
+            okText: 'Move to Bin',
+            iconClass: 'warning',
+            onConfirm: () => {
+                const daySchedules = schedules[dateKey] || [];
+                ids.forEach(id => {
+                    const s = daySchedules.find(x => x.id === id);
+                    if (s) moveToTrash(dateKey, s);
+                });
+                schedules[dateKey] = daySchedules.filter(s => !ids.includes(s.id));
+                if (schedules[dateKey].length === 0) delete schedules[dateKey];
+
+                dayListSelection.clear();
 
                 saveSchedulesToStorage();
                 renderCalendar();
@@ -810,6 +893,7 @@
             onConfirm: () => {
                 all.forEach(s => moveToTrash(s.dateKey, s));
                 schedules = {};
+                dayListSelection.clear();
                 saveSchedulesToStorage();
                 renderCalendar();
                 closeHistoryModal();
@@ -842,7 +926,6 @@
         trashRecoverSelectedBtn.disabled = !hasSelection;
         trashDeleteSelectedBtn.disabled = !hasSelection;
 
-        // Select-all state
         const total = trash.length;
         const selected = trashSelection.size;
         if (total === 0) {
@@ -857,7 +940,6 @@
     }
 
     function renderTrash() {
-        // Prune stale ids from selection
         const validIds = new Set(trash.map(t => t.id));
         Array.from(trashSelection).forEach(id => {
             if (!validIds.has(id)) trashSelection.delete(id);
@@ -878,7 +960,6 @@
         emptyTrashBtn.style.display = 'inline-flex';
 
         let html = '';
-        // Sort newest first
         const sorted = [...trash].sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''));
 
         sorted.forEach(t => {
@@ -1069,6 +1150,7 @@
                 schedules = {};
                 trash = [];
                 trashSelection.clear();
+                dayListSelection.clear();
                 editingScheduleId = null;
                 selectedDateKey = null;
                 activeDayListDateKey = null;
@@ -1102,7 +1184,6 @@
         } else {
             trashSelection.clear();
         }
-        // Reflect on each checkbox
         trashList.querySelectorAll('.trash-checkbox').forEach(cb => {
             cb.checked = trashSelection.has(cb.dataset.trashId);
         });
@@ -1112,6 +1193,24 @@
     trashRecoverSelectedBtn.addEventListener('click', recoverSelected);
     trashDeleteSelectedBtn.addEventListener('click', deleteSelectedPermanently);
     emptyTrashBtn.addEventListener('click', emptyTrash);
+
+    // ---------- DAY LIST BULK EVENTS ----------
+    daySelectAll.addEventListener('change', () => {
+        if (!activeDayListDateKey) return;
+        const daySchedules = schedules[activeDayListDateKey] || [];
+
+        if (daySelectAll.checked) {
+            daySchedules.forEach(s => dayListSelection.add(s.id));
+        } else {
+            dayListSelection.clear();
+        }
+        dayScheduleList.querySelectorAll('.day-checkbox').forEach(cb => {
+            cb.checked = dayListSelection.has(cb.dataset.dayId);
+        });
+        updateDayListBulkUI();
+    });
+
+    dayDeleteSelectedBtn.addEventListener('click', deleteSelectedDaySchedules);
 
     // ---------- OTHER MODAL EVENTS ----------
     closeDayListBtn.addEventListener('click', closeDayListModal);
