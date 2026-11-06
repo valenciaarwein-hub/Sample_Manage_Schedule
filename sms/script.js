@@ -64,8 +64,11 @@
     let selectedDateKey = null;
     let activeDayListDateKey = null;
     let reopenHistoryAfterEdit = false;
-    let trashSelection = new Set();       // ids selected in the recycle bin
-    let dayListSelection = new Set();     // ids selected in the day list modal
+    let trashSelection = new Set();
+    let dayListSelection = new Set();
+
+    // Pending save (waiting for review confirmation)
+    let pendingSave = null; // { mode: 'create'|'edit', dateKey, id, oldData?, newData }
 
     // ---------- DOM ELEMENTS ----------
     const monthYearText = document.getElementById('monthYearText');
@@ -101,6 +104,14 @@
     const charCount = document.getElementById('charCount');
     const cancelModalBtn = document.getElementById('cancelModalBtn');
     const saveScheduleBtn = document.getElementById('saveScheduleBtn');
+
+    // review / confirm save modal
+    const reviewOverlay = document.getElementById('reviewOverlay');
+    const reviewTitleText = document.getElementById('reviewTitleText');
+    const reviewSubtitle = document.getElementById('reviewSubtitle');
+    const reviewBody = document.getElementById('reviewBody');
+    const reviewGoBackBtn = document.getElementById('reviewGoBackBtn');
+    const reviewConfirmBtn = document.getElementById('reviewConfirmBtn');
 
     // view modal
     const viewOverlay = document.getElementById('viewOverlay');
@@ -398,7 +409,6 @@
         const daySchedules = activeDayListDateKey ? (schedules[activeDayListDateKey] || []) : [];
         const total = daySchedules.length;
 
-        // Show toolbar only if there is at least one schedule
         dayListToolbar.style.display = total > 0 ? 'flex' : 'none';
 
         const selected = dayListSelection.size;
@@ -419,7 +429,6 @@
         if (!activeDayListDateKey) return;
         const daySchedules = schedules[activeDayListDateKey] || [];
 
-        // Prune stale ids from selection
         const validIds = new Set(daySchedules.map(s => s.id));
         Array.from(dayListSelection).forEach(id => {
             if (!validIds.has(id)) dayListSelection.delete(id);
@@ -458,7 +467,6 @@
         });
         dayScheduleList.innerHTML = html;
 
-        // Per-card checkbox handlers
         dayScheduleList.querySelectorAll('.day-checkbox').forEach(cb => {
             cb.addEventListener('change', () => {
                 const id = cb.dataset.dayId;
@@ -620,6 +628,7 @@
         modalOverlay.classList.remove('active');
         editingScheduleId = null;
         selectedDateKey = null;
+        pendingSave = null;
 
         if (reopenHistoryAfterEdit) {
             reopenHistoryAfterEdit = false;
@@ -627,7 +636,8 @@
         }
     }
 
-    function saveSchedule() {
+    // ---------- SAVE FLOW (with review confirmation) ----------
+    function requestSaveSchedule() {
         const title = scheduleTitle.value.trim();
         if (!title) { alert('Please enter a title.'); scheduleTitle.focus(); return; }
 
@@ -637,12 +647,170 @@
 
         if (editingScheduleId) {
             const daySchedules = schedules[dateKey] || [];
-            const index = daySchedules.findIndex(s => s.id === editingScheduleId);
-            if (index !== -1) daySchedules[index] = { ...daySchedules[index], title, description };
+            const original = daySchedules.find(s => s.id === editingScheduleId);
+            if (!original) return;
+
+            // If nothing actually changed, just close the form
+            if (original.title === title && (original.description || '') === description) {
+                closeFormModal();
+                return;
+            }
+
+            pendingSave = {
+                mode: 'edit',
+                dateKey,
+                id: editingScheduleId,
+                oldData: {
+                    title: original.title,
+                    description: original.description || ''
+                },
+                newData: { title, description }
+            };
+        } else {
+            pendingSave = {
+                mode: 'create',
+                dateKey,
+                id: null,
+                oldData: null,
+                newData: { title, description }
+            };
+        }
+
+        openReviewModal(pendingSave);
+    }
+
+    function openReviewModal(payload) {
+        const { mode, dateKey, oldData, newData } = payload;
+        const dateObj = getDateFromKey(dateKey);
+        const dateLabel = dateObj.toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+        });
+
+        reviewTitleText.textContent = mode === 'edit' ? 'Review Changes' : 'Review New Schedule';
+
+        reviewSubtitle.textContent = mode === 'edit'
+            ? 'Compare the old and new values before replacing the schedule. Nothing is saved yet.'
+            : 'Please review the details below before adding this schedule.';
+
+        let html = '';
+
+        // Date block (shared)
+        html += `
+            <div class="review-block">
+                <div class="review-block-label"><i class="fas fa-calendar-day"></i> Date</div>
+                <div class="review-field">
+                    <div class="review-value">${escapeHtml(dateLabel)}</div>
+                </div>
+            </div>
+        `;
+
+        if (mode === 'edit') {
+            // Old vs new comparison
+            html += `
+                <div class="review-block">
+                    <div class="review-block-label"><i class="fas fa-history"></i> Old values</div>
+                    <div class="review-field">
+                        <div class="review-field-name">Title</div>
+                        <div class="review-value old">${escapeHtml(oldData.title)}</div>
+                    </div>
+                    <div class="review-field">
+                        <div class="review-field-name">Description</div>
+                        <div class="review-value old ${oldData.description ? '' : 'empty'}">${oldData.description ? escapeHtml(oldData.description) : 'No description'}</div>
+                    </div>
+                </div>
+            `;
+
+            // New values, highlighting changes
+            const titleChanged = oldData.title !== newData.title;
+            const descChanged = (oldData.description || '') !== (newData.description || '');
+
+            html += `
+                <div class="review-block">
+                    <div class="review-new-badge"><i class="fas fa-arrow-right"></i> New values (pending)</div>
+                    <div class="review-field">
+                        <div class="review-field-name">Title${titleChanged ? ' — changed' : ' — unchanged'}</div>
+                        <div class="review-value ${titleChanged ? 'new' : 'same'}">${escapeHtml(newData.title)}</div>
+                    </div>
+                    <div class="review-field">
+                        <div class="review-field-name">Description${descChanged ? ' — changed' : ' — unchanged'}</div>
+                        <div class="review-value ${descChanged ? 'new' : 'same'} ${newData.description ? '' : 'empty'}">${newData.description ? escapeHtml(newData.description) : 'No description'}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            // New schedule — just show new values
+            html += `
+                <div class="review-block">
+                    <div class="review-new-badge"><i class="fas fa-plus-circle"></i> New schedule</div>
+                    <div class="review-field">
+                        <div class="review-field-name">Title</div>
+                        <div class="review-value new">${escapeHtml(newData.title)}</div>
+                    </div>
+                    <div class="review-field">
+                        <div class="review-field-name">Description</div>
+                        <div class="review-value new ${newData.description ? '' : 'empty'}">${newData.description ? escapeHtml(newData.description) : 'No description'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        reviewBody.innerHTML = html;
+
+        // Close the form modal (but keep values so "Go Back" restores them)
+        modalOverlay.classList.remove('active');
+        reviewOverlay.classList.add('active');
+    }
+
+    function closeReviewModal() {
+        reviewOverlay.classList.remove('active');
+    }
+
+    function goBackToForm() {
+        // Re-open the form with the pending values still intact
+        reviewOverlay.classList.remove('active');
+        if (!pendingSave) return;
+
+        selectedDateKey = pendingSave.dateKey;
+        editingScheduleId = pendingSave.id || null;
+
+        if (pendingSave.mode === 'edit') {
+            modalTitle.innerHTML = '<i class="fas fa-pen" style="color:#3b82f6;"></i> Edit Schedule';
+        } else {
+            modalTitle.innerHTML = '<i class="fas fa-calendar-plus" style="color:#3b82f6;"></i> New Schedule';
+        }
+
+        const dateObj = getDateFromKey(pendingSave.dateKey);
+        modalDateBadge.textContent = dateObj.toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+        });
+
+        scheduleTitle.value = pendingSave.newData.title;
+        scheduleDescription.value = pendingSave.newData.description;
+        updateCharCounter();
+
+        modalOverlay.classList.add('active');
+        scheduleTitle.focus();
+    }
+
+    function confirmSave() {
+        if (!pendingSave) return;
+
+        const { mode, dateKey, id, newData } = pendingSave;
+
+        if (mode === 'edit' && id) {
+            const daySchedules = schedules[dateKey] || [];
+            const index = daySchedules.findIndex(s => s.id === id);
+            if (index !== -1) {
+                daySchedules[index] = {
+                    ...daySchedules[index],
+                    title: newData.title,
+                    description: newData.description
+                };
+            }
         } else {
             const newId = 'sched_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
             if (!schedules[dateKey]) schedules[dateKey] = [];
-            schedules[dateKey].push({ id: newId, title, description });
+            schedules[dateKey].push({ id: newId, title: newData.title, description: newData.description });
         }
 
         saveSchedulesToStorage();
@@ -651,13 +819,17 @@
         const shouldReopenHistory = reopenHistoryAfterEdit;
         reopenHistoryAfterEdit = false;
 
+        closeReviewModal();
         modalOverlay.classList.remove('active');
+
         editingScheduleId = null;
         selectedDateKey = null;
+        pendingSave = null;
 
         if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
             renderDayScheduleList();
         }
+        if (historyOverlay.classList.contains('active')) renderHistory();
 
         if (shouldReopenHistory) {
             openHistoryModal();
@@ -1155,9 +1327,11 @@
                 selectedDateKey = null;
                 activeDayListDateKey = null;
                 reopenHistoryAfterEdit = false;
+                pendingSave = null;
 
                 dayListOverlay.classList.remove('active');
                 modalOverlay.classList.remove('active');
+                reviewOverlay.classList.remove('active');
                 viewOverlay.classList.remove('active');
                 datePickerOverlay.classList.remove('active');
                 historyOverlay.classList.remove('active');
@@ -1226,10 +1400,20 @@
     });
 
     cancelModalBtn.addEventListener('click', closeFormModal);
-    saveScheduleBtn.addEventListener('click', saveSchedule);
+    saveScheduleBtn.addEventListener('click', requestSaveSchedule);
     scheduleDescription.addEventListener('input', updateCharCounter);
     modalOverlay.addEventListener('click', (e) => {
         if (e.target === modalOverlay) closeFormModal();
+    });
+
+    // ---------- REVIEW MODAL EVENTS ----------
+    reviewGoBackBtn.addEventListener('click', goBackToForm);
+    reviewConfirmBtn.addEventListener('click', confirmSave);
+    reviewOverlay.addEventListener('click', (e) => {
+        if (e.target === reviewOverlay) {
+            // Treat clicking outside as "go back" so work isn't lost
+            goBackToForm();
+        }
     });
 
     closeViewBtn.addEventListener('click', closeViewModal);
@@ -1258,6 +1442,7 @@
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (confirmOverlay.classList.contains('active')) { closeConfirmModal(); return; }
+            if (reviewOverlay.classList.contains('active')) { goBackToForm(); return; }
             if (trashOverlay.classList.contains('active')) { closeTrashModal(); return; }
             if (settingsOverlay.classList.contains('active')) { closeSettingsModal(); return; }
             if (historyOverlay.classList.contains('active')) closeHistoryModal();
