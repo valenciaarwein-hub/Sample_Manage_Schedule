@@ -33,7 +33,6 @@
 
     <div class="calendar-grid" id="calendarGrid"></div>
 
-    <!-- ========== UPCOMING 7 DAYS TABLE ========== -->
     <section class="upcoming-section" id="upcomingSection">
         <div class="upcoming-header">
             <h2 class="upcoming-title">
@@ -66,7 +65,6 @@
     </section>
 </div>
 
-<!-- Floating navbar -->
 <div class="floating-navbar">
     <div class="nav-left">
         <button class="btn-import" id="importBtn" title="Load schedules from JSON file">
@@ -100,7 +98,6 @@
     </div>
 </div>
 
-<!-- ========== DAY SCHEDULES LIST MODAL ========== -->
 <div class="modal-overlay" id="dayListOverlay">
     <div class="modal">
         <h3><i class="fas fa-list-ul" style="color:#3b82f6;"></i> Schedules</h3>
@@ -128,7 +125,6 @@
     </div>
 </div>
 
-<!-- ========== SCHEDULE FORM MODAL ========== -->
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
         <h3 id="modalTitle"><i class="fas fa-calendar-plus" style="color:#3b82f6;"></i> New Schedule</h3>
@@ -175,7 +171,6 @@
     </div>
 </div>
 
-<!-- ========== REVIEW / CONFIRM SAVE MODAL ========== -->
 <div class="modal-overlay" id="reviewOverlay">
     <div class="modal review-modal">
         <h3><i class="fas fa-clipboard-check" style="color:#3b82f6;"></i> <span id="reviewTitleText">Review Changes</span></h3>
@@ -194,7 +189,6 @@
     </div>
 </div>
 
-<!-- ========== VIEW SCHEDULE DETAIL MODAL ========== -->
 <div class="modal-overlay" id="viewOverlay">
     <div class="modal">
         <h3 id="viewModalTitle"><i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details</h3>
@@ -230,7 +224,6 @@
     </div>
 </div>
 
-<!-- ========== DATE PICKER MODAL ========== -->
 <div class="modal-overlay" id="datePickerOverlay">
     <div class="modal">
         <h3><i class="fas fa-calendar-alt" style="color:#3b82f6;"></i> Jump to Date</h3>
@@ -263,7 +256,6 @@
     </div>
 </div>
 
-<!-- ========== HISTORY MODAL ========== -->
 <div class="modal-overlay" id="historyOverlay">
     <div class="modal history-modal">
         <div class="history-title-row">
@@ -324,7 +316,6 @@
     </div>
 </div>
 
-<!-- ========== SETTINGS MODAL ========== -->
 <div class="modal-overlay" id="settingsOverlay">
     <div class="modal settings-modal">
         <h3><i class="fas fa-cog" style="color:#3b82f6;"></i> Settings</h3>
@@ -360,7 +351,6 @@
     </div>
 </div>
 
-<!-- ========== RECYCLE BIN MODAL ========== -->
 <div class="modal-overlay" id="trashOverlay">
     <div class="modal trash-modal">
         <div class="trash-title-row">
@@ -420,7 +410,6 @@
     </div>
 </div>
 
-<!-- ========== CONFIRMATION MODAL ========== -->
 <div class="modal-overlay" id="confirmOverlay">
     <div class="modal confirm-modal">
         <div class="confirm-icon danger" id="confirmIcon">
@@ -436,7 +425,6 @@
     </div>
 </div>
 
-<!-- ========== VALIDATION MODAL ========== -->
 <div class="modal-overlay" id="validationOverlay">
     <div class="modal validation-modal">
         <div class="confirm-icon warning">
@@ -452,12 +440,6 @@
     </div>
 </div>
 
-<!-- Firebase SDK (compat build = global `firebase`) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-
-<!-- App scripts -->
-<script src="sms/storage.js"></script>
 <script src="sms/script.js"></script>
 </body>
 </html>
