@@ -175,9 +175,7 @@
     <div class="modal review-modal">
         <h3><i class="fas fa-clipboard-check" style="color:#3b82f6;"></i> <span id="reviewTitleText">Review Changes</span></h3>
         <p class="review-subtitle" id="reviewSubtitle">Please review the changes below before saving.</p>
-
         <div class="review-body" id="reviewBody"></div>
-
         <div class="review-actions">
             <button class="btn btn-secondary" id="reviewGoBackBtn">
                 <i class="fas fa-arrow-left"></i> Go Back
@@ -192,29 +190,22 @@
 <div class="modal-overlay" id="viewOverlay">
     <div class="modal">
         <h3 id="viewModalTitle"><i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details</h3>
-
         <div class="detail-view">
             <div class="detail-label">Title</div>
             <div class="detail-value" id="viewTitle">—</div>
-
             <div class="detail-label">Type</div>
             <div class="detail-value" id="viewType">—</div>
-
             <div class="detail-label">Description</div>
             <div class="detail-value" id="viewDescription">—</div>
-
             <div class="detail-label">Date</div>
             <div class="detail-value" id="viewDate">—</div>
-
             <div id="viewTrashDetails" style="display:none;">
                 <div class="detail-label">Created</div>
                 <div class="detail-value" id="viewCreatedAt">—</div>
-
                 <div class="detail-label">Deleted</div>
                 <div class="detail-value" id="viewDeletedAt">—</div>
             </div>
         </div>
-
         <div class="modal-actions">
             <button class="btn btn-secondary" id="closeViewBtn">Close</button>
             <button class="btn btn-primary" id="recoverFromViewBtn" style="display:none;">
@@ -228,7 +219,6 @@
     <div class="modal">
         <h3><i class="fas fa-calendar-alt" style="color:#3b82f6;"></i> Jump to Date</h3>
         <p style="color:#64748b; font-size:0.82rem; margin-bottom: 16px;">Pick a year, month, and day to jump to that date.</p>
-
         <div class="date-picker-row">
             <div class="date-picker-field">
                 <label for="pickYear">Year</label>
@@ -243,12 +233,10 @@
                 <select id="pickDay"></select>
             </div>
         </div>
-
         <div class="date-preview">
             <i class="fas fa-arrow-right"></i>
             <span id="datePreviewText">—</span>
         </div>
-
         <div class="modal-actions">
             <button class="btn btn-secondary" id="cancelDatePickerBtn">Cancel</button>
             <button class="btn btn-primary" id="goToDateBtn"><i class="fas fa-location-arrow"></i> Go to Date</button>
@@ -267,28 +255,23 @@
                 <div class="sort-popover" id="historySortPopover" role="menu">
                     <div class="sort-popover-label">Sort by</div>
                     <button class="sort-option" data-sort-kind="title" role="menuitemradio">
-                        <span>Title</span>
-                        <i class="fas fa-check"></i>
+                        <span>Title</span><i class="fas fa-check"></i>
                     </button>
                     <button class="sort-option" data-sort-kind="date-created" role="menuitemradio">
-                        <span>Date created</span>
-                        <i class="fas fa-check"></i>
+                        <span>Date created</span><i class="fas fa-check"></i>
                     </button>
                     <div class="sort-popover-divider"></div>
                     <div class="sort-popover-label">Order</div>
                     <button class="sort-option" data-sort-order="asc" role="menuitemradio">
-                        <span><i class="fas fa-arrow-up sort-order-icon"></i> Ascending</span>
-                        <i class="fas fa-check"></i>
+                        <span><i class="fas fa-arrow-up sort-order-icon"></i> Ascending</span><i class="fas fa-check"></i>
                     </button>
                     <button class="sort-option" data-sort-order="desc" role="menuitemradio">
-                        <span><i class="fas fa-arrow-down sort-order-icon"></i> Descending</span>
-                        <i class="fas fa-check"></i>
+                        <span><i class="fas fa-arrow-down sort-order-icon"></i> Descending</span><i class="fas fa-check"></i>
                     </button>
                 </div>
             </div>
         </div>
         <p style="color:#64748b; font-size:0.82rem; margin-bottom: 12px;">All your saved schedules across every year, month, and date.</p>
-
         <div class="history-controls">
             <div class="history-search-wrap">
                 <i class="fas fa-search"></i>
@@ -298,15 +281,12 @@
                 <option value="all">All Years</option>
             </select>
         </div>
-
         <div class="history-stats" id="historyStats">
             <span><i class="fas fa-calendar-check"></i> <span id="totalSchedulesCount">0</span> schedules</span>
             <span><i class="fas fa-calendar-day"></i> <span id="totalDaysCount">0</span> days</span>
             <span><i class="fas fa-calendar-alt"></i> <span id="totalMonthsCount">0</span> months</span>
         </div>
-
         <div class="history-list" id="historyList"></div>
-
         <div class="modal-actions" style="margin-top: 16px;">
             <button class="btn btn-danger" id="clearAllHistoryBtn" style="margin-right: auto; display: none;">
                 <i class="fas fa-trash-alt"></i> Clear All
@@ -320,23 +300,17 @@
     <div class="modal settings-modal">
         <h3><i class="fas fa-cog" style="color:#3b82f6;"></i> Settings</h3>
         <p style="color:#64748b; font-size:0.82rem; margin-bottom: 16px;">Manage your account and deleted schedules.</p>
-
         <div class="settings-menu">
             <button class="settings-item" id="openTrashBtn">
-                <div class="settings-item-icon trash">
-                    <i class="fas fa-trash-alt"></i>
-                </div>
+                <div class="settings-item-icon trash"><i class="fas fa-trash-alt"></i></div>
                 <div class="settings-item-body">
                     <div class="settings-item-title">Recycle Bin</div>
                     <div class="settings-item-desc">View, recover, or permanently delete deleted schedules</div>
                 </div>
                 <i class="fas fa-chevron-right settings-item-arrow"></i>
             </button>
-
             <button class="settings-item" id="logoutBtn">
-                <div class="settings-item-icon logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                </div>
+                <div class="settings-item-icon logout"><i class="fas fa-sign-out-alt"></i></div>
                 <div class="settings-item-body">
                     <div class="settings-item-title">Log Out</div>
                     <div class="settings-item-desc">Sign out and clear your current session data</div>
@@ -344,7 +318,6 @@
                 <i class="fas fa-chevron-right settings-item-arrow"></i>
             </button>
         </div>
-
         <div class="modal-actions" style="margin-top: 20px;">
             <button class="btn btn-secondary" id="closeSettingsBtn">Close</button>
         </div>
@@ -362,28 +335,23 @@
                 <div class="sort-popover" id="trashSortPopover" role="menu">
                     <div class="sort-popover-label">Sort by</div>
                     <button class="sort-option" data-sort-kind="title" role="menuitemradio">
-                        <span>Title</span>
-                        <i class="fas fa-check"></i>
+                        <span>Title</span><i class="fas fa-check"></i>
                     </button>
                     <button class="sort-option" data-sort-kind="date-created" role="menuitemradio">
-                        <span>Date created</span>
-                        <i class="fas fa-check"></i>
+                        <span>Date created</span><i class="fas fa-check"></i>
                     </button>
                     <div class="sort-popover-divider"></div>
                     <div class="sort-popover-label">Order</div>
                     <button class="sort-option" data-sort-order="asc" role="menuitemradio">
-                        <span><i class="fas fa-arrow-up sort-order-icon"></i> Ascending</span>
-                        <i class="fas fa-check"></i>
+                        <span><i class="fas fa-arrow-up sort-order-icon"></i> Ascending</span><i class="fas fa-check"></i>
                     </button>
                     <button class="sort-option" data-sort-order="desc" role="menuitemradio">
-                        <span><i class="fas fa-arrow-down sort-order-icon"></i> Descending</span>
-                        <i class="fas fa-check"></i>
+                        <span><i class="fas fa-arrow-down sort-order-icon"></i> Descending</span><i class="fas fa-check"></i>
                     </button>
                 </div>
             </div>
         </div>
         <p style="color:#64748b; font-size:0.82rem; margin-bottom: 12px;">Deleted schedules are kept here until you recover or permanently delete them.</p>
-
         <div class="trash-toolbar">
             <label class="trash-select-all">
                 <input type="checkbox" id="trashSelectAll">
@@ -398,9 +366,7 @@
                 </button>
             </div>
         </div>
-
         <div class="trash-list" id="trashList"></div>
-
         <div class="trash-footer">
             <button class="btn btn-danger" id="emptyTrashBtn" style="display:none;">
                 <i class="fas fa-dumpster-fire"></i> Empty Recycle Bin
@@ -412,12 +378,9 @@
 
 <div class="modal-overlay" id="confirmOverlay">
     <div class="modal confirm-modal">
-        <div class="confirm-icon danger" id="confirmIcon">
-            <i class="fas fa-trash-alt"></i>
-        </div>
+        <div class="confirm-icon danger" id="confirmIcon"><i class="fas fa-trash-alt"></i></div>
         <h3 id="confirmTitle">Are you sure?</h3>
         <p class="confirm-message" id="confirmMessage">This action cannot be undone.</p>
-
         <div class="modal-actions">
             <button class="btn btn-secondary" id="confirmCancelBtn">Cancel</button>
             <button class="btn btn-danger" id="confirmOkBtn"><i class="fas fa-trash-alt"></i> Delete</button>
@@ -427,13 +390,10 @@
 
 <div class="modal-overlay" id="validationOverlay">
     <div class="modal validation-modal">
-        <div class="confirm-icon warning">
-            <i class="fas fa-exclamation-triangle"></i>
-        </div>
+        <div class="confirm-icon warning"><i class="fas fa-exclamation-triangle"></i></div>
         <h3>Please fill in required fields</h3>
         <p class="confirm-message" id="validationMessage">Some required fields are missing.</p>
         <ul class="validation-list" id="validationList"></ul>
-
         <div class="modal-actions">
             <button class="btn btn-primary" id="validationOkBtn"><i class="fas fa-check"></i> Got it</button>
         </div>
