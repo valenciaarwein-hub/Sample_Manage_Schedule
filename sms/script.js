@@ -2,21 +2,35 @@
 (function() {
     // ---------- IN-MEMORY JAVASCRIPT STORE (no localStorage) ----------
     let schedules = {};
-    let trash = []; // deleted schedules: { id, title, description, dateKey, deletedAt }
+    let trash = [];
 
     // Seed sample data on first load
     (function seedSampleData() {
         const today = new Date();
-        const sampleDate = new Date(today.getFullYear(), today.getMonth(), 15);
-        schedules[formatDateKey(sampleDate)] = [
-            { id: 's1', title: 'Project kickoff', description: 'Discuss scope and timeline for Q2 launch' },
-            { id: 's2', title: 'Design review', description: 'Review new mockups with the product team' }
+        const nowIso = new Date().toISOString();
+
+        schedules[formatDateKey(today)] = [
+            { id: 's_today', title: 'Daily standup', description: 'Quick sync with the team', createdAt: nowIso }
         ];
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         schedules[formatDateKey(tomorrow)] = [
-            { id: 's3', title: 'Client call', description: 'Follow-up on proposal and next steps' }
+            { id: 's3', title: 'Client call', description: 'Follow-up on proposal and next steps', createdAt: nowIso }
         ];
+        const inTwoDays = new Date(today);
+        inTwoDays.setDate(inTwoDays.getDate() + 2);
+        schedules[formatDateKey(inTwoDays)] = [
+            { id: 's4', title: 'Gym session', description: 'Leg day — bring water', createdAt: nowIso }
+        ];
+
+        const sampleDate = new Date(today.getFullYear(), today.getMonth(), 15);
+        const sampleKey = formatDateKey(sampleDate);
+        if (sampleKey !== formatDateKey(today) && sampleKey !== formatDateKey(tomorrow) && sampleKey !== formatDateKey(inTwoDays)) {
+            schedules[sampleKey] = [
+                { id: 's1', title: 'Project kickoff', description: 'Discuss scope and timeline for Q2 launch', createdAt: nowIso },
+                { id: 's2', title: 'Design review', description: 'Review new mockups with the product team', createdAt: nowIso }
+            ];
+        }
     })();
 
     function saveSchedulesToStorage() { /* in-memory only */ }
@@ -41,6 +55,12 @@
             try {
                 const parsed = JSON.parse(e.target.result);
                 if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    const nowIso = new Date().toISOString();
+                    Object.keys(parsed).forEach(dateKey => {
+                        (parsed[dateKey] || []).forEach(s => {
+                            if (!s.createdAt) s.createdAt = nowIso;
+                        });
+                    });
                     schedules = parsed;
                     onDone(true);
                 } else {
@@ -66,9 +86,11 @@
     let reopenHistoryAfterEdit = false;
     let trashSelection = new Set();
     let dayListSelection = new Set();
+    let pendingSave = null;
 
-    // Pending save (waiting for review confirmation)
-    let pendingSave = null; // { mode: 'create'|'edit', dateKey, id, oldData?, newData }
+    // Sort state (persisted across re-renders, reset on logout)
+    let historySort = { kind: 'date-created', order: 'desc' };
+    let trashSort = { kind: 'date-created', order: 'desc' };
 
     // ---------- DOM ELEMENTS ----------
     const monthYearText = document.getElementById('monthYearText');
@@ -84,6 +106,11 @@
     const importFileInput = document.getElementById('importFileInput');
     const logoutBtn = document.getElementById('logoutBtn');
     const settingsBtn = document.getElementById('settingsBtn');
+
+    // upcoming 7 days
+    const upcomingTableBody = document.getElementById('upcomingTableBody');
+    const upcomingEmpty = document.getElementById('upcomingEmpty');
+    const upcomingRange = document.getElementById('upcomingRange');
 
     // day list modal
     const dayListOverlay = document.getElementById('dayListOverlay');
@@ -133,6 +160,8 @@
     const historyOverlay = document.getElementById('historyOverlay');
     const historySearch = document.getElementById('historySearch');
     const historyYearFilter = document.getElementById('historyYearFilter');
+    const historySortBtn = document.getElementById('historySortBtn');
+    const historySortPopover = document.getElementById('historySortPopover');
     const historyStats = document.getElementById('historyStats');
     const totalSchedulesCount = document.getElementById('totalSchedulesCount');
     const totalDaysCount = document.getElementById('totalDaysCount');
@@ -148,6 +177,8 @@
 
     // trash modal
     const trashOverlay = document.getElementById('trashOverlay');
+    const trashSortBtn = document.getElementById('trashSortBtn');
+    const trashSortPopover = document.getElementById('trashSortPopover');
     const trashSelectAll = document.getElementById('trashSelectAll');
     const trashList = document.getElementById('trashList');
     const trashRecoverSelectedBtn = document.getElementById('trashRecoverSelectedBtn');
@@ -227,6 +258,7 @@
     }
 
     const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const weekdayShort = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
     function daysInMonth(year, month) {
         return new Date(year, month + 1, 0).getDate();
@@ -252,6 +284,60 @@
         });
     }
 
+    // ---------- SORT HELPERS ----------
+    // compare two ISO strings (lexicographic == chronological for ISO)
+    function cmpIso(a, b) {
+        const aT = a || '';
+        const bT = b || '';
+        return aT.localeCompare(bT);
+    }
+
+    // Apply a { kind, order } sort to an array of objects that have
+    // .title, .createdAt (ISO) and .dateKey (YYYY-MM-DD)
+    function applySort(list, sort) {
+        const arr = [...list];
+        const kind = sort.kind;
+        const order = sort.order === 'asc' ? 1 : -1;
+
+        arr.sort((a, b) => {
+            let primary = 0;
+
+            if (kind === 'title') {
+                // Case-insensitive title compare, then fall back to date
+                primary = (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
+            } else {
+                // date-created (default): createdAt, then fall back to schedule date
+                primary = cmpIso(a.createdAt, b.createdAt);
+                if (primary === 0) primary = (a.dateKey || '').localeCompare(b.dateKey || '');
+            }
+
+            return primary * order;
+        });
+
+        return arr;
+    }
+
+    // Update the sort icon to reflect the current sort
+    function updateSortIcon(btn, sort) {
+        // Show a directional icon depending on order
+        const icon = btn.querySelector('i');
+        if (!icon) return;
+        const base = sort.kind === 'title' ? 'fa-sort-alpha' : 'fa-sort-amount';
+        const dir = sort.order === 'asc' ? 'up' : 'down';
+        icon.className = `fas ${base}-${dir}`;
+        btn.title = `Sort: ${sort.kind === 'title' ? 'Title' : 'Date created'} (${sort.order === 'asc' ? 'Ascending' : 'Descending'})`;
+    }
+
+    // Sync the popover's selected state to the current sort
+    function syncSortPopover(popover, sort) {
+        popover.querySelectorAll('[data-sort-kind]').forEach(el => {
+            el.classList.toggle('selected', el.dataset.sortKind === sort.kind);
+        });
+        popover.querySelectorAll('[data-sort-order]').forEach(el => {
+            el.classList.toggle('selected', el.dataset.sortOrder === sort.order);
+        });
+    }
+
     // ---------- TRASH HELPERS ----------
     function moveToTrash(dateKey, schedule) {
         trash.unshift({
@@ -259,7 +345,8 @@
             title: schedule.title,
             description: schedule.description || '',
             dateKey: dateKey,
-            deletedAt: new Date().toISOString()
+            deletedAt: new Date().toISOString(),
+            createdAt: schedule.createdAt || new Date().toISOString()
         });
     }
 
@@ -282,11 +369,103 @@
         schedules[item.dateKey].push({
             id: targetId,
             title: item.title,
-            description: item.description
+            description: item.description,
+            createdAt: item.createdAt || new Date().toISOString()
         });
 
         removeFromTrashById(id);
         return true;
+    }
+
+    // ---------- UPCOMING 7 DAYS TABLE ----------
+    function renderUpcomingTable() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const endDate = new Date(today);
+        endDate.setDate(endDate.getDate() + 6);
+
+        const rangeStartLabel = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const rangeEndLabel = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        upcomingRange.textContent = `${rangeStartLabel} – ${rangeEndLabel}`;
+
+        const rows = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(today);
+            d.setDate(today.getDate() + i);
+            const dateKey = formatDateKey(d);
+            const daySchedules = schedules[dateKey] || [];
+            daySchedules.forEach(s => {
+                rows.push({
+                    dateKey,
+                    dateObj: d,
+                    id: s.id,
+                    title: s.title,
+                    description: s.description || ''
+                });
+            });
+        }
+
+        const todayKey = formatDateKey(today);
+
+        if (rows.length === 0) {
+            upcomingTableBody.innerHTML = '';
+            upcomingEmpty.style.display = 'block';
+            return;
+        }
+
+        upcomingEmpty.style.display = 'none';
+
+        let html = '';
+        rows.forEach(r => {
+            const isToday = r.dateKey === todayKey;
+            const dateLabel = r.dateObj.toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric'
+            });
+            const dayLabel = weekdayShort[r.dateObj.getDay()];
+
+            html += `
+                <tr class="${isToday ? 'upcoming-today' : ''}">
+                    <td class="col-date">
+                        <span class="upcoming-date-cell">${escapeHtml(dateLabel)}</span>
+                    </td>
+                    <td class="col-day">
+                        <span class="upcoming-day-cell">${escapeHtml(dayLabel)}${isToday ? '<span class="upcoming-today-badge">TODAY</span>' : ''}</span>
+                    </td>
+                    <td class="col-title">
+                        <span class="upcoming-title-cell">${escapeHtml(r.title)}</span>
+                    </td>
+                    <td class="col-desc">
+                        ${r.description
+                            ? `<span class="upcoming-desc-cell">${escapeHtml(r.description)}</span>`
+                            : `<span class="upcoming-desc-cell empty">No description</span>`}
+                    </td>
+                    <td class="col-actions">
+                        <div class="upcoming-actions">
+                            <button class="icon-btn view" data-upcoming-action="view" data-date="${r.dateKey}" data-id="${r.id}" title="View details"><i class="fas fa-eye"></i></button>
+                            <button class="icon-btn edit" data-upcoming-action="edit" data-date="${r.dateKey}" data-id="${r.id}" title="Edit schedule"><i class="fas fa-pen"></i></button>
+                            <button class="icon-btn delete" data-upcoming-action="delete" data-date="${r.dateKey}" data-id="${r.id}" title="Move to recycle bin"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        upcomingTableBody.innerHTML = html;
+
+        upcomingTableBody.querySelectorAll('[data-upcoming-action]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.upcomingAction;
+                const dateKey = btn.dataset.date;
+                const id = btn.dataset.id;
+                if (!dateKey || !id) return;
+
+                if (action === 'view') openViewModal(dateKey, id);
+                else if (action === 'edit') openEditFormModal(dateKey, id, false);
+                else if (action === 'delete') deleteScheduleFromList(dateKey, id);
+            });
+        });
     }
 
     // ---------- RENDER CALENDAR ----------
@@ -385,6 +564,8 @@
                 if (dateKey) openDayListModal(dateKey);
             });
         });
+
+        renderUpcomingTable();
     }
 
     // ---------- DAY LIST MODAL ----------
@@ -650,7 +831,6 @@
             const original = daySchedules.find(s => s.id === editingScheduleId);
             if (!original) return;
 
-            // If nothing actually changed, just close the form
             if (original.title === title && (original.description || '') === description) {
                 closeFormModal();
                 return;
@@ -694,7 +874,6 @@
 
         let html = '';
 
-        // Date block (shared)
         html += `
             <div class="review-block">
                 <div class="review-block-label"><i class="fas fa-calendar-day"></i> Date</div>
@@ -705,7 +884,6 @@
         `;
 
         if (mode === 'edit') {
-            // Old vs new comparison
             html += `
                 <div class="review-block">
                     <div class="review-block-label"><i class="fas fa-history"></i> Old values</div>
@@ -720,7 +898,6 @@
                 </div>
             `;
 
-            // New values, highlighting changes
             const titleChanged = oldData.title !== newData.title;
             const descChanged = (oldData.description || '') !== (newData.description || '');
 
@@ -738,7 +915,6 @@
                 </div>
             `;
         } else {
-            // New schedule — just show new values
             html += `
                 <div class="review-block">
                     <div class="review-new-badge"><i class="fas fa-plus-circle"></i> New schedule</div>
@@ -756,7 +932,6 @@
 
         reviewBody.innerHTML = html;
 
-        // Close the form modal (but keep values so "Go Back" restores them)
         modalOverlay.classList.remove('active');
         reviewOverlay.classList.add('active');
     }
@@ -766,7 +941,6 @@
     }
 
     function goBackToForm() {
-        // Re-open the form with the pending values still intact
         reviewOverlay.classList.remove('active');
         if (!pendingSave) return;
 
@@ -796,6 +970,7 @@
         if (!pendingSave) return;
 
         const { mode, dateKey, id, newData } = pendingSave;
+        const nowIso = new Date().toISOString();
 
         if (mode === 'edit' && id) {
             const daySchedules = schedules[dateKey] || [];
@@ -810,7 +985,12 @@
         } else {
             const newId = 'sched_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
             if (!schedules[dateKey]) schedules[dateKey] = [];
-            schedules[dateKey].push({ id: newId, title: newData.title, description: newData.description });
+            schedules[dateKey].push({
+                id: newId,
+                title: newData.title,
+                description: newData.description,
+                createdAt: nowIso
+            });
         }
 
         saveSchedulesToStorage();
@@ -958,7 +1138,12 @@
             s.title.toLowerCase().includes(query) || (s.description || '').toLowerCase().includes(query));
         if (yearFilter !== 'all') filtered = filtered.filter(s => s.dateKey.startsWith(yearFilter + '-'));
 
-        filtered.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+        // Apply the current sort
+        filtered = applySort(filtered, historySort);
+
+        // Keep the sort icon in sync
+        updateSortIcon(historySortBtn, historySort);
+        syncSortPopover(historySortPopover, historySort);
 
         if (filtered.length === 0) {
             historyList.innerHTML = `
@@ -971,52 +1156,34 @@
             return;
         }
 
-        const monthGroups = {};
-        filtered.forEach(s => {
-            const [y, m] = s.dateKey.split('-');
-            const monthKey = `${y}-${m}`;
-            if (!monthGroups[monthKey]) monthGroups[monthKey] = {};
-            if (!monthGroups[monthKey][s.dateKey]) monthGroups[monthKey][s.dateKey] = [];
-            monthGroups[monthKey][s.dateKey].push(s);
-        });
-
-        const sortedMonthKeys = Object.keys(monthGroups).sort((a, b) => b.localeCompare(a));
-
+        // Render a flat list sorted per the current sort mode
         let html = '';
-        sortedMonthKeys.forEach(monthKey => {
-            const [y, m] = monthKey.split('-');
-            const monthLabel = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
-            const dates = monthGroups[monthKey];
-            const sortedDateKeys = Object.keys(dates).sort((a, b) => b.localeCompare(a));
-
-            html += `<div class="history-month-group"><div class="history-month-header"><i class="fas fa-calendar-alt"></i> ${monthLabel}</div>`;
-
-            sortedDateKeys.forEach(dateKey => {
-                const dateObj = getDateFromKey(dateKey);
-                const dateLabel = dateObj.toLocaleDateString('en-US', {
-                    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
-                });
-                html += `<div class="history-date-group"><div class="history-date-header"><i class="fas fa-calendar-day"></i> ${dateLabel}</div>`;
-
-                dates[dateKey].forEach(s => {
-                    html += `
-                        <div class="history-schedule-item">
-                            <div class="hs-accent"></div>
-                            <div class="hs-body">
-                                <div class="hs-title">${escapeHtml(s.title)}</div>
-                                ${s.description ? `<div class="hs-desc">${escapeHtml(s.description)}</div>` : ''}
-                            </div>
-                            <div class="hs-actions">
-                                <button class="icon-btn view" data-history-action="view" data-date="${dateKey}" data-id="${s.id}" title="View"><i class="fas fa-eye"></i></button>
-                                <button class="icon-btn edit" data-history-action="edit" data-date="${dateKey}" data-id="${s.id}" title="Edit"><i class="fas fa-pen"></i></button>
-                                <button class="icon-btn delete" data-history-action="delete" data-date="${dateKey}" data-id="${s.id}" title="Move to recycle bin"><i class="fas fa-trash-alt"></i></button>
-                            </div>
-                        </div>
-                    `;
-                });
-                html += `</div>`;
+        filtered.forEach(s => {
+            const dateObj = getDateFromKey(s.dateKey);
+            const dateLabel = dateObj.toLocaleDateString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
             });
-            html += `</div>`;
+            const addedLabel = s.createdAt ? formatDateTime(s.createdAt) : '—';
+
+            html += `
+                <div class="history-schedule-item">
+                    <div class="hs-accent"></div>
+                    <div class="hs-body">
+                        <div class="hs-title">${escapeHtml(s.title)}</div>
+                        ${s.description ? `<div class="hs-desc">${escapeHtml(s.description)}</div>` : ''}
+                        <div class="hs-desc" style="font-size:0.65rem; color:#94a3b8; margin-top:2px;">
+                            <i class="fas fa-calendar-day" style="font-size:0.6rem;"></i> ${escapeHtml(dateLabel)}
+                            &nbsp;·&nbsp;
+                            <i class="fas fa-clock" style="font-size:0.6rem;"></i> Added ${escapeHtml(addedLabel)}
+                        </div>
+                    </div>
+                    <div class="hs-actions">
+                        <button class="icon-btn view" data-history-action="view" data-date="${s.dateKey}" data-id="${s.id}" title="View"><i class="fas fa-eye"></i></button>
+                        <button class="icon-btn edit" data-history-action="edit" data-date="${s.dateKey}" data-id="${s.id}" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="icon-btn delete" data-history-action="delete" data-date="${s.dateKey}" data-id="${s.id}" title="Move to recycle bin"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            `;
         });
 
         historyList.innerHTML = html;
@@ -1050,7 +1217,10 @@
         historyOverlay.classList.add('active');
     }
 
-    function closeHistoryModal() { historyOverlay.classList.remove('active'); }
+    function closeHistoryModal() {
+        historyOverlay.classList.remove('active');
+        closeSortPopovers();
+    }
 
     // ---------- CLEAR ALL (moves all to trash) ----------
     function clearAllHistory() {
@@ -1091,6 +1261,7 @@
     function closeTrashModal() {
         trashOverlay.classList.remove('active');
         trashSelection.clear();
+        closeSortPopovers();
     }
 
     function updateTrashBulkButtons() {
@@ -1117,6 +1288,10 @@
             if (!validIds.has(id)) trashSelection.delete(id);
         });
 
+        // Sync sort icon + popover state
+        updateSortIcon(trashSortBtn, trashSort);
+        syncSortPopover(trashSortPopover, trashSort);
+
         if (trash.length === 0) {
             trashList.innerHTML = `
                 <div class="trash-empty">
@@ -1131,9 +1306,9 @@
 
         emptyTrashBtn.style.display = 'inline-flex';
 
-        let html = '';
-        const sorted = [...trash].sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''));
+        const sorted = applySort(trash, trashSort);
 
+        let html = '';
         sorted.forEach(t => {
             const isChecked = trashSelection.has(t.id);
             const dateObj = getDateFromKey(t.dateKey);
@@ -1252,6 +1427,52 @@
         });
     }
 
+    // ---------- SORT POPOVER LOGIC ----------
+    function closeSortPopovers() {
+        [historySortPopover, trashSortPopover].forEach(p => p.classList.remove('open'));
+        [historySortBtn, trashSortBtn].forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-expanded', 'false');
+        });
+    }
+
+    function toggleSortPopover(popover, btn) {
+        const willOpen = !popover.classList.contains('open');
+        closeSortPopovers();
+        if (willOpen) {
+            popover.classList.add('open');
+            btn.classList.add('active');
+            btn.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    // Wire a popover's option buttons to a sort object + onChange callback
+    function wireSortPopover(popover, sortRef, onChange) {
+        popover.querySelectorAll('[data-sort-kind]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const kind = btn.dataset.sortKind;
+                if (!kind) return;
+                sortRef.kind = kind;
+                syncSortPopover(popover, sortRef);
+                onChange();
+                closeSortPopovers();
+            });
+        });
+
+        popover.querySelectorAll('[data-sort-order]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const order = btn.dataset.sortOrder;
+                if (!order) return;
+                sortRef.order = order;
+                syncSortPopover(popover, sortRef);
+                onChange();
+                closeSortPopovers();
+            });
+        });
+    }
+
     // ---------- EVENT LISTENERS ----------
     prevMonthBtn.addEventListener('click', () => {
         currentMonth--;
@@ -1298,6 +1519,30 @@
         });
     });
 
+    // ---------- SORT POPOVER WIRING ----------
+    // History sort
+    historySortBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSortPopover(historySortPopover, historySortBtn);
+    });
+    wireSortPopover(historySortPopover, historySort, () => {
+        renderHistory();
+    });
+
+    // Trash sort
+    trashSortBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSortPopover(trashSortPopover, trashSortBtn);
+    });
+    wireSortPopover(trashSortPopover, trashSort, () => {
+        renderTrash();
+    });
+
+    // Close popovers when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.sort-wrap')) closeSortPopovers();
+    });
+
     // ---------- SETTINGS ----------
     settingsBtn.addEventListener('click', openSettingsModal);
     closeSettingsBtn.addEventListener('click', closeSettingsModal);
@@ -1328,6 +1573,8 @@
                 activeDayListDateKey = null;
                 reopenHistoryAfterEdit = false;
                 pendingSave = null;
+                historySort = { kind: 'date-created', order: 'desc' };
+                trashSort = { kind: 'date-created', order: 'desc' };
 
                 dayListOverlay.classList.remove('active');
                 modalOverlay.classList.remove('active');
@@ -1337,11 +1584,9 @@
                 historyOverlay.classList.remove('active');
                 trashOverlay.classList.remove('active');
                 settingsOverlay.classList.remove('active');
+                closeSortPopovers();
 
                 renderCalendar();
-
-                // Redirect to login page — uncomment and update route:
-                // window.location.href = 'login.html';
             }
         });
     });
@@ -1410,10 +1655,7 @@
     reviewGoBackBtn.addEventListener('click', goBackToForm);
     reviewConfirmBtn.addEventListener('click', confirmSave);
     reviewOverlay.addEventListener('click', (e) => {
-        if (e.target === reviewOverlay) {
-            // Treat clicking outside as "go back" so work isn't lost
-            goBackToForm();
-        }
+        if (e.target === reviewOverlay) goBackToForm();
     });
 
     closeViewBtn.addEventListener('click', closeViewModal);
@@ -1450,6 +1692,7 @@
             if (modalOverlay.classList.contains('active')) closeFormModal();
             if (viewOverlay.classList.contains('active')) closeViewModal();
             if (datePickerOverlay.classList.contains('active')) closeDatePickerModal();
+            closeSortPopovers();
         }
     });
 
