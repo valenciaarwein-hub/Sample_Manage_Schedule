@@ -412,6 +412,39 @@ body {
 .btn-danger:hover { background: #fecaca; }
 
 /* ===== DAY SCHEDULE LIST MODAL ===== */
+.day-list-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #f8fafc;
+    border: 1.5px solid #eef2f6;
+    border-radius: 14px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.day-select-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #334155;
+    cursor: pointer;
+    user-select: none;
+}
+
+.day-select-all input,
+.day-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
 .day-schedule-list {
     display: flex;
     flex-direction: column;
@@ -1193,6 +1226,9 @@ body {
     .date-preview span { font-size: 0.85rem; }
 
     /* day list modal mobile */
+    .day-list-toolbar { padding: 8px 10px; gap: 8px; border-radius: 12px; }
+    .day-select-all { font-size: 0.78rem; gap: 6px; }
+    .day-checkbox { width: 16px; height: 16px; }
     .day-schedule-card { padding: 10px 12px; border-radius: 14px; gap: 8px; }
     .day-schedule-card .card-title { font-size: 0.82rem; }
     .day-schedule-card .card-desc { font-size: 0.68rem; }
