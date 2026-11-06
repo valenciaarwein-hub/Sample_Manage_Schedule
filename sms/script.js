@@ -1764,7 +1764,6 @@
                     onDone(false, 'Invalid file format.');
                     return;
                 }
-                // Merge: incoming entries are appended (dedupe by id within a date).
                 Object.keys(parsed).forEach(dateKey => {
                     const incoming = parsed[dateKey];
                     if (!Array.isArray(incoming)) return;
@@ -2028,11 +2027,9 @@
     // ============================================================
     // BOOT
     // ============================================================
-    // Show an empty calendar immediately, then load data from KV.
     renderCalendar();
     loadFromApi(true);
 
-    // Optional: refresh every 30s so other tabs/devices stay roughly in sync.
     setInterval(() => {
         if (!savingInFlight && !document.hidden) loadFromApi(false);
     }, 30000);
