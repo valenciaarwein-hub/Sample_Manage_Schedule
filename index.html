@@ -61,12 +61,9 @@
             <i class="fas fa-history"></i>
             <span>History</span>
         </button>
-        <button class="btn-logout" id="logoutBtn" title="Log out">
-            <i class="fas fa-sign-out-alt"></i>
-            <span>Logout</span>
-        </button>
-        <button class="btn-trash" id="trashBtn" title="Delete all schedules" aria-label="Delete all schedules">
-            <i class="fas fa-trash-alt"></i>
+        <button class="btn-settings" id="settingsBtn" title="Settings">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
         </button>
     </div>
 </div>
@@ -200,6 +197,74 @@
                 <i class="fas fa-trash-alt"></i> Clear All
             </button>
             <button class="btn btn-secondary" id="closeHistoryBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SETTINGS MODAL ========== -->
+<div class="modal-overlay" id="settingsOverlay">
+    <div class="modal settings-modal">
+        <h3><i class="fas fa-cog" style="color:#3b82f6;"></i> Settings</h3>
+        <p style="color:#64748b; font-size:0.82rem; margin-bottom: 16px;">Manage your account and deleted schedules.</p>
+
+        <div class="settings-menu">
+            <button class="settings-item" id="openTrashBtn">
+                <div class="settings-item-icon trash">
+                    <i class="fas fa-trash-alt"></i>
+                </div>
+                <div class="settings-item-body">
+                    <div class="settings-item-title">Recycle Bin</div>
+                    <div class="settings-item-desc">View, recover, or permanently delete deleted schedules</div>
+                </div>
+                <i class="fas fa-chevron-right settings-item-arrow"></i>
+            </button>
+
+            <button class="settings-item" id="logoutBtn">
+                <div class="settings-item-icon logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </div>
+                <div class="settings-item-body">
+                    <div class="settings-item-title">Log Out</div>
+                    <div class="settings-item-desc">Sign out and clear your current session data</div>
+                </div>
+                <i class="fas fa-chevron-right settings-item-arrow"></i>
+            </button>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 20px;">
+            <button class="btn btn-secondary" id="closeSettingsBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== RECYCLE BIN MODAL ========== -->
+<div class="modal-overlay" id="trashOverlay">
+    <div class="modal trash-modal">
+        <h3><i class="fas fa-trash-alt" style="color:#3b82f6;"></i> Recycle Bin</h3>
+        <p style="color:#64748b; font-size:0.82rem; margin-bottom: 12px;">Deleted schedules are kept here until you recover or permanently delete them.</p>
+
+        <div class="trash-toolbar">
+            <label class="trash-select-all">
+                <input type="checkbox" id="trashSelectAll">
+                <span>Select all</span>
+            </label>
+            <div class="trash-bulk-actions">
+                <button class="btn btn-primary btn-sm" id="trashRecoverSelectedBtn" disabled>
+                    <i class="fas fa-undo-alt"></i> Recover
+                </button>
+                <button class="btn btn-danger btn-sm" id="trashDeleteSelectedBtn" disabled>
+                    <i class="fas fa-trash-alt"></i> Delete
+                </button>
+            </div>
+        </div>
+
+        <div class="trash-list" id="trashList"></div>
+
+        <div class="trash-footer">
+            <button class="btn btn-danger" id="emptyTrashBtn" style="display:none;">
+                <i class="fas fa-dumpster-fire"></i> Empty Recycle Bin
+            </button>
+            <button class="btn btn-secondary" id="closeTrashBtn">Close</button>
         </div>
     </div>
 </div>
