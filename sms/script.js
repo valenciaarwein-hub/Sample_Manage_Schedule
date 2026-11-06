@@ -1098,7 +1098,7 @@
         reviewTitleText.textContent = mode === 'edit' ? 'Review Changes' : 'Review New Schedule';
 
         reviewSubtitle.textContent = mode === 'edit'
-            ? 'Compare the old and new values before replacing the schedule. Nothing is saved yet.'
+            ? 'Changed fields are highlighted. Unchanged fields stay as-is. Nothing is saved yet.'
             : 'Please review the details below before adding this schedule.';
 
         let html = '';
@@ -1113,28 +1113,34 @@
         `;
 
         if (mode === 'edit') {
-            html += `
-                <div class="review-block">
-                    <div class="review-block-label"><i class="fas fa-history"></i> Old values</div>
-                    <div class="review-field">
-                        <div class="review-field-name">Title</div>
-                        <div class="review-value old">${escapeHtml(oldData.title)}</div>
-                    </div>
-                    <div class="review-field">
-                        <div class="review-field-name">Type</div>
-                        <div class="review-value old ${oldData.type ? '' : 'empty'}">${oldData.type ? escapeHtml(oldData.type) : 'No type'}</div>
-                    </div>
-                    <div class="review-field">
-                        <div class="review-field-name">Description</div>
-                        <div class="review-value old ${oldData.description ? '' : 'empty'}">${oldData.description ? escapeHtml(oldData.description) : 'No description'}</div>
-                    </div>
-                </div>
-            `;
-
             const titleChanged = oldData.title !== newData.title;
             const descChanged = (oldData.description || '') !== (newData.description || '');
             const typeChanged = (oldData.type || '') !== (newData.type || '');
 
+            // ---- OLD VALUES ----
+            // Only fields that actually changed get the "old" (strikethrough red) style.
+            // Unchanged fields render as plain normal text.
+            html += `
+                <div class="review-block">
+                    <div class="review-block-label"><i class="fas fa-history"></i> Old values</div>
+                    <div class="review-field">
+                        <div class="review-field-name">Title${titleChanged ? ' — edited' : ''}</div>
+                        <div class="review-value ${titleChanged ? 'old' : 'same'}">${escapeHtml(oldData.title)}</div>
+                    </div>
+                    <div class="review-field">
+                        <div class="review-field-name">Type${typeChanged ? ' — edited' : ''}</div>
+                        <div class="review-value ${typeChanged ? 'old' : 'same'} ${oldData.type ? '' : 'empty'}">${oldData.type ? escapeHtml(oldData.type) : 'No type'}</div>
+                    </div>
+                    <div class="review-field">
+                        <div class="review-field-name">Description${descChanged ? ' — edited' : ''}</div>
+                        <div class="review-value ${descChanged ? 'old' : 'same'} ${oldData.description ? '' : 'empty'}">${oldData.description ? escapeHtml(oldData.description) : 'No description'}</div>
+                    </div>
+                </div>
+            `;
+
+            // ---- NEW VALUES ----
+            // Only fields that actually changed are highlighted green.
+            // Unchanged fields render as plain normal text.
             html += `
                 <div class="review-block">
                     <div class="review-new-badge"><i class="fas fa-arrow-right"></i> New values (pending)</div>
@@ -1144,7 +1150,7 @@
                     </div>
                     <div class="review-field">
                         <div class="review-field-name">Type${typeChanged ? ' — changed' : ' — unchanged'}</div>
-                        <div class="review-value ${typeChanged ? 'new' : 'same'}">${escapeHtml(newData.type)}</div>
+                        <div class="review-value ${typeChanged ? 'new' : 'same'} ${newData.type ? '' : 'empty'}">${newData.type ? escapeHtml(newData.type) : 'No type'}</div>
                     </div>
                     <div class="review-field">
                         <div class="review-field-name">Description${descChanged ? ' — changed' : ' — unchanged'}</div>
