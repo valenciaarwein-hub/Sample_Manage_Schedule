@@ -4,31 +4,33 @@
     let schedules = {};
     let trash = [];
 
+    const TYPE_OPTIONS = ['Meeting', 'Seminar', 'Special Event', 'Other'];
+
     // Seed sample data on first load
     (function seedSampleData() {
         const today = new Date();
         const nowIso = new Date().toISOString();
 
         schedules[formatDateKey(today)] = [
-            { id: 's_today', title: 'Daily standup', description: 'Quick sync with the team', createdAt: nowIso }
+            { id: 's_today', title: 'Daily standup', description: 'Quick sync with the team', type: 'Meeting', createdAt: nowIso }
         ];
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         schedules[formatDateKey(tomorrow)] = [
-            { id: 's3', title: 'Client call', description: 'Follow-up on proposal and next steps', createdAt: nowIso }
+            { id: 's3', title: 'Client call', description: 'Follow-up on proposal and next steps', type: 'Meeting', createdAt: nowIso }
         ];
         const inTwoDays = new Date(today);
         inTwoDays.setDate(inTwoDays.getDate() + 2);
         schedules[formatDateKey(inTwoDays)] = [
-            { id: 's4', title: 'Gym session', description: 'Leg day — bring water', createdAt: nowIso }
+            { id: 's4', title: 'Gym session', description: 'Leg day — bring water', type: 'Other', createdAt: nowIso }
         ];
 
         const sampleDate = new Date(today.getFullYear(), today.getMonth(), 15);
         const sampleKey = formatDateKey(sampleDate);
         if (sampleKey !== formatDateKey(today) && sampleKey !== formatDateKey(tomorrow) && sampleKey !== formatDateKey(inTwoDays)) {
             schedules[sampleKey] = [
-                { id: 's1', title: 'Project kickoff', description: 'Discuss scope and timeline for Q2 launch', createdAt: nowIso },
-                { id: 's2', title: 'Design review', description: 'Review new mockups with the product team', createdAt: nowIso }
+                { id: 's1', title: 'Project kickoff', description: 'Discuss scope and timeline for Q2 launch', type: 'Meeting', createdAt: nowIso },
+                { id: 's2', title: 'Design review', description: 'Review new mockups with the product team', type: 'Seminar', createdAt: nowIso }
             ];
         }
     })();
@@ -59,6 +61,7 @@
                     Object.keys(parsed).forEach(dateKey => {
                         (parsed[dateKey] || []).forEach(s => {
                             if (!s.createdAt) s.createdAt = nowIso;
+                            if (!s.type) s.type = 'Other';
                         });
                     });
                     schedules = parsed;
@@ -88,9 +91,13 @@
     let dayListSelection = new Set();
     let pendingSave = null;
 
-    // Sort state (persisted across re-renders, reset on logout)
+    // Form state for schedule type
+    let formType = { base: null, custom: '' };
+
     let historySort = { kind: 'date-created', order: 'desc' };
     let trashSort = { kind: 'date-created', order: 'desc' };
+
+    let viewContext = { kind: 'schedule', trashId: null };
 
     // ---------- DOM ELEMENTS ----------
     const monthYearText = document.getElementById('monthYearText');
@@ -129,6 +136,8 @@
     const scheduleTitle = document.getElementById('scheduleTitle');
     const scheduleDescription = document.getElementById('scheduleDescription');
     const charCount = document.getElementById('charCount');
+    const typeButtonGroup = document.getElementById('typeButtonGroup');
+    const customTypeInput = document.getElementById('customTypeInput');
     const cancelModalBtn = document.getElementById('cancelModalBtn');
     const saveScheduleBtn = document.getElementById('saveScheduleBtn');
 
@@ -142,10 +151,16 @@
 
     // view modal
     const viewOverlay = document.getElementById('viewOverlay');
+    const viewModalTitle = document.getElementById('viewModalTitle');
     const viewTitle = document.getElementById('viewTitle');
+    const viewType = document.getElementById('viewType');
     const viewDescription = document.getElementById('viewDescription');
     const viewDate = document.getElementById('viewDate');
+    const viewTrashDetails = document.getElementById('viewTrashDetails');
+    const viewCreatedAt = document.getElementById('viewCreatedAt');
+    const viewDeletedAt = document.getElementById('viewDeletedAt');
     const closeViewBtn = document.getElementById('closeViewBtn');
+    const recoverFromViewBtn = document.getElementById('recoverFromViewBtn');
 
     // date picker modal
     const datePickerOverlay = document.getElementById('datePickerOverlay');
@@ -193,6 +208,12 @@
     const confirmMessage = document.getElementById('confirmMessage');
     const confirmCancelBtn = document.getElementById('confirmCancelBtn');
     const confirmOkBtn = document.getElementById('confirmOkBtn');
+
+    // validation modal
+    const validationOverlay = document.getElementById('validationOverlay');
+    const validationMessage = document.getElementById('validationMessage');
+    const validationList = document.getElementById('validationList');
+    const validationOkBtn = document.getElementById('validationOkBtn');
 
     // ---------- CONFIRMATION MODAL HELPER ----------
     let pendingConfirmAction = null;
@@ -244,6 +265,28 @@
         if (e.target === confirmOverlay) closeConfirmModal();
     });
 
+    // ---------- VALIDATION MODAL ----------
+    function openValidationModal(missingFields) {
+        validationMessage.textContent = 'Please complete the required fields below before saving.';
+
+        validationList.innerHTML = missingFields.map(f =>
+            `<li><i class="fas fa-exclamation-circle"></i> ${escapeHtml(f)}</li>`
+        ).join('');
+
+        validationOverlay.classList.add('active');
+    }
+
+    function closeValidationModal() {
+        validationOverlay.classList.remove('active');
+        // Clear invalid highlights
+        document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
+    }
+
+    validationOkBtn.addEventListener('click', closeValidationModal);
+    validationOverlay.addEventListener('click', (e) => {
+        if (e.target === validationOverlay) closeValidationModal();
+    });
+
     // ---------- HELPERS ----------
     function formatDateKey(date) {
         const y = date.getFullYear();
@@ -284,16 +327,27 @@
         });
     }
 
+    function getTypeIcon(type) {
+        switch (type) {
+            case 'Meeting': return 'fa-users';
+            case 'Seminar': return 'fa-chalkboard-teacher';
+            case 'Special Event': return 'fa-star';
+            default: return 'fa-tag';
+        }
+    }
+
+    function renderTypeBadge(type) {
+        if (!type) return '';
+        return `<span class="type-badge"><i class="fas ${getTypeIcon(type)}"></i> ${escapeHtml(type)}</span>`;
+    }
+
     // ---------- SORT HELPERS ----------
-    // compare two ISO strings (lexicographic == chronological for ISO)
     function cmpIso(a, b) {
         const aT = a || '';
         const bT = b || '';
         return aT.localeCompare(bT);
     }
 
-    // Apply a { kind, order } sort to an array of objects that have
-    // .title, .createdAt (ISO) and .dateKey (YYYY-MM-DD)
     function applySort(list, sort) {
         const arr = [...list];
         const kind = sort.kind;
@@ -301,25 +355,19 @@
 
         arr.sort((a, b) => {
             let primary = 0;
-
             if (kind === 'title') {
-                // Case-insensitive title compare, then fall back to date
                 primary = (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
             } else {
-                // date-created (default): createdAt, then fall back to schedule date
                 primary = cmpIso(a.createdAt, b.createdAt);
                 if (primary === 0) primary = (a.dateKey || '').localeCompare(b.dateKey || '');
             }
-
             return primary * order;
         });
 
         return arr;
     }
 
-    // Update the sort icon to reflect the current sort
     function updateSortIcon(btn, sort) {
-        // Show a directional icon depending on order
         const icon = btn.querySelector('i');
         if (!icon) return;
         const base = sort.kind === 'title' ? 'fa-sort-alpha' : 'fa-sort-amount';
@@ -328,7 +376,6 @@
         btn.title = `Sort: ${sort.kind === 'title' ? 'Title' : 'Date created'} (${sort.order === 'asc' ? 'Ascending' : 'Descending'})`;
     }
 
-    // Sync the popover's selected state to the current sort
     function syncSortPopover(popover, sort) {
         popover.querySelectorAll('[data-sort-kind]').forEach(el => {
             el.classList.toggle('selected', el.dataset.sortKind === sort.kind);
@@ -344,6 +391,7 @@
             id: schedule.id,
             title: schedule.title,
             description: schedule.description || '',
+            type: schedule.type || 'Other',
             dateKey: dateKey,
             deletedAt: new Date().toISOString(),
             createdAt: schedule.createdAt || new Date().toISOString()
@@ -370,11 +418,102 @@
             id: targetId,
             title: item.title,
             description: item.description,
+            type: item.type || 'Other',
             createdAt: item.createdAt || new Date().toISOString()
         });
 
         removeFromTrashById(id);
         return true;
+    }
+
+    // ---------- FORM: TYPE BUTTONS ----------
+    function resetTypeButtons(selectedType) {
+        const btns = typeButtonGroup.querySelectorAll('.type-btn');
+        const knownTypes = TYPE_OPTIONS;
+
+        // Determine if selectedType is one of the base options or a custom value
+        const isBase = selectedType && knownTypes.includes(selectedType);
+
+        btns.forEach(btn => {
+            const btnType = btn.dataset.type;
+            const isSelected = isBase
+                ? btnType === selectedType
+                : btnType === 'Other';
+            btn.classList.toggle('selected', isSelected);
+        });
+
+        if (selectedType && !isBase) {
+            // Custom value
+            formType.base = 'Other';
+            formType.custom = selectedType;
+            customTypeInput.style.display = 'inline-block';
+            customTypeInput.value = selectedType;
+            const otherBtn = typeButtonGroup.querySelector('[data-type="Other"]');
+            otherBtn.classList.add('selected');
+        } else if (isBase && selectedType !== 'Other') {
+            formType.base = selectedType;
+            formType.custom = '';
+            customTypeInput.style.display = 'none';
+            customTypeInput.value = '';
+        } else if (selectedType === 'Other') {
+            formType.base = 'Other';
+            formType.custom = '';
+            customTypeInput.style.display = 'inline-block';
+            customTypeInput.value = '';
+        } else {
+            // No type selected
+            formType.base = null;
+            formType.custom = '';
+            customTypeInput.style.display = 'none';
+            customTypeInput.value = '';
+        }
+    }
+
+    typeButtonGroup.addEventListener('click', (e) => {
+        const btn = e.target.closest('.type-btn');
+        if (!btn) return;
+
+        const type = btn.dataset.type;
+
+        if (type === 'Other') {
+            formType.base = 'Other';
+            // Toggle custom input
+            if (customTypeInput.style.display === 'none') {
+                customTypeInput.style.display = 'inline-block';
+                customTypeInput.focus();
+            } else {
+                customTypeInput.style.display = 'none';
+                formType.custom = '';
+                customTypeInput.value = '';
+            }
+        } else {
+            formType.base = type;
+            formType.custom = '';
+            customTypeInput.style.display = 'none';
+            customTypeInput.value = '';
+        }
+
+        // Update visual selection
+        typeButtonGroup.querySelectorAll('.type-btn').forEach(b => {
+            if (b.dataset.type === 'Other') {
+                b.classList.toggle('selected', formType.base === 'Other');
+            } else {
+                b.classList.toggle('selected', b.dataset.type === formType.base && formType.base !== 'Other');
+            }
+        });
+    });
+
+    customTypeInput.addEventListener('input', () => {
+        formType.custom = customTypeInput.value;
+    });
+
+    function getResolvedType() {
+        if (formType.base === 'Other') {
+            const custom = formType.custom.trim();
+            if (custom) return custom;
+            return 'Other';
+        }
+        return formType.base || '';
     }
 
     // ---------- UPCOMING 7 DAYS TABLE ----------
@@ -401,7 +540,8 @@
                     dateObj: d,
                     id: s.id,
                     title: s.title,
-                    description: s.description || ''
+                    description: s.description || '',
+                    type: s.type || ''
                 });
             });
         }
@@ -434,6 +574,7 @@
                     </td>
                     <td class="col-title">
                         <span class="upcoming-title-cell">${escapeHtml(r.title)}</span>
+                        ${r.type ? renderTypeBadge(r.type) : ''}
                     </td>
                     <td class="col-desc">
                         ${r.description
@@ -637,6 +778,7 @@
                     <div class="card-body">
                         <div class="card-title">${escapeHtml(s.title)}</div>
                         <div class="card-desc">${escapeHtml(desc)}</div>
+                        ${s.type ? renderTypeBadge(s.type) : ''}
                     </div>
                     <div class="card-actions">
                         <button class="icon-btn view" data-action="view" data-id="${s.id}" title="View details"><i class="fas fa-eye"></i></button>
@@ -743,7 +885,15 @@
         reopenHistoryAfterEdit = fromHistory;
 
         const dateObj = getDateFromKey(dateKey);
+
+        viewContext = { kind: 'schedule', trashId: null };
+        viewOverlay.classList.remove('trash-context');
+        viewTrashDetails.style.display = 'none';
+        recoverFromViewBtn.style.display = 'none';
+        viewModalTitle.innerHTML = '<i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details';
+
         viewTitle.textContent = schedule.title;
+        viewType.innerHTML = schedule.type ? renderTypeBadge(schedule.type) : '<span style="color:#94a3b8;">—</span>';
         viewDescription.textContent = schedule.description || 'No description provided.';
         viewDate.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -751,8 +901,39 @@
         viewOverlay.classList.add('active');
     }
 
+    function openTrashViewModal(trashId) {
+        const item = trash.find(t => t.id === trashId);
+        if (!item) return;
+
+        viewContext = { kind: 'trash', trashId };
+
+        viewOverlay.classList.add('trash-context');
+        viewModalTitle.innerHTML = '<i class="fas fa-eye" style="color:#dc2626;"></i> Deleted Schedule Details';
+
+        viewTitle.textContent = item.title;
+        viewType.innerHTML = item.type ? renderTypeBadge(item.type) : '<span style="color:#94a3b8;">—</span>';
+        viewDescription.textContent = item.description || 'No description provided.';
+
+        const dateObj = getDateFromKey(item.dateKey);
+        viewDate.textContent = dateObj.toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        viewTrashDetails.style.display = 'block';
+        viewCreatedAt.textContent = item.createdAt ? formatDateTime(item.createdAt) : '—';
+        viewDeletedAt.textContent = item.deletedAt ? formatDateTime(item.deletedAt) : '—';
+
+        recoverFromViewBtn.style.display = 'inline-flex';
+
+        viewOverlay.classList.add('active');
+    }
+
     function closeViewModal() {
         viewOverlay.classList.remove('active');
+        viewOverlay.classList.remove('trash-context');
+        viewTrashDetails.style.display = 'none';
+        recoverFromViewBtn.style.display = 'none';
+        viewContext = { kind: 'schedule', trashId: null };
 
         if (reopenHistoryAfterEdit) {
             reopenHistoryAfterEdit = false;
@@ -776,7 +957,12 @@
 
         scheduleTitle.value = '';
         scheduleDescription.value = '';
+        resetTypeButtons(null);
         updateCharCounter();
+
+        // Clear invalid styles
+        document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
+
         modalOverlay.classList.add('active');
         scheduleTitle.focus();
     }
@@ -800,7 +986,11 @@
 
         scheduleTitle.value = schedule.title;
         scheduleDescription.value = schedule.description || '';
+        resetTypeButtons(schedule.type || null);
         updateCharCounter();
+
+        document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
+
         modalOverlay.classList.add('active');
         scheduleTitle.focus();
     }
@@ -810,6 +1000,10 @@
         editingScheduleId = null;
         selectedDateKey = null;
         pendingSave = null;
+        formType = { base: null, custom: '' };
+        customTypeInput.style.display = 'none';
+        customTypeInput.value = '';
+        document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
 
         if (reopenHistoryAfterEdit) {
             reopenHistoryAfterEdit = false;
@@ -817,12 +1011,48 @@
         }
     }
 
-    // ---------- SAVE FLOW (with review confirmation) ----------
-    function requestSaveSchedule() {
-        const title = scheduleTitle.value.trim();
-        if (!title) { alert('Please enter a title.'); scheduleTitle.focus(); return; }
+    // ---------- VALIDATION ----------
+    function collectValidationErrors() {
+        const errors = [];
+        const titleVal = scheduleTitle.value.trim();
+        const descVal = scheduleDescription.value.trim();
+        const resolvedType = getResolvedType().trim();
 
+        if (!titleVal) errors.push('Title is required.');
+        if (!descVal) errors.push('Description is required.');
+        if (!resolvedType) errors.push('Schedule type is required — pick a button or specify "Other".');
+
+        return errors;
+    }
+
+    function highlightInvalidFields() {
+        // Title field wrapper
+        const titleField = scheduleTitle.closest('.field');
+        const descField = scheduleDescription.closest('.field');
+        const typeField = typeButtonGroup.closest('.field');
+
+        if (!scheduleTitle.value.trim()) titleField.classList.add('invalid');
+        else titleField.classList.remove('invalid');
+
+        if (!scheduleDescription.value.trim()) descField.classList.add('invalid');
+        else descField.classList.remove('invalid');
+
+        if (!getResolvedType().trim()) typeField.classList.add('invalid');
+        else typeField.classList.remove('invalid');
+    }
+
+    // ---------- SAVE FLOW (with validation + review) ----------
+    function requestSaveSchedule() {
+        const errors = collectValidationErrors();
+        if (errors.length > 0) {
+            highlightInvalidFields();
+            openValidationModal(errors);
+            return;
+        }
+
+        const title = scheduleTitle.value.trim();
         const description = scheduleDescription.value.trim().slice(0, 200);
+        const resolvedType = getResolvedType().trim();
         const dateKey = selectedDateKey;
         if (!dateKey) return;
 
@@ -831,7 +1061,11 @@
             const original = daySchedules.find(s => s.id === editingScheduleId);
             if (!original) return;
 
-            if (original.title === title && (original.description || '') === description) {
+            const sameTitle = original.title === title;
+            const sameDesc = (original.description || '') === description;
+            const sameType = (original.type || '') === resolvedType;
+
+            if (sameTitle && sameDesc && sameType) {
                 closeFormModal();
                 return;
             }
@@ -842,9 +1076,10 @@
                 id: editingScheduleId,
                 oldData: {
                     title: original.title,
-                    description: original.description || ''
+                    description: original.description || '',
+                    type: original.type || ''
                 },
-                newData: { title, description }
+                newData: { title, description, type: resolvedType }
             };
         } else {
             pendingSave = {
@@ -852,7 +1087,7 @@
                 dateKey,
                 id: null,
                 oldData: null,
-                newData: { title, description }
+                newData: { title, description, type: resolvedType }
             };
         }
 
@@ -892,6 +1127,10 @@
                         <div class="review-value old">${escapeHtml(oldData.title)}</div>
                     </div>
                     <div class="review-field">
+                        <div class="review-field-name">Type</div>
+                        <div class="review-value old ${oldData.type ? '' : 'empty'}">${oldData.type ? escapeHtml(oldData.type) : 'No type'}</div>
+                    </div>
+                    <div class="review-field">
                         <div class="review-field-name">Description</div>
                         <div class="review-value old ${oldData.description ? '' : 'empty'}">${oldData.description ? escapeHtml(oldData.description) : 'No description'}</div>
                     </div>
@@ -900,6 +1139,7 @@
 
             const titleChanged = oldData.title !== newData.title;
             const descChanged = (oldData.description || '') !== (newData.description || '');
+            const typeChanged = (oldData.type || '') !== (newData.type || '');
 
             html += `
                 <div class="review-block">
@@ -907,6 +1147,10 @@
                     <div class="review-field">
                         <div class="review-field-name">Title${titleChanged ? ' — changed' : ' — unchanged'}</div>
                         <div class="review-value ${titleChanged ? 'new' : 'same'}">${escapeHtml(newData.title)}</div>
+                    </div>
+                    <div class="review-field">
+                        <div class="review-field-name">Type${typeChanged ? ' — changed' : ' — unchanged'}</div>
+                        <div class="review-value ${typeChanged ? 'new' : 'same'}">${escapeHtml(newData.type)}</div>
                     </div>
                     <div class="review-field">
                         <div class="review-field-name">Description${descChanged ? ' — changed' : ' — unchanged'}</div>
@@ -921,6 +1165,10 @@
                     <div class="review-field">
                         <div class="review-field-name">Title</div>
                         <div class="review-value new">${escapeHtml(newData.title)}</div>
+                    </div>
+                    <div class="review-field">
+                        <div class="review-field-name">Type</div>
+                        <div class="review-value new">${escapeHtml(newData.type)}</div>
                     </div>
                     <div class="review-field">
                         <div class="review-field-name">Description</div>
@@ -960,6 +1208,7 @@
 
         scheduleTitle.value = pendingSave.newData.title;
         scheduleDescription.value = pendingSave.newData.description;
+        resetTypeButtons(pendingSave.newData.type);
         updateCharCounter();
 
         modalOverlay.classList.add('active');
@@ -979,7 +1228,8 @@
                 daySchedules[index] = {
                     ...daySchedules[index],
                     title: newData.title,
-                    description: newData.description
+                    description: newData.description,
+                    type: newData.type
                 };
             }
         } else {
@@ -989,6 +1239,7 @@
                 id: newId,
                 title: newData.title,
                 description: newData.description,
+                type: newData.type,
                 createdAt: nowIso
             });
         }
@@ -1005,6 +1256,7 @@
         editingScheduleId = null;
         selectedDateKey = null;
         pendingSave = null;
+        formType = { base: null, custom: '' };
 
         if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
             renderDayScheduleList();
@@ -1138,10 +1390,8 @@
             s.title.toLowerCase().includes(query) || (s.description || '').toLowerCase().includes(query));
         if (yearFilter !== 'all') filtered = filtered.filter(s => s.dateKey.startsWith(yearFilter + '-'));
 
-        // Apply the current sort
         filtered = applySort(filtered, historySort);
 
-        // Keep the sort icon in sync
         updateSortIcon(historySortBtn, historySort);
         syncSortPopover(historySortPopover, historySort);
 
@@ -1156,7 +1406,6 @@
             return;
         }
 
-        // Render a flat list sorted per the current sort mode
         let html = '';
         filtered.forEach(s => {
             const dateObj = getDateFromKey(s.dateKey);
@@ -1170,6 +1419,7 @@
                     <div class="hs-accent"></div>
                     <div class="hs-body">
                         <div class="hs-title">${escapeHtml(s.title)}</div>
+                        ${s.type ? renderTypeBadge(s.type) : ''}
                         ${s.description ? `<div class="hs-desc">${escapeHtml(s.description)}</div>` : ''}
                         <div class="hs-desc" style="font-size:0.65rem; color:#94a3b8; margin-top:2px;">
                             <i class="fas fa-calendar-day" style="font-size:0.6rem;"></i> ${escapeHtml(dateLabel)}
@@ -1245,12 +1495,8 @@
     }
 
     // ---------- SETTINGS MODAL ----------
-    function openSettingsModal() {
-        settingsOverlay.classList.add('active');
-    }
-    function closeSettingsModal() {
-        settingsOverlay.classList.remove('active');
-    }
+    function openSettingsModal() { settingsOverlay.classList.add('active'); }
+    function closeSettingsModal() { settingsOverlay.classList.remove('active'); }
 
     // ---------- RECYCLE BIN ----------
     function openTrashModal() {
@@ -1288,7 +1534,6 @@
             if (!validIds.has(id)) trashSelection.delete(id);
         });
 
-        // Sync sort icon + popover state
         updateSortIcon(trashSortBtn, trashSort);
         syncSortPopover(trashSortPopover, trashSort);
 
@@ -1321,6 +1566,7 @@
                     <input type="checkbox" class="trash-checkbox" data-trash-id="${t.id}" ${isChecked ? 'checked' : ''}>
                     <div class="ti-body">
                         <div class="ti-title">${escapeHtml(t.title)}</div>
+                        ${t.type ? renderTypeBadge(t.type) : ''}
                         ${t.description ? `<div class="ti-desc">${escapeHtml(t.description)}</div>` : ''}
                         <div class="ti-meta">
                             <span><i class="fas fa-calendar-day"></i> ${dateLabel}</span>
@@ -1328,6 +1574,7 @@
                         </div>
                     </div>
                     <div class="ti-actions">
+                        <button class="icon-btn view" data-trash-action="view" data-trash-id="${t.id}" title="View details"><i class="fas fa-eye"></i></button>
                         <button class="icon-btn recover" data-trash-action="recover" data-trash-id="${t.id}" title="Recover"><i class="fas fa-undo-alt"></i></button>
                         <button class="icon-btn delete" data-trash-action="delete" data-trash-id="${t.id}" title="Delete permanently"><i class="fas fa-trash-alt"></i></button>
                     </div>
@@ -1352,7 +1599,8 @@
                 const action = btn.dataset.trashAction;
                 const id = btn.dataset.trashId;
                 if (!id) return;
-                if (action === 'recover') recoverOne(id);
+                if (action === 'view') openTrashViewModal(id);
+                else if (action === 'recover') recoverOne(id);
                 else if (action === 'delete') deleteOnePermanently(id);
             });
         });
@@ -1366,6 +1614,7 @@
             renderCalendar();
             renderTrash();
             if (historyOverlay.classList.contains('active')) renderHistory();
+            if (viewContext.kind === 'trash' && viewContext.trashId === id) closeViewModal();
         }
     }
 
@@ -1380,6 +1629,7 @@
             onConfirm: () => {
                 removeFromTrashById(id);
                 renderTrash();
+                if (viewContext.kind === 'trash' && viewContext.trashId === id) closeViewModal();
             }
         });
     }
@@ -1393,6 +1643,9 @@
         renderCalendar();
         renderTrash();
         if (historyOverlay.classList.contains('active')) renderHistory();
+        if (viewContext.kind === 'trash' && viewContext.trashId && !trash.some(t => t.id === viewContext.trashId)) {
+            closeViewModal();
+        }
     }
 
     function deleteSelectedPermanently() {
@@ -1407,6 +1660,9 @@
                 Array.from(trashSelection).forEach(id => removeFromTrashById(id));
                 trashSelection.clear();
                 renderTrash();
+                if (viewContext.kind === 'trash' && viewContext.trashId && !trash.some(t => t.id === viewContext.trashId)) {
+                    closeViewModal();
+                }
             }
         });
     }
@@ -1423,6 +1679,7 @@
                 trash = [];
                 trashSelection.clear();
                 renderTrash();
+                if (viewContext.kind === 'trash') closeViewModal();
             }
         });
     }
@@ -1446,7 +1703,6 @@
         }
     }
 
-    // Wire a popover's option buttons to a sort object + onChange callback
     function wireSortPopover(popover, sortRef, onChange) {
         popover.querySelectorAll('[data-sort-kind]').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1520,7 +1776,6 @@
     });
 
     // ---------- SORT POPOVER WIRING ----------
-    // History sort
     historySortBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleSortPopover(historySortPopover, historySortBtn);
@@ -1529,7 +1784,6 @@
         renderHistory();
     });
 
-    // Trash sort
     trashSortBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleSortPopover(trashSortPopover, trashSortBtn);
@@ -1538,7 +1792,6 @@
         renderTrash();
     });
 
-    // Close popovers when clicking outside
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.sort-wrap')) closeSortPopovers();
     });
@@ -1555,7 +1808,7 @@
         openTrashModal();
     });
 
-    // ---------- LOGOUT (confirmation modal) ----------
+    // ---------- LOGOUT ----------
     logoutBtn.addEventListener('click', () => {
         closeSettingsModal();
         openConfirmModal({
@@ -1573,17 +1826,21 @@
                 activeDayListDateKey = null;
                 reopenHistoryAfterEdit = false;
                 pendingSave = null;
+                formType = { base: null, custom: '' };
                 historySort = { kind: 'date-created', order: 'desc' };
                 trashSort = { kind: 'date-created', order: 'desc' };
+                viewContext = { kind: 'schedule', trashId: null };
 
                 dayListOverlay.classList.remove('active');
                 modalOverlay.classList.remove('active');
                 reviewOverlay.classList.remove('active');
                 viewOverlay.classList.remove('active');
+                viewOverlay.classList.remove('trash-context');
                 datePickerOverlay.classList.remove('active');
                 historyOverlay.classList.remove('active');
                 trashOverlay.classList.remove('active');
                 settingsOverlay.classList.remove('active');
+                validationOverlay.classList.remove('active');
                 closeSortPopovers();
 
                 renderCalendar();
@@ -1612,6 +1869,24 @@
     trashRecoverSelectedBtn.addEventListener('click', recoverSelected);
     trashDeleteSelectedBtn.addEventListener('click', deleteSelectedPermanently);
     emptyTrashBtn.addEventListener('click', emptyTrash);
+
+    // ---------- VIEW MODAL EVENTS ----------
+    closeViewBtn.addEventListener('click', closeViewModal);
+    viewOverlay.addEventListener('click', (e) => {
+        if (e.target === viewOverlay) closeViewModal();
+    });
+
+    recoverFromViewBtn.addEventListener('click', () => {
+        if (viewContext.kind !== 'trash' || !viewContext.trashId) return;
+        const id = viewContext.trashId;
+        if (recoverTrashItem(id)) {
+            saveSchedulesToStorage();
+            renderCalendar();
+            renderTrash();
+            if (historyOverlay.classList.contains('active')) renderHistory();
+            closeViewModal();
+        }
+    });
 
     // ---------- DAY LIST BULK EVENTS ----------
     daySelectAll.addEventListener('change', () => {
@@ -1651,16 +1926,19 @@
         if (e.target === modalOverlay) closeFormModal();
     });
 
+    // Clear invalid state when the user edits the field
+    scheduleTitle.addEventListener('input', () => {
+        scheduleTitle.closest('.field').classList.remove('invalid');
+    });
+    scheduleDescription.addEventListener('input', () => {
+        scheduleDescription.closest('.field').classList.remove('invalid');
+    });
+
     // ---------- REVIEW MODAL EVENTS ----------
     reviewGoBackBtn.addEventListener('click', goBackToForm);
     reviewConfirmBtn.addEventListener('click', confirmSave);
     reviewOverlay.addEventListener('click', (e) => {
         if (e.target === reviewOverlay) goBackToForm();
-    });
-
-    closeViewBtn.addEventListener('click', closeViewModal);
-    viewOverlay.addEventListener('click', (e) => {
-        if (e.target === viewOverlay) closeViewModal();
     });
 
     pickYear.addEventListener('change', updateDayOptions);
@@ -1683,14 +1961,15 @@
     // Escape key: close topmost open modal
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            if (validationOverlay.classList.contains('active')) { closeValidationModal(); return; }
             if (confirmOverlay.classList.contains('active')) { closeConfirmModal(); return; }
+            if (viewOverlay.classList.contains('active')) { closeViewModal(); return; }
             if (reviewOverlay.classList.contains('active')) { goBackToForm(); return; }
             if (trashOverlay.classList.contains('active')) { closeTrashModal(); return; }
             if (settingsOverlay.classList.contains('active')) { closeSettingsModal(); return; }
             if (historyOverlay.classList.contains('active')) closeHistoryModal();
             if (dayListOverlay.classList.contains('active')) closeDayListModal();
             if (modalOverlay.classList.contains('active')) closeFormModal();
-            if (viewOverlay.classList.contains('active')) closeViewModal();
             if (datePickerOverlay.classList.contains('active')) closeDatePickerModal();
             closeSortPopovers();
         }
