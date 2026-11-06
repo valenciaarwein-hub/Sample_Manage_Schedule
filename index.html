@@ -74,6 +74,17 @@
         <h3><i class="fas fa-list-ul" style="color:#3b82f6;"></i> Schedules</h3>
         <div class="date-badge" id="dayListDateBadge">April 15, 2025</div>
 
+        <!-- Day list bulk toolbar -->
+        <div class="day-list-toolbar" id="dayListToolbar" style="display:none;">
+            <label class="day-select-all">
+                <input type="checkbox" id="daySelectAll">
+                <span>Select all</span>
+            </label>
+            <button class="btn btn-danger btn-sm" id="dayDeleteSelectedBtn" disabled>
+                <i class="fas fa-trash-alt"></i> Delete selected
+            </button>
+        </div>
+
         <div class="day-schedule-list" id="dayScheduleList"></div>
 
         <button class="btn-add-schedule" id="addScheduleFromListBtn">
