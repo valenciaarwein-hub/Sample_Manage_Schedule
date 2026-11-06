@@ -1,54 +1,187 @@
-// script.js
+// sms/script.js
 (function() {
-    // ---------- READ-ONLY MIRRORS OF STORE ----------
-    // The real source of truth lives in storage.js (window.Store).
-    // These local variables are refreshed by syncFromStore() after every
-    // mutation and whenever the cloud pushes an update.
-    let schedules = {};
-    let trash = [];
+    'use strict';
+
+    // ============================================================
+    // STATE
+    // ============================================================
+    let schedules = {};   // { "YYYY-MM-DD": [ {id, title, description, type, createdAt}, ... ] }
+    let trash = [];       // [ {id, title, description, type, dateKey, createdAt, deletedAt}, ... ]
+    let isLoaded = false;
+    let saveTimer = null;
+    let savingInFlight = false;
 
     const TYPE_OPTIONS = ['Meeting', 'Seminar', 'Special Event', 'Other'];
 
-    function syncFromStore() {
-        schedules = Store.exportSchedules();
-        trash = Store.getTrash();
-    }
-    syncFromStore();
-
-    // ---------- EXPORT / IMPORT ----------
-    function exportSchedulesToFile() {
-        const dataStr = JSON.stringify(Store.exportSchedules(), null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `schedules_${formatDateKey(new Date())}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    function importSchedulesFromFile(file, onDone) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const parsed = JSON.parse(e.target.result);
-                if (Store.importSchedules(parsed)) {
-                    syncFromStore();
-                    onDone(true);
-                } else {
-                    onDone(false, 'Invalid file format.');
-                }
-            } catch (err) {
-                onDone(false, 'Could not parse JSON file.');
+    // ============================================================
+    // API HELPERS
+    // ============================================================
+    async function loadFromApi(showErrors) {
+        try {
+            const res = await fetch('/api/schedules', { cache: 'no-store' });
+            if (!res.ok) throw new Error('Load failed (' + res.status + ')');
+            const data = await res.json();
+            schedules = (data && typeof data.schedules === 'object' && data.schedules) ? data.schedules : {};
+            trash = Array.isArray(data && data.trash) ? data.trash : [];
+            isLoaded = true;
+            renderCalendar();
+            if (historyOverlay && historyOverlay.classList.contains('active')) renderHistory();
+            if (trashOverlay && trashOverlay.classList.contains('active')) renderTrash();
+            if (dayListOverlay.classList.contains('active') && activeDayListDateKey) {
+                renderDayScheduleList();
             }
-        };
-        reader.onerror = () => onDone(false, 'Failed to read file.');
-        reader.readAsText(file);
+        } catch (err) {
+            console.error('Load error:', err);
+            isLoaded = true;
+            if (showErrors) alert('Could not load schedules from the database.');
+            renderCalendar();
+        }
     }
 
-    // ---------- STATE ----------
+    function scheduleSave() {
+        if (!isLoaded) return;
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(pushToApi, 400);
+    }
+
+    async function pushToApi() {
+        if (savingInFlight) {
+            scheduleSave();
+            return;
+        }
+        savingInFlight = true;
+        try {
+            const res = await fetch('/api/schedules', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ schedules, trash })
+            });
+            if (!res.ok) throw new Error('Save failed (' + res.status + ')');
+        } catch (err) {
+            console.error('Save error:', err);
+            alert('Could not save to the database. Your change may not persist.');
+        } finally {
+            savingInFlight = false;
+        }
+    }
+
+    async function clearRemote() {
+        try {
+            const res = await fetch('/api/schedules', { method: 'DELETE' });
+            if (!res.ok) throw new Error('Clear failed');
+        } catch (err) {
+            console.error('Clear error:', err);
+            alert('Could not clear the database.');
+        }
+    }
+
+    // ============================================================
+    // HELPERS
+    // ============================================================
+    function uid() {
+        return 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
+    }
+
+    function formatDateKey(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function getDateFromKey(key) {
+        const [y, m, d] = key.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+
+    const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const weekdayShort = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+    function daysInMonth(year, month) {
+        return new Date(year, month + 1, 0).getDate();
+    }
+
+    function updateCharCounter() {
+        charCount.textContent = scheduleDescription.value.length;
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatDateTime(iso) {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '—';
+        return d.toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: 'numeric', minute: '2-digit'
+        });
+    }
+
+    function getTypeIcon(type) {
+        switch (type) {
+            case 'Meeting': return 'fa-users';
+            case 'Seminar': return 'fa-chalkboard-teacher';
+            case 'Special Event': return 'fa-star';
+            default: return 'fa-tag';
+        }
+    }
+
+    function renderTypeBadge(type) {
+        if (!type) return '';
+        return `<span class="type-badge"><i class="fas ${getTypeIcon(type)}"></i> ${escapeHtml(type)}</span>`;
+    }
+
+    // ============================================================
+    // SORT HELPERS
+    // ============================================================
+    function cmpIso(a, b) {
+        const aT = a || '';
+        const bT = b || '';
+        return aT.localeCompare(bT);
+    }
+
+    function applySort(list, sort) {
+        const arr = [...list];
+        const kind = sort.kind;
+        const order = sort.order === 'asc' ? 1 : -1;
+        arr.sort((a, b) => {
+            let primary = 0;
+            if (kind === 'title') {
+                primary = (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
+            } else {
+                primary = cmpIso(a.createdAt, b.createdAt);
+                if (primary === 0) primary = (a.dateKey || '').localeCompare(b.dateKey || '');
+            }
+            return primary * order;
+        });
+        return arr;
+    }
+
+    function updateSortIcon(btn, sort) {
+        const icon = btn.querySelector('i');
+        if (!icon) return;
+        const base = sort.kind === 'title' ? 'fa-sort-alpha' : 'fa-sort-amount';
+        const dir = sort.order === 'asc' ? 'up' : 'down';
+        icon.className = `fas ${base}-${dir}`;
+        btn.title = `Sort: ${sort.kind === 'title' ? 'Title' : 'Date created'} (${sort.order === 'asc' ? 'Ascending' : 'Descending'})`;
+    }
+
+    function syncSortPopover(popover, sort) {
+        popover.querySelectorAll('[data-sort-kind]').forEach(el => {
+            el.classList.toggle('selected', el.dataset.sortKind === sort.kind);
+        });
+        popover.querySelectorAll('[data-sort-order]').forEach(el => {
+            el.classList.toggle('selected', el.dataset.sortOrder === sort.order);
+        });
+    }
+
+    // ============================================================
+    // STATE VARIABLES (UI)
+    // ============================================================
     let currentDate = new Date();
     currentDate.setDate(1);
     let currentYear = currentDate.getFullYear();
@@ -69,7 +202,9 @@
 
     let viewContext = { kind: 'schedule', trashId: null };
 
-    // ---------- DOM ELEMENTS ----------
+    // ============================================================
+    // DOM ELEMENTS
+    // ============================================================
     const monthYearText = document.getElementById('monthYearText');
     const monthYearTrigger = document.getElementById('monthYearTrigger');
     const calendarGrid = document.getElementById('calendarGrid');
@@ -174,19 +309,9 @@
     const validationList = document.getElementById('validationList');
     const validationOkBtn = document.getElementById('validationOkBtn');
 
-    // ---------- CLOUD RE-RENDER HOOK ----------
-    // Called by storage.js whenever Firebase pushes new data down.
-    window.onScheduleDataChanged = function () {
-        syncFromStore();
-        renderCalendar();
-        if (historyOverlay.classList.contains('active')) renderHistory();
-        if (trashOverlay.classList.contains('active')) renderTrash();
-        if (dayListOverlay.classList.contains('active') && activeDayListDateKey) {
-            renderDayScheduleList();
-        }
-    };
-
-    // ---------- CONFIRMATION MODAL ----------
+    // ============================================================
+    // CONFIRMATION MODAL
+    // ============================================================
     let pendingConfirmAction = null;
 
     function openConfirmModal(opts) {
@@ -236,7 +361,9 @@
         if (e.target === confirmOverlay) closeConfirmModal();
     });
 
-    // ---------- VALIDATION MODAL ----------
+    // ============================================================
+    // VALIDATION MODAL
+    // ============================================================
     function openValidationModal(missingFields) {
         validationMessage.textContent = 'Please complete the required fields below before saving.';
         validationList.innerHTML = missingFields.map(f =>
@@ -255,105 +382,9 @@
         if (e.target === validationOverlay) closeValidationModal();
     });
 
-    // ---------- HELPERS ----------
-    function formatDateKey(date) {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    }
-
-    function getDateFromKey(key) {
-        const [y, m, d] = key.split('-').map(Number);
-        return new Date(y, m - 1, d);
-    }
-
-    const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-    const weekdayShort = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-
-    function daysInMonth(year, month) {
-        return new Date(year, month + 1, 0).getDate();
-    }
-
-    function updateCharCounter() {
-        charCount.textContent = scheduleDescription.value.length;
-    }
-
-    function escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    function formatDateTime(iso) {
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return '—';
-        return d.toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric',
-            hour: 'numeric', minute: '2-digit'
-        });
-    }
-
-    function getTypeIcon(type) {
-        switch (type) {
-            case 'Meeting': return 'fa-users';
-            case 'Seminar': return 'fa-chalkboard-teacher';
-            case 'Special Event': return 'fa-star';
-            default: return 'fa-tag';
-        }
-    }
-
-    function renderTypeBadge(type) {
-        if (!type) return '';
-        return `<span class="type-badge"><i class="fas ${getTypeIcon(type)}"></i> ${escapeHtml(type)}</span>`;
-    }
-
-    // ---------- SORT HELPERS ----------
-    function cmpIso(a, b) {
-        const aT = a || '';
-        const bT = b || '';
-        return aT.localeCompare(bT);
-    }
-
-    function applySort(list, sort) {
-        const arr = [...list];
-        const kind = sort.kind;
-        const order = sort.order === 'asc' ? 1 : -1;
-
-        arr.sort((a, b) => {
-            let primary = 0;
-            if (kind === 'title') {
-                primary = (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
-            } else {
-                primary = cmpIso(a.createdAt, b.createdAt);
-                if (primary === 0) primary = (a.dateKey || '').localeCompare(b.dateKey || '');
-            }
-            return primary * order;
-        });
-
-        return arr;
-    }
-
-    function updateSortIcon(btn, sort) {
-        const icon = btn.querySelector('i');
-        if (!icon) return;
-        const base = sort.kind === 'title' ? 'fa-sort-alpha' : 'fa-sort-amount';
-        const dir = sort.order === 'asc' ? 'up' : 'down';
-        icon.className = `fas ${base}-${dir}`;
-        btn.title = `Sort: ${sort.kind === 'title' ? 'Title' : 'Date created'} (${sort.order === 'asc' ? 'Ascending' : 'Descending'})`;
-    }
-
-    function syncSortPopover(popover, sort) {
-        popover.querySelectorAll('[data-sort-kind]').forEach(el => {
-            el.classList.toggle('selected', el.dataset.sortKind === sort.kind);
-        });
-        popover.querySelectorAll('[data-sort-order]').forEach(el => {
-            el.classList.toggle('selected', el.dataset.sortOrder === sort.order);
-        });
-    }
-
-    // ---------- FORM: TYPE BUTTONS ----------
+    // ============================================================
+    // FORM: TYPE BUTTONS
+    // ============================================================
     function resetTypeButtons(selectedType) {
         const btns = typeButtonGroup.querySelectorAll('.type-btn');
         const knownTypes = TYPE_OPTIONS;
@@ -435,7 +466,9 @@
         return formType.base || '';
     }
 
-    // ---------- UPCOMING 7 DAYS TABLE ----------
+    // ============================================================
+    // UPCOMING 7 DAYS TABLE
+    // ============================================================
     function renderUpcomingTable() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -530,7 +563,9 @@
         });
     }
 
-    // ---------- RENDER CALENDAR ----------
+    // ============================================================
+    // RENDER CALENDAR
+    // ============================================================
     function renderCalendar() {
         monthYearText.textContent = `${monthNames[currentMonth]} ${currentYear}`;
 
@@ -630,7 +665,9 @@
         renderUpcomingTable();
     }
 
-    // ---------- DAY LIST MODAL ----------
+    // ============================================================
+    // DAY LIST MODAL
+    // ============================================================
     function openDayListModal(dateKey) {
         activeDayListDateKey = dateKey;
         dayListSelection.clear();
@@ -735,7 +772,9 @@
         updateDayListBulkUI();
     }
 
-    // ---------- DELETE (single — moves to recycle bin) ----------
+    // ============================================================
+    // DELETE (single → recycle bin)
+    // ============================================================
     function deleteScheduleFromList(dateKey, id) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === id);
         if (!schedule) return;
@@ -746,10 +785,18 @@
             okText: 'Move to Bin',
             iconClass: 'warning',
             onConfirm: () => {
-                Store.deleteSchedule(dateKey, id);
-                syncFromStore();
+                const list = schedules[dateKey] || [];
+                const idx = list.findIndex(s => s.id === id);
+                if (idx === -1) return;
+
+                const [removed] = list.splice(idx, 1);
+                if (list.length === 0) delete schedules[dateKey];
+                removed.dateKey = dateKey;
+                removed.deletedAt = new Date().toISOString();
+                trash.push(removed);
 
                 dayListSelection.delete(id);
+                scheduleSave();
 
                 renderCalendar();
                 if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
@@ -761,7 +808,9 @@
         });
     }
 
-    // ---------- BULK DELETE (selected in day list) ----------
+    // ============================================================
+    // BULK DELETE (day list)
+    // ============================================================
     function deleteSelectedDaySchedules() {
         if (!activeDayListDateKey || dayListSelection.size === 0) return;
         const dateKey = activeDayListDateKey;
@@ -774,10 +823,19 @@
             okText: 'Move to Bin',
             iconClass: 'warning',
             onConfirm: () => {
-                ids.forEach(id => Store.deleteSchedule(dateKey, id));
-                syncFromStore();
+                const list = schedules[dateKey] || [];
+                ids.forEach(id => {
+                    const idx = list.findIndex(s => s.id === id);
+                    if (idx === -1) return;
+                    const [removed] = list.splice(idx, 1);
+                    removed.dateKey = dateKey;
+                    removed.deletedAt = new Date().toISOString();
+                    trash.push(removed);
+                });
+                if (list.length === 0) delete schedules[dateKey];
 
                 dayListSelection.clear();
+                scheduleSave();
 
                 renderCalendar();
                 if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
@@ -789,7 +847,9 @@
         });
     }
 
-    // ---------- VIEW MODAL ----------
+    // ============================================================
+    // VIEW MODAL
+    // ============================================================
     function openViewModal(dateKey, scheduleId, fromHistory = false) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === scheduleId);
         if (!schedule) return;
@@ -825,7 +885,7 @@
         viewType.innerHTML = item.type ? renderTypeBadge(item.type) : '<span style="color:#94a3b8;">—</span>';
         viewDescription.textContent = item.description || 'No description provided.';
 
-        const dateObj = getDateFromKey(item.dateKey);
+        const dateObj = getDateFromKey(item.dateKey || formatDateKey(new Date()));
         viewDate.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
@@ -852,7 +912,9 @@
         }
     }
 
-    // ---------- FORM MODAL ----------
+    // ============================================================
+    // FORM MODAL
+    // ============================================================
     function openCreateFormModal(dateKey) {
         reopenHistoryAfterEdit = false;
         editingScheduleId = null;
@@ -921,7 +983,9 @@
         }
     }
 
-    // ---------- VALIDATION ----------
+    // ============================================================
+    // VALIDATION
+    // ============================================================
     function collectValidationErrors() {
         const errors = [];
         const titleVal = scheduleTitle.value.trim();
@@ -950,7 +1014,9 @@
         else typeField.classList.remove('invalid');
     }
 
-    // ---------- SAVE FLOW ----------
+    // ============================================================
+    // SAVE FLOW
+    // ============================================================
     function requestSaveSchedule() {
         const errors = collectValidationErrors();
         if (errors.length > 0) {
@@ -1032,9 +1098,6 @@
             const descChanged = (oldData.description || '') !== (newData.description || '');
             const typeChanged = (oldData.type || '') !== (newData.type || '');
 
-            // ---- OLD VALUES ----
-            // Only fields that actually changed get the "old" (strikethrough red) style.
-            // Unchanged fields render as plain normal text.
             html += `
                 <div class="review-block">
                     <div class="review-block-label"><i class="fas fa-history"></i> Old values</div>
@@ -1053,7 +1116,6 @@
                 </div>
             `;
 
-            // ---- NEW VALUES ----
             html += `
                 <div class="review-block">
                     <div class="review-new-badge"><i class="fas fa-arrow-right"></i> New values (pending)</div>
@@ -1134,12 +1196,26 @@
         const { mode, dateKey, id, newData } = pendingSave;
 
         if (mode === 'edit' && id) {
-            Store.updateSchedule(dateKey, id, newData);
+            const list = schedules[dateKey] || [];
+            const item = list.find(s => s.id === id);
+            if (item) {
+                item.title = newData.title;
+                item.description = newData.description;
+                item.type = newData.type;
+                item.updatedAt = new Date().toISOString();
+            }
         } else {
-            Store.addSchedule(dateKey, newData);
+            if (!schedules[dateKey]) schedules[dateKey] = [];
+            schedules[dateKey].push({
+                id: uid(),
+                title: newData.title,
+                description: newData.description,
+                type: newData.type,
+                createdAt: new Date().toISOString()
+            });
         }
 
-        syncFromStore();
+        scheduleSave();
         renderCalendar();
 
         const shouldReopenHistory = reopenHistoryAfterEdit;
@@ -1158,7 +1234,7 @@
         }
         if (historyOverlay.classList.contains('active')) renderHistory();
         if (viewOverlay.classList.contains('active')) {
-            const stillExists = Store.getSchedule(dateKey, id);
+            const stillExists = (schedules[dateKey] || []).find(s => s.id === id);
             if (stillExists) openViewModal(dateKey, id);
             else closeViewModal();
         }
@@ -1168,7 +1244,9 @@
         }
     }
 
-    // ---------- DATE PICKER MODAL ----------
+    // ============================================================
+    // DATE PICKER MODAL
+    // ============================================================
     function populateDatePicker() {
         const now = new Date();
         const baseYear = now.getFullYear();
@@ -1246,7 +1324,9 @@
         closeDatePickerModal();
     }
 
-    // ---------- HISTORY MODAL ----------
+    // ============================================================
+    // HISTORY MODAL
+    // ============================================================
     function getAllSchedulesFlat() {
         const flat = [];
         Object.keys(schedules).forEach(dateKey => {
@@ -1372,7 +1452,9 @@
         closeSortPopovers();
     }
 
-    // ---------- CLEAR ALL ----------
+    // ============================================================
+    // CLEAR ALL
+    // ============================================================
     function clearAllHistory() {
         const all = getAllSchedulesFlat();
         if (all.length === 0) return;
@@ -1383,9 +1465,17 @@
             okText: 'Move All to Bin',
             iconClass: 'warning',
             onConfirm: () => {
-                Store.clearAllSchedules();
-                syncFromStore();
+                Object.keys(schedules).forEach(dateKey => {
+                    (schedules[dateKey] || []).forEach(s => {
+                        s.dateKey = dateKey;
+                        s.deletedAt = new Date().toISOString();
+                        trash.push(s);
+                    });
+                });
+                schedules = {};
                 dayListSelection.clear();
+                scheduleSave();
+
                 renderCalendar();
                 closeHistoryModal();
                 if (dayListOverlay.classList.contains('active')) closeDayListModal();
@@ -1393,11 +1483,15 @@
         });
     }
 
-    // ---------- SETTINGS MODAL ----------
+    // ============================================================
+    // SETTINGS MODAL
+    // ============================================================
     function openSettingsModal() { settingsOverlay.classList.add('active'); }
     function closeSettingsModal() { settingsOverlay.classList.remove('active'); }
 
-    // ---------- RECYCLE BIN ----------
+    // ============================================================
+    // RECYCLE BIN
+    // ============================================================
     function openTrashModal() {
         trashSelection.clear();
         renderTrash();
@@ -1455,7 +1549,7 @@
         let html = '';
         sorted.forEach(t => {
             const isChecked = trashSelection.has(t.id);
-            const dateObj = getDateFromKey(t.dateKey);
+            const dateObj = getDateFromKey(t.dateKey || formatDateKey(new Date()));
             const dateLabel = dateObj.toLocaleDateString('en-US', {
                 month: 'short', day: 'numeric', year: 'numeric'
             });
@@ -1508,13 +1602,20 @@
     }
 
     function recoverOne(id) {
-        if (Store.recoverTrashItem(id)) {
-            syncFromStore();
-            renderCalendar();
-            renderTrash();
-            if (historyOverlay.classList.contains('active')) renderHistory();
-            if (viewContext.kind === 'trash' && viewContext.trashId === id) closeViewModal();
-        }
+        const idx = trash.findIndex(t => t.id === id);
+        if (idx === -1) return;
+        const [item] = trash.splice(idx, 1);
+        const key = item.dateKey || formatDateKey(new Date());
+        delete item.dateKey;
+        delete item.deletedAt;
+        if (!schedules[key]) schedules[key] = [];
+        schedules[key].push(item);
+        scheduleSave();
+
+        renderCalendar();
+        renderTrash();
+        if (historyOverlay.classList.contains('active')) renderHistory();
+        if (viewContext.kind === 'trash' && viewContext.trashId === id) closeViewModal();
     }
 
     function deleteOnePermanently(id) {
@@ -1526,8 +1627,8 @@
             okText: 'Delete Forever',
             iconClass: 'danger',
             onConfirm: () => {
-                Store.removeTrashItem(id);
-                syncFromStore();
+                trash = trash.filter(t => t.id !== id);
+                scheduleSave();
                 renderTrash();
                 if (viewContext.kind === 'trash' && viewContext.trashId === id) closeViewModal();
             }
@@ -1536,9 +1637,19 @@
 
     function recoverSelected() {
         if (trashSelection.size === 0) return;
-        Store.recoverTrashItems(Array.from(trashSelection));
+        const ids = Array.from(trashSelection);
+        ids.forEach(id => {
+            const idx = trash.findIndex(t => t.id === id);
+            if (idx === -1) return;
+            const [item] = trash.splice(idx, 1);
+            const key = item.dateKey || formatDateKey(new Date());
+            delete item.dateKey;
+            delete item.deletedAt;
+            if (!schedules[key]) schedules[key] = [];
+            schedules[key].push(item);
+        });
         trashSelection.clear();
-        syncFromStore();
+        scheduleSave();
         renderCalendar();
         renderTrash();
         if (historyOverlay.classList.contains('active')) renderHistory();
@@ -1553,9 +1664,9 @@
             okText: 'Delete Forever',
             iconClass: 'danger',
             onConfirm: () => {
-                Store.removeTrashItems(Array.from(trashSelection));
+                trash = trash.filter(t => !trashSelection.has(t.id));
                 trashSelection.clear();
-                syncFromStore();
+                scheduleSave();
                 renderTrash();
                 if (viewContext.kind === 'trash' && viewContext.trashId && !trash.some(t => t.id === viewContext.trashId)) {
                     closeViewModal();
@@ -1573,15 +1684,17 @@
             okText: 'Empty Bin',
             iconClass: 'danger',
             onConfirm: () => {
-                Store.emptyTrash();
-                syncFromStore();
+                trash = [];
+                scheduleSave();
                 renderTrash();
                 if (viewContext.kind === 'trash') closeViewModal();
             }
         });
     }
 
-    // ---------- SORT POPOVER LOGIC ----------
+    // ============================================================
+    // SORT POPOVER LOGIC
+    // ============================================================
     function closeSortPopovers() {
         [historySortPopover, trashSortPopover].forEach(p => p.classList.remove('open'));
         [historySortBtn, trashSortBtn].forEach(b => {
@@ -1626,7 +1739,60 @@
         });
     }
 
-    // ---------- EVENT LISTENERS ----------
+    // ============================================================
+    // EXPORT / IMPORT
+    // ============================================================
+    function exportSchedulesToFile() {
+        const dataStr = JSON.stringify(schedules, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `schedules_${formatDateKey(new Date())}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function importSchedulesFromFile(file, onDone) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                if (!parsed || typeof parsed !== 'object') {
+                    onDone(false, 'Invalid file format.');
+                    return;
+                }
+                // Merge: incoming entries are appended (dedupe by id within a date).
+                Object.keys(parsed).forEach(dateKey => {
+                    const incoming = parsed[dateKey];
+                    if (!Array.isArray(incoming)) return;
+                    if (!schedules[dateKey]) schedules[dateKey] = [];
+                    const existingIds = new Set(schedules[dateKey].map(s => s.id));
+                    incoming.forEach(s => {
+                        if (!s.id) s.id = uid();
+                        if (existingIds.has(s.id)) return;
+                        if (!s.createdAt) s.createdAt = new Date().toISOString();
+                        schedules[dateKey].push(s);
+                        existingIds.add(s.id);
+                    });
+                });
+                scheduleSave();
+                renderCalendar();
+                if (historyOverlay.classList.contains('active')) renderHistory();
+                onDone(true);
+            } catch (err) {
+                onDone(false, 'Could not parse JSON file.');
+            }
+        };
+        reader.onerror = () => onDone(false, 'Failed to read file.');
+        reader.readAsText(file);
+    }
+
+    // ============================================================
+    // EVENT LISTENERS
+    // ============================================================
     prevMonthBtn.addEventListener('click', () => {
         currentMonth--;
         if (currentMonth < 0) { currentMonth = 11; currentYear--; }
@@ -1661,8 +1827,6 @@
         if (!file) return;
         importSchedulesFromFile(file, (ok, msg) => {
             if (ok) {
-                renderCalendar();
-                if (historyOverlay.classList.contains('active')) renderHistory();
                 alert('Schedules imported successfully.');
             } else {
                 alert('Import failed: ' + (msg || 'unknown error'));
@@ -1710,9 +1874,10 @@
             message: 'You will be signed out and your current session data will be cleared on all devices.',
             okText: 'Log Out',
             iconClass: 'warning',
-            onConfirm: () => {
-                Store.reset();
-                syncFromStore();
+            onConfirm: async () => {
+                await clearRemote();
+                schedules = {};
+                trash = [];
 
                 trashSelection.clear();
                 dayListSelection.clear();
@@ -1773,14 +1938,7 @@
 
     recoverFromViewBtn.addEventListener('click', () => {
         if (viewContext.kind !== 'trash' || !viewContext.trashId) return;
-        const id = viewContext.trashId;
-        if (Store.recoverTrashItem(id)) {
-            syncFromStore();
-            renderCalendar();
-            renderTrash();
-            if (historyOverlay.classList.contains('active')) renderHistory();
-            closeViewModal();
-        }
+        recoverOne(viewContext.trashId);
     });
 
     // ---------- DAY LIST BULK EVENTS ----------
@@ -1867,6 +2025,15 @@
         }
     });
 
-    // Initial render
+    // ============================================================
+    // BOOT
+    // ============================================================
+    // Show an empty calendar immediately, then load data from KV.
     renderCalendar();
+    loadFromApi(true);
+
+    // Optional: refresh every 30s so other tabs/devices stay roughly in sync.
+    setInterval(() => {
+        if (!savingInFlight && !document.hidden) loadFromApi(false);
+    }, 30000);
 })();
