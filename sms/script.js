@@ -1,45 +1,23 @@
 // script.js
 (function() {
-    // ---------- IN-MEMORY JAVASCRIPT STORE (no localStorage) ----------
+    // ---------- READ-ONLY MIRRORS OF STORE ----------
+    // The real source of truth lives in storage.js (window.Store).
+    // These local variables are refreshed by syncFromStore() after every
+    // mutation and whenever the cloud pushes an update.
     let schedules = {};
     let trash = [];
 
     const TYPE_OPTIONS = ['Meeting', 'Seminar', 'Special Event', 'Other'];
 
-    // Seed sample data on first load
-    (function seedSampleData() {
-        const today = new Date();
-        const nowIso = new Date().toISOString();
-
-        schedules[formatDateKey(today)] = [
-            { id: 's_today', title: 'Daily standup', description: 'Quick sync with the team', type: 'Meeting', createdAt: nowIso }
-        ];
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        schedules[formatDateKey(tomorrow)] = [
-            { id: 's3', title: 'Client call', description: 'Follow-up on proposal and next steps', type: 'Meeting', createdAt: nowIso }
-        ];
-        const inTwoDays = new Date(today);
-        inTwoDays.setDate(inTwoDays.getDate() + 2);
-        schedules[formatDateKey(inTwoDays)] = [
-            { id: 's4', title: 'Gym session', description: 'Leg day — bring water', type: 'Other', createdAt: nowIso }
-        ];
-
-        const sampleDate = new Date(today.getFullYear(), today.getMonth(), 15);
-        const sampleKey = formatDateKey(sampleDate);
-        if (sampleKey !== formatDateKey(today) && sampleKey !== formatDateKey(tomorrow) && sampleKey !== formatDateKey(inTwoDays)) {
-            schedules[sampleKey] = [
-                { id: 's1', title: 'Project kickoff', description: 'Discuss scope and timeline for Q2 launch', type: 'Meeting', createdAt: nowIso },
-                { id: 's2', title: 'Design review', description: 'Review new mockups with the product team', type: 'Seminar', createdAt: nowIso }
-            ];
-        }
-    })();
-
-    function saveSchedulesToStorage() { /* in-memory only */ }
+    function syncFromStore() {
+        schedules = Store.exportSchedules();
+        trash = Store.getTrash();
+    }
+    syncFromStore();
 
     // ---------- EXPORT / IMPORT ----------
     function exportSchedulesToFile() {
-        const dataStr = JSON.stringify(schedules, null, 2);
+        const dataStr = JSON.stringify(Store.exportSchedules(), null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -56,15 +34,8 @@
         reader.onload = (e) => {
             try {
                 const parsed = JSON.parse(e.target.result);
-                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                    const nowIso = new Date().toISOString();
-                    Object.keys(parsed).forEach(dateKey => {
-                        (parsed[dateKey] || []).forEach(s => {
-                            if (!s.createdAt) s.createdAt = nowIso;
-                            if (!s.type) s.type = 'Other';
-                        });
-                    });
-                    schedules = parsed;
+                if (Store.importSchedules(parsed)) {
+                    syncFromStore();
                     onDone(true);
                 } else {
                     onDone(false, 'Invalid file format.');
@@ -91,7 +62,6 @@
     let dayListSelection = new Set();
     let pendingSave = null;
 
-    // Form state for schedule type
     let formType = { base: null, custom: '' };
 
     let historySort = { kind: 'date-created', order: 'desc' };
@@ -114,12 +84,10 @@
     const logoutBtn = document.getElementById('logoutBtn');
     const settingsBtn = document.getElementById('settingsBtn');
 
-    // upcoming 7 days
     const upcomingTableBody = document.getElementById('upcomingTableBody');
     const upcomingEmpty = document.getElementById('upcomingEmpty');
     const upcomingRange = document.getElementById('upcomingRange');
 
-    // day list modal
     const dayListOverlay = document.getElementById('dayListOverlay');
     const dayListDateBadge = document.getElementById('dayListDateBadge');
     const dayScheduleList = document.getElementById('dayScheduleList');
@@ -129,7 +97,6 @@
     const daySelectAll = document.getElementById('daySelectAll');
     const dayDeleteSelectedBtn = document.getElementById('dayDeleteSelectedBtn');
 
-    // schedule form modal
     const modalOverlay = document.getElementById('modalOverlay');
     const modalTitle = document.getElementById('modalTitle');
     const modalDateBadge = document.getElementById('modalDateBadge');
@@ -141,7 +108,6 @@
     const cancelModalBtn = document.getElementById('cancelModalBtn');
     const saveScheduleBtn = document.getElementById('saveScheduleBtn');
 
-    // review / confirm save modal
     const reviewOverlay = document.getElementById('reviewOverlay');
     const reviewTitleText = document.getElementById('reviewTitleText');
     const reviewSubtitle = document.getElementById('reviewSubtitle');
@@ -149,7 +115,6 @@
     const reviewGoBackBtn = document.getElementById('reviewGoBackBtn');
     const reviewConfirmBtn = document.getElementById('reviewConfirmBtn');
 
-    // view modal
     const viewOverlay = document.getElementById('viewOverlay');
     const viewModalTitle = document.getElementById('viewModalTitle');
     const viewTitle = document.getElementById('viewTitle');
@@ -162,7 +127,6 @@
     const closeViewBtn = document.getElementById('closeViewBtn');
     const recoverFromViewBtn = document.getElementById('recoverFromViewBtn');
 
-    // date picker modal
     const datePickerOverlay = document.getElementById('datePickerOverlay');
     const pickYear = document.getElementById('pickYear');
     const pickMonth = document.getElementById('pickMonth');
@@ -171,7 +135,6 @@
     const cancelDatePickerBtn = document.getElementById('cancelDatePickerBtn');
     const goToDateBtn = document.getElementById('goToDateBtn');
 
-    // history modal
     const historyOverlay = document.getElementById('historyOverlay');
     const historySearch = document.getElementById('historySearch');
     const historyYearFilter = document.getElementById('historyYearFilter');
@@ -185,12 +148,10 @@
     const clearAllHistoryBtn = document.getElementById('clearAllHistoryBtn');
     const closeHistoryBtn = document.getElementById('closeHistoryBtn');
 
-    // settings modal
     const settingsOverlay = document.getElementById('settingsOverlay');
     const openTrashBtn = document.getElementById('openTrashBtn');
     const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 
-    // trash modal
     const trashOverlay = document.getElementById('trashOverlay');
     const trashSortBtn = document.getElementById('trashSortBtn');
     const trashSortPopover = document.getElementById('trashSortPopover');
@@ -201,7 +162,6 @@
     const emptyTrashBtn = document.getElementById('emptyTrashBtn');
     const closeTrashBtn = document.getElementById('closeTrashBtn');
 
-    // confirm modal
     const confirmOverlay = document.getElementById('confirmOverlay');
     const confirmIcon = document.getElementById('confirmIcon');
     const confirmTitle = document.getElementById('confirmTitle');
@@ -209,13 +169,24 @@
     const confirmCancelBtn = document.getElementById('confirmCancelBtn');
     const confirmOkBtn = document.getElementById('confirmOkBtn');
 
-    // validation modal
     const validationOverlay = document.getElementById('validationOverlay');
     const validationMessage = document.getElementById('validationMessage');
     const validationList = document.getElementById('validationList');
     const validationOkBtn = document.getElementById('validationOkBtn');
 
-    // ---------- CONFIRMATION MODAL HELPER ----------
+    // ---------- CLOUD RE-RENDER HOOK ----------
+    // Called by storage.js whenever Firebase pushes new data down.
+    window.onScheduleDataChanged = function () {
+        syncFromStore();
+        renderCalendar();
+        if (historyOverlay.classList.contains('active')) renderHistory();
+        if (trashOverlay.classList.contains('active')) renderTrash();
+        if (dayListOverlay.classList.contains('active') && activeDayListDateKey) {
+            renderDayScheduleList();
+        }
+    };
+
+    // ---------- CONFIRMATION MODAL ----------
     let pendingConfirmAction = null;
 
     function openConfirmModal(opts) {
@@ -268,11 +239,9 @@
     // ---------- VALIDATION MODAL ----------
     function openValidationModal(missingFields) {
         validationMessage.textContent = 'Please complete the required fields below before saving.';
-
         validationList.innerHTML = missingFields.map(f =>
             `<li><i class="fas fa-exclamation-circle"></i> ${escapeHtml(f)}</li>`
         ).join('');
-
         validationOverlay.classList.add('active');
     }
 
@@ -384,59 +353,15 @@
         });
     }
 
-    // ---------- TRASH HELPERS ----------
-    function moveToTrash(dateKey, schedule) {
-        trash.unshift({
-            id: schedule.id,
-            title: schedule.title,
-            description: schedule.description || '',
-            type: schedule.type || 'Other',
-            dateKey: dateKey,
-            deletedAt: new Date().toISOString(),
-            createdAt: schedule.createdAt || new Date().toISOString()
-        });
-    }
-
-    function removeFromTrashById(id) {
-        trash = trash.filter(t => t.id !== id);
-        trashSelection.delete(id);
-    }
-
-    function recoverTrashItem(id) {
-        const item = trash.find(t => t.id === id);
-        if (!item) return false;
-
-        let targetId = item.id;
-        const existing = schedules[item.dateKey] || [];
-        if (existing.some(s => s.id === targetId)) {
-            targetId = 'sched_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-        }
-
-        if (!schedules[item.dateKey]) schedules[item.dateKey] = [];
-        schedules[item.dateKey].push({
-            id: targetId,
-            title: item.title,
-            description: item.description,
-            type: item.type || 'Other',
-            createdAt: item.createdAt || new Date().toISOString()
-        });
-
-        removeFromTrashById(id);
-        return true;
-    }
-
     // ---------- FORM: TYPE BUTTONS ----------
     function resetTypeButtons(selectedType) {
         const btns = typeButtonGroup.querySelectorAll('.type-btn');
         const knownTypes = TYPE_OPTIONS;
-
         const isBase = selectedType && knownTypes.includes(selectedType);
 
         btns.forEach(btn => {
             const btnType = btn.dataset.type;
-            const isSelected = isBase
-                ? btnType === selectedType
-                : btnType === 'Other';
+            const isSelected = isBase ? btnType === selectedType : btnType === 'Other';
             btn.classList.toggle('selected', isSelected);
         });
 
@@ -821,15 +746,11 @@
             okText: 'Move to Bin',
             iconClass: 'warning',
             onConfirm: () => {
-                moveToTrash(dateKey, schedule);
-
-                const daySchedules = schedules[dateKey] || [];
-                schedules[dateKey] = daySchedules.filter(s => s.id !== id);
-                if (schedules[dateKey].length === 0) delete schedules[dateKey];
+                Store.deleteSchedule(dateKey, id);
+                syncFromStore();
 
                 dayListSelection.delete(id);
 
-                saveSchedulesToStorage();
                 renderCalendar();
                 if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
                     renderDayScheduleList();
@@ -853,17 +774,11 @@
             okText: 'Move to Bin',
             iconClass: 'warning',
             onConfirm: () => {
-                const daySchedules = schedules[dateKey] || [];
-                ids.forEach(id => {
-                    const s = daySchedules.find(x => x.id === id);
-                    if (s) moveToTrash(dateKey, s);
-                });
-                schedules[dateKey] = daySchedules.filter(s => !ids.includes(s.id));
-                if (schedules[dateKey].length === 0) delete schedules[dateKey];
+                ids.forEach(id => Store.deleteSchedule(dateKey, id));
+                syncFromStore();
 
                 dayListSelection.clear();
 
-                saveSchedulesToStorage();
                 renderCalendar();
                 if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
                     renderDayScheduleList();
@@ -1035,7 +950,7 @@
         else typeField.classList.remove('invalid');
     }
 
-    // ---------- SAVE FLOW (with validation + review) ----------
+    // ---------- SAVE FLOW ----------
     function requestSaveSchedule() {
         const errors = collectValidationErrors();
         if (errors.length > 0) {
@@ -1139,8 +1054,6 @@
             `;
 
             // ---- NEW VALUES ----
-            // Only fields that actually changed are highlighted green.
-            // Unchanged fields render as plain normal text.
             html += `
                 <div class="review-block">
                     <div class="review-new-badge"><i class="fas fa-arrow-right"></i> New values (pending)</div>
@@ -1219,32 +1132,14 @@
         if (!pendingSave) return;
 
         const { mode, dateKey, id, newData } = pendingSave;
-        const nowIso = new Date().toISOString();
 
         if (mode === 'edit' && id) {
-            const daySchedules = schedules[dateKey] || [];
-            const index = daySchedules.findIndex(s => s.id === id);
-            if (index !== -1) {
-                daySchedules[index] = {
-                    ...daySchedules[index],
-                    title: newData.title,
-                    description: newData.description,
-                    type: newData.type
-                };
-            }
+            Store.updateSchedule(dateKey, id, newData);
         } else {
-            const newId = 'sched_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-            if (!schedules[dateKey]) schedules[dateKey] = [];
-            schedules[dateKey].push({
-                id: newId,
-                title: newData.title,
-                description: newData.description,
-                type: newData.type,
-                createdAt: nowIso
-            });
+            Store.addSchedule(dateKey, newData);
         }
 
-        saveSchedulesToStorage();
+        syncFromStore();
         renderCalendar();
 
         const shouldReopenHistory = reopenHistoryAfterEdit;
@@ -1262,6 +1157,11 @@
             renderDayScheduleList();
         }
         if (historyOverlay.classList.contains('active')) renderHistory();
+        if (viewOverlay.classList.contains('active')) {
+            const stillExists = Store.getSchedule(dateKey, id);
+            if (stillExists) openViewModal(dateKey, id);
+            else closeViewModal();
+        }
 
         if (shouldReopenHistory) {
             openHistoryModal();
@@ -1472,7 +1372,7 @@
         closeSortPopovers();
     }
 
-    // ---------- CLEAR ALL (moves all to trash) ----------
+    // ---------- CLEAR ALL ----------
     function clearAllHistory() {
         const all = getAllSchedulesFlat();
         if (all.length === 0) return;
@@ -1483,10 +1383,9 @@
             okText: 'Move All to Bin',
             iconClass: 'warning',
             onConfirm: () => {
-                all.forEach(s => moveToTrash(s.dateKey, s));
-                schedules = {};
+                Store.clearAllSchedules();
+                syncFromStore();
                 dayListSelection.clear();
-                saveSchedulesToStorage();
                 renderCalendar();
                 closeHistoryModal();
                 if (dayListOverlay.classList.contains('active')) closeDayListModal();
@@ -1609,8 +1508,8 @@
     }
 
     function recoverOne(id) {
-        if (recoverTrashItem(id)) {
-            saveSchedulesToStorage();
+        if (Store.recoverTrashItem(id)) {
+            syncFromStore();
             renderCalendar();
             renderTrash();
             if (historyOverlay.classList.contains('active')) renderHistory();
@@ -1627,7 +1526,8 @@
             okText: 'Delete Forever',
             iconClass: 'danger',
             onConfirm: () => {
-                removeFromTrashById(id);
+                Store.removeTrashItem(id);
+                syncFromStore();
                 renderTrash();
                 if (viewContext.kind === 'trash' && viewContext.trashId === id) closeViewModal();
             }
@@ -1636,16 +1536,12 @@
 
     function recoverSelected() {
         if (trashSelection.size === 0) return;
-        const ids = Array.from(trashSelection);
-        ids.forEach(id => recoverTrashItem(id));
+        Store.recoverTrashItems(Array.from(trashSelection));
         trashSelection.clear();
-        saveSchedulesToStorage();
+        syncFromStore();
         renderCalendar();
         renderTrash();
         if (historyOverlay.classList.contains('active')) renderHistory();
-        if (viewContext.kind === 'trash' && viewContext.trashId && !trash.some(t => t.id === viewContext.trashId)) {
-            closeViewModal();
-        }
     }
 
     function deleteSelectedPermanently() {
@@ -1657,8 +1553,9 @@
             okText: 'Delete Forever',
             iconClass: 'danger',
             onConfirm: () => {
-                Array.from(trashSelection).forEach(id => removeFromTrashById(id));
+                Store.removeTrashItems(Array.from(trashSelection));
                 trashSelection.clear();
+                syncFromStore();
                 renderTrash();
                 if (viewContext.kind === 'trash' && viewContext.trashId && !trash.some(t => t.id === viewContext.trashId)) {
                     closeViewModal();
@@ -1676,8 +1573,8 @@
             okText: 'Empty Bin',
             iconClass: 'danger',
             onConfirm: () => {
-                trash = [];
-                trashSelection.clear();
+                Store.emptyTrash();
+                syncFromStore();
                 renderTrash();
                 if (viewContext.kind === 'trash') closeViewModal();
             }
@@ -1774,7 +1671,6 @@
         });
     });
 
-    // ---------- SORT POPOVER WIRING ----------
     historySortBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleSortPopover(historySortPopover, historySortBtn);
@@ -1795,7 +1691,6 @@
         if (!e.target.closest('.sort-wrap')) closeSortPopovers();
     });
 
-    // ---------- SETTINGS ----------
     settingsBtn.addEventListener('click', openSettingsModal);
     closeSettingsBtn.addEventListener('click', closeSettingsModal);
     settingsOverlay.addEventListener('click', (e) => {
@@ -1812,12 +1707,13 @@
         closeSettingsModal();
         openConfirmModal({
             title: 'Log out?',
-            message: 'You will be signed out and your current session data will be cleared.',
+            message: 'You will be signed out and your current session data will be cleared on all devices.',
             okText: 'Log Out',
             iconClass: 'warning',
             onConfirm: () => {
-                schedules = {};
-                trash = [];
+                Store.reset();
+                syncFromStore();
+
                 trashSelection.clear();
                 dayListSelection.clear();
                 editingScheduleId = null;
@@ -1878,8 +1774,8 @@
     recoverFromViewBtn.addEventListener('click', () => {
         if (viewContext.kind !== 'trash' || !viewContext.trashId) return;
         const id = viewContext.trashId;
-        if (recoverTrashItem(id)) {
-            saveSchedulesToStorage();
+        if (Store.recoverTrashItem(id)) {
+            syncFromStore();
             renderCalendar();
             renderTrash();
             if (historyOverlay.classList.contains('active')) renderHistory();
@@ -1932,7 +1828,6 @@
         scheduleDescription.closest('.field').classList.remove('invalid');
     });
 
-    // ---------- REVIEW MODAL EVENTS ----------
     reviewGoBackBtn.addEventListener('click', goBackToForm);
     reviewConfirmBtn.addEventListener('click', confirmSave);
     reviewOverlay.addEventListener('click', (e) => {
