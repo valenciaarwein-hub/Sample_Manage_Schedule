@@ -278,7 +278,6 @@
 
     function closeValidationModal() {
         validationOverlay.classList.remove('active');
-        // Clear invalid highlights
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
     }
 
@@ -431,7 +430,6 @@
         const btns = typeButtonGroup.querySelectorAll('.type-btn');
         const knownTypes = TYPE_OPTIONS;
 
-        // Determine if selectedType is one of the base options or a custom value
         const isBase = selectedType && knownTypes.includes(selectedType);
 
         btns.forEach(btn => {
@@ -443,7 +441,6 @@
         });
 
         if (selectedType && !isBase) {
-            // Custom value
             formType.base = 'Other';
             formType.custom = selectedType;
             customTypeInput.style.display = 'inline-block';
@@ -461,7 +458,6 @@
             customTypeInput.style.display = 'inline-block';
             customTypeInput.value = '';
         } else {
-            // No type selected
             formType.base = null;
             formType.custom = '';
             customTypeInput.style.display = 'none';
@@ -477,7 +473,6 @@
 
         if (type === 'Other') {
             formType.base = 'Other';
-            // Toggle custom input
             if (customTypeInput.style.display === 'none') {
                 customTypeInput.style.display = 'inline-block';
                 customTypeInput.focus();
@@ -493,7 +488,6 @@
             customTypeInput.value = '';
         }
 
-        // Update visual selection
         typeButtonGroup.querySelectorAll('.type-btn').forEach(b => {
             if (b.dataset.type === 'Other') {
                 b.classList.toggle('selected', formType.base === 'Other');
@@ -566,17 +560,19 @@
 
             html += `
                 <tr class="${isToday ? 'upcoming-today' : ''}">
-                    <td class="col-date">
+                    <td class="col-date" data-label="Date">
                         <span class="upcoming-date-cell">${escapeHtml(dateLabel)}</span>
                     </td>
-                    <td class="col-day">
+                    <td class="col-day" data-label="Day">
                         <span class="upcoming-day-cell">${escapeHtml(dayLabel)}${isToday ? '<span class="upcoming-today-badge">TODAY</span>' : ''}</span>
                     </td>
-                    <td class="col-title">
+                    <td class="col-title" data-label="Title">
                         <span class="upcoming-title-cell">${escapeHtml(r.title)}</span>
-                        ${r.type ? renderTypeBadge(r.type) : ''}
                     </td>
-                    <td class="col-desc">
+                    <td class="col-type" data-label="Type">
+                        ${r.type ? renderTypeBadge(r.type) : '<span class="upcoming-desc-cell empty">No type</span>'}
+                    </td>
+                    <td class="col-desc" data-label="Description">
                         ${r.description
                             ? `<span class="upcoming-desc-cell">${escapeHtml(r.description)}</span>`
                             : `<span class="upcoming-desc-cell empty">No description</span>`}
@@ -960,7 +956,6 @@
         resetTypeButtons(null);
         updateCharCounter();
 
-        // Clear invalid styles
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
 
         modalOverlay.classList.add('active');
@@ -1026,7 +1021,6 @@
     }
 
     function highlightInvalidFields() {
-        // Title field wrapper
         const titleField = scheduleTitle.closest('.field');
         const descField = scheduleDescription.closest('.field');
         const typeField = typeButtonGroup.closest('.field');
@@ -1757,7 +1751,6 @@
 
     historyBtn.addEventListener('click', openHistoryModal);
 
-    // Export / Import wiring
     exportBtn.addEventListener('click', exportSchedulesToFile);
     importBtn.addEventListener('click', () => importFileInput.click());
     importFileInput.addEventListener('change', (e) => {
@@ -1926,7 +1919,6 @@
         if (e.target === modalOverlay) closeFormModal();
     });
 
-    // Clear invalid state when the user edits the field
     scheduleTitle.addEventListener('input', () => {
         scheduleTitle.closest('.field').classList.remove('invalid');
     });
@@ -1958,7 +1950,6 @@
     historyYearFilter.addEventListener('change', renderHistory);
     clearAllHistoryBtn.addEventListener('click', clearAllHistory);
 
-    // Escape key: close topmost open modal
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (validationOverlay.classList.contains('active')) { closeValidationModal(); return; }
