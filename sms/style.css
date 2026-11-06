@@ -641,8 +641,6 @@ body {
 }
 
 .review-value.empty { color: #94a3b8; font-style: italic; }
-
-/* Old value — struck through */
 .review-value.old {
     color: #b91c1c;
     text-decoration: line-through;
@@ -650,16 +648,12 @@ body {
     background: #fef2f2;
     border-color: #fecaca;
 }
-
-/* New value — highlighted */
 .review-value.new {
     color: #15803d;
     background: #f0fdf4;
     border-color: #bbf7d0;
     font-weight: 500;
 }
-
-/* Unchanged — neutral */
 .review-value.same {
     color: #334155;
     background: #f8fafc;
@@ -1068,6 +1062,16 @@ body {
 /* ===== RECYCLE BIN MODAL ===== */
 .trash-modal { max-width: 620px; }
 
+.trash-sort-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+.trash-sort-row .history-select {
+    min-width: 160px;
+}
+
 .trash-toolbar {
     display: flex;
     align-items: center;
@@ -1401,6 +1405,8 @@ body {
     .settings-item-desc { font-size: 0.68rem; }
 
     /* trash modal mobile */
+    .trash-sort-row { margin-bottom: 6px; }
+    .trash-sort-row .history-select { width: 100%; min-width: 0; }
     .trash-toolbar { padding: 8px 10px; gap: 8px; border-radius: 12px; }
     .trash-select-all { font-size: 0.78rem; gap: 6px; }
     .trash-checkbox { width: 16px; height: 16px; }
