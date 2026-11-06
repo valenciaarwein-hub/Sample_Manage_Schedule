@@ -1118,19 +1118,23 @@ body {
         margin-top: 2px;
     }
 
-    /* floating navbar mobile */
+    /* floating navbar mobile — CENTERED SINGLE ROW */
     .floating-navbar {
         bottom: 14px;
-        padding: 8px 10px;
-        gap: 6px;
+        padding: 8px 12px;
+        gap: 8px;
         border-radius: 50px;
         width: calc(100vw - 16px);
         max-width: 460px;
+        justify-content: center;
     }
 
+    /* Dissolve the three wrapper groups so all buttons become
+       direct flex children of .floating-navbar and center together */
     .nav-left,
+    .nav-center,
     .nav-right {
-        gap: 4px;
+        display: contents;
     }
 
     /* Icon-only round buttons on mobile */
@@ -1146,6 +1150,8 @@ body {
         height: 46px;
         justify-content: center;
         gap: 0;
+        margin: 0;
+        flex-shrink: 0;
     }
 
     .floating-navbar .btn-create span,
@@ -1448,9 +1454,10 @@ body {
         font-size: 0.42rem;
     }
 
+    /* Centered navbar: tighter spacing for small screens */
     .floating-navbar {
         padding: 6px 8px;
-        gap: 4px;
+        gap: 5px;
     }
 
     .floating-navbar .btn-create,
