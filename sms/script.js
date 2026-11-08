@@ -12,6 +12,7 @@
     let savingInFlight = false;
 
     const TYPE_OPTIONS = ['Meeting', 'Seminar', 'Special Event', 'Other'];
+    const STATUS_OPTIONS = ['process', 'done', 'priority'];
 
     // ============================================================
     // SUPABASE HELPERS
@@ -42,6 +43,7 @@
                     title: item.title,
                     description: item.description || '',
                     type: item.type || '',
+                    status: normalizeStatus(item.status),
                     createdAt: item.created_at
                 });
             });
@@ -58,6 +60,7 @@
                 title: item.title,
                 description: item.description || '',
                 type: item.type || '',
+                status: normalizeStatus(item.status),
                 dateKey: item.date_key,
                 createdAt: item.created_at,
                 deletedAt: item.deleted_at
@@ -103,6 +106,7 @@
                         title: s.title,
                         description: s.description || '',
                         type: s.type || '',
+                        status: normalizeStatus(s.status),
                         created_at: s.createdAt || new Date().toISOString(),
                         updated_at: s.updatedAt || null,
                         deleted_at: null
@@ -116,6 +120,7 @@
                     title: t.title,
                     description: t.description || '',
                     type: t.type || '',
+                    status: normalizeStatus(t.status),
                     created_at: t.createdAt || new Date().toISOString(),
                     updated_at: null,
                     deleted_at: t.deletedAt || new Date().toISOString()
@@ -226,6 +231,53 @@
     }
 
     // ============================================================
+    // STATUS HELPERS
+    // ============================================================
+    function getStatusIcon(status) {
+        switch (status) {
+            case 'done': return 'fa-check-circle';
+            case 'priority': return 'fa-star';
+            default: return 'fa-hourglass-half';
+        }
+    }
+
+    function getStatusLabel(status) {
+        switch (status) {
+            case 'done': return 'Done';
+            case 'priority': return 'Priority';
+            default: return 'Process';
+        }
+    }
+
+    function normalizeStatus(s) {
+        return STATUS_OPTIONS.includes(s) ? s : 'process';
+    }
+
+    function getUrgencyLevel(dateKey) {
+        const diff = daysUntil(dateKey);
+        if (diff < 0) return 'overdue';
+        if (diff <= 2) return 'urgent';
+        return 'upcoming';
+    }
+
+    function computeCellStatus(daySchedules, dateKey) {
+        if (!daySchedules || daySchedules.length === 0) return null;
+
+        if (daySchedules.some(s => normalizeStatus(s.status) === 'priority')) {
+            if (getUrgencyLevel(dateKey) !== 'overdue') return 'status-priority';
+        }
+
+        if (daySchedules.every(s => normalizeStatus(s.status) === 'done')) {
+            return 'status-done';
+        }
+
+        const urgency = getUrgencyLevel(dateKey);
+        if (urgency === 'overdue') return 'status-overdue';
+        if (urgency === 'urgent') return 'status-urgent';
+        return 'status-upcoming';
+    }
+
+    // ============================================================
     // SORT HELPERS
     // ============================================================
     function cmpIso(a, b) {
@@ -286,6 +338,7 @@
     let pendingSave = null;
 
     let formType = { base: null, custom: '' };
+    let formStatus = 'process';
 
     let historySort = { kind: 'date-created', order: 'desc' };
     let trashSort = { kind: 'date-created', order: 'desc' };
@@ -328,6 +381,7 @@
     const scheduleDescription = document.getElementById('scheduleDescription');
     const charCount = document.getElementById('charCount');
     const typeButtonGroup = document.getElementById('typeButtonGroup');
+    const statusButtonGroup = document.getElementById('statusButtonGroup');
     const customTypeInput = document.getElementById('customTypeInput');
     const cancelModalBtn = document.getElementById('cancelModalBtn');
     const saveScheduleBtn = document.getElementById('saveScheduleBtn');
@@ -345,6 +399,8 @@
     const viewType = document.getElementById('viewType');
     const viewDescription = document.getElementById('viewDescription');
     const viewDate = document.getElementById('viewDate');
+    const viewStatusRow = document.getElementById('viewStatusRow');
+    const viewStatus = document.getElementById('viewStatus');
     const viewTrashDetails = document.getElementById('viewTrashDetails');
     const viewCreatedAt = document.getElementById('viewCreatedAt');
     const viewDeletedAt = document.getElementById('viewDeletedAt');
@@ -398,7 +454,6 @@
     const validationList = document.getElementById('validationList');
     const validationOkBtn = document.getElementById('validationOkBtn');
 
-    // Notifications
     const notifBtn = document.getElementById('notifBtn');
     const notifBadge = document.getElementById('notifBadge');
     const notifPanel = document.getElementById('notifPanel');
@@ -435,10 +490,15 @@
 
         Object.keys(schedules).forEach(dateKey => {
             (schedules[dateKey] || []).forEach(s => {
+                const st = normalizeStatus(s.status);
+                if (st === 'done') return;
+
                 const diff = daysUntil(dateKey);
 
                 let status, dotClass, itemClass;
-                if (diff < 0) {
+                if (st === 'priority') {
+                    status = 'priority'; dotClass = 'yellow'; itemClass = 'imminent';
+                } else if (diff < 0) {
                     status = 'overdue'; dotClass = 'red'; itemClass = 'overdue';
                 } else if (diff <= NOTIF_WINDOW_DAYS) {
                     status = 'urgent'; dotClass = 'yellow'; itemClass = 'imminent';
@@ -448,13 +508,14 @@
 
                 items.push({
                     id: s.id, dateKey, title: s.title, type: s.type || '',
+                    scheduleStatus: st,
                     diff, status, dotClass, itemClass,
                     unread: !notifSeenIds.has(s.id)
                 });
             });
         });
 
-        const statusRank = { overdue: 0, urgent: 1, upcoming: 2 };
+        const statusRank = { priority: 0, overdue: 1, urgent: 2, upcoming: 3 };
         items.sort((a, b) => {
             const r = statusRank[a.status] - statusRank[b.status];
             if (r !== 0) return r;
@@ -497,16 +558,22 @@
             const dateLabel = dateObj.toLocaleDateString('en-US', {
                 month: 'long', day: '2-digit', year: 'numeric'
             });
-            const typeLabel = it.type ? escapeHtml(it.type) : 'No type';
+
+            const typeBadgeHtml = it.type
+                ? `<span class="notif-type-badge-wrap">${renderTypeBadge(it.type)}</span>`
+                : `<span class="notif-type-badge-wrap"><span class="type-badge" style="background:#f1f5f9; color:#94a3b8; border-color:#e2e8f0;"><i class="fas fa-tag"></i> No type</span></span>`;
+
+            const statusPill = it.scheduleStatus === 'priority'
+                ? `<span class="notif-status-pill priority"><i class="fas fa-star"></i> Priority</span>`
+                : '';
 
             html += `
                 <button class="${itemClasses}" data-notif-id="${it.id}" data-notif-date="${it.dateKey}">
                     <span class="notif-dot ${it.dotClass}" title="${it.status}"></span>
                     <span class="notif-body">
-                        <span class="notif-title">${escapeHtml(it.title)}</span>
+                        <span class="notif-title">${escapeHtml(it.title)} ${statusPill}</span>
                         <span class="notif-sub">
-                            <span class="notif-type">${typeLabel}</span>
-                            <span class="notif-sep">•</span>
+                            ${typeBadgeHtml}
                             <span class="notif-date">${escapeHtml(dateLabel)}</span>
                         </span>
                     </span>
@@ -730,6 +797,43 @@
     }
 
     // ============================================================
+    // FORM: STATUS BUTTONS
+    // ============================================================
+    function resetStatusButtons(selected) {
+        formStatus = normalizeStatus(selected);
+        statusButtonGroup.querySelectorAll('.status-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.status === formStatus);
+        });
+    }
+
+    statusButtonGroup.addEventListener('click', (e) => {
+        const btn = e.target.closest('.status-btn');
+        if (!btn) return;
+        const chosen = btn.dataset.status;
+        if (!STATUS_OPTIONS.includes(chosen)) return;
+
+        if (chosen === 'priority' && selectedDateKey) {
+            const urgency = getUrgencyLevel(selectedDateKey);
+            if (urgency === 'overdue') {
+                openConfirmModal({
+                    title: 'Cannot set as Priority',
+                    message: 'This schedule is overdue / late, so it cannot be marked as a Priority (star). It will remain in Process status.',
+                    okText: 'OK',
+                    iconClass: 'warning',
+                    showCancel: false,
+                    onConfirm: () => {}
+                });
+                formStatus = 'process';
+                resetStatusButtons('process');
+                return;
+            }
+        }
+
+        formStatus = chosen;
+        resetStatusButtons(chosen);
+    });
+
+    // ============================================================
     // UPCOMING 7 DAYS TABLE
     // ============================================================
     function renderUpcomingTable() {
@@ -872,9 +976,14 @@
                 const visible = daySchedules.slice(0, maxVisible);
                 visible.forEach(s => {
                     const shortTitle = s.title.length > 16 ? s.title.slice(0, 14) + '…' : s.title;
+                    const st = normalizeStatus(s.status);
+                    const statusIcon = getStatusIcon(st);
+                    const itemClass = st === 'done' ? ' status-done'
+                                    : st === 'priority' ? ' status-priority'
+                                    : '';
                     schedulesHtml += `
-                        <div class="schedule-item" data-date="${dateKey}" data-id="${s.id}" title="${escapeHtml(s.title)} — ${escapeHtml(s.description || '')}">
-                            <i class="fas fa-circle" style="font-size: 0.35rem;"></i>
+                        <div class="schedule-item${itemClass}" data-date="${dateKey}" data-id="${s.id}" title="${escapeHtml(s.title)} — ${escapeHtml(s.description || '')}">
+                            <i class="fas ${statusIcon} schedule-status-icon ${st}"></i>
                             <span>${escapeHtml(shortTitle)}</span>
                         </div>
                     `;
@@ -886,10 +995,13 @@
                 schedulesHtml = `<div class="empty-hint">—</div>`;
             }
 
+            const cellStatusClass = computeCellStatus(daySchedules, dateKey) || '';
+
             const cellClasses = [
                 'day-cell',
                 !isCurrentMonth ? 'other-month' : '',
-                isToday ? 'today' : ''
+                isToday ? 'today' : '',
+                cellStatusClass
             ].filter(Boolean).join(' ');
 
             gridHtml += `
@@ -988,14 +1100,26 @@
         daySchedules.forEach(s => {
             const desc = s.description || 'No description';
             const isChecked = dayListSelection.has(s.id);
+            const st = normalizeStatus(s.status);
+            const statusIcon = getStatusIcon(st);
+            const cardStatusClass = st === 'done' ? ' status-done'
+                                  : st === 'priority' ? ' status-priority'
+                                  : '';
+            const statusPill = st === 'done'
+                ? `<span class="status-pill-inline done"><i class="fas fa-check-circle"></i> Done</span>`
+                : st === 'priority'
+                ? `<span class="status-pill-inline priority"><i class="fas fa-star"></i> Priority</span>`
+                : '';
+
             html += `
-                <div class="day-schedule-card">
+                <div class="day-schedule-card${cardStatusClass}">
                     <input type="checkbox" class="day-checkbox" data-day-id="${s.id}" ${isChecked ? 'checked' : ''}>
                     <div class="card-accent"></div>
                     <div class="card-body">
-                        <div class="card-title">${escapeHtml(s.title)}</div>
+                        <div class="card-title"><i class="fas ${statusIcon} schedule-status-icon ${st}" style="margin-right:6px;"></i>${escapeHtml(s.title)}</div>
                         <div class="card-desc">${escapeHtml(desc)}</div>
                         ${s.type ? renderTypeBadge(s.type) : ''}
+                        ${statusPill}
                     </div>
                     <div class="card-actions">
                         <button class="icon-btn view" data-action="view" data-id="${s.id}" title="View details"><i class="fas fa-eye"></i></button>
@@ -1114,6 +1238,7 @@
         viewContext = { kind: 'schedule', trashId: null };
         viewOverlay.classList.remove('trash-context');
         viewTrashDetails.style.display = 'none';
+        viewStatusRow.style.display = 'block';
         recoverFromViewBtn.style.display = 'none';
         viewModalTitle.innerHTML = '<i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details';
 
@@ -1123,6 +1248,13 @@
         viewDate.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
+
+        const st = normalizeStatus(schedule.status);
+        const stIcon = getStatusIcon(st);
+        const stLabel = getStatusLabel(st);
+        const stColor = st === 'done' ? '#16a34a' : st === 'priority' ? '#ca8a04' : '#64748b';
+        viewStatus.innerHTML = `<span style="color:${stColor}; font-weight:600;"><i class="fas ${stIcon}"></i> ${stLabel}</span>`;
+
         viewOverlay.classList.add('active');
     }
 
@@ -1142,6 +1274,13 @@
         viewDate.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
+
+        const st = normalizeStatus(item.status);
+        const stIcon = getStatusIcon(st);
+        const stLabel = getStatusLabel(st);
+        const stColor = st === 'done' ? '#16a34a' : st === 'priority' ? '#ca8a04' : '#64748b';
+        viewStatus.innerHTML = `<span style="color:${stColor}; font-weight:600;"><i class="fas ${stIcon}"></i> ${stLabel}</span>`;
+        viewStatusRow.style.display = 'block';
 
         viewTrashDetails.style.display = 'block';
         viewCreatedAt.textContent = item.createdAt ? formatDateTime(item.createdAt) : '—';
@@ -1183,6 +1322,7 @@
         scheduleTitle.value = '';
         scheduleDescription.value = '';
         resetTypeButtons(null);
+        resetStatusButtons('process');
         updateCharCounter();
 
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
@@ -1209,6 +1349,7 @@
         scheduleTitle.value = schedule.title;
         scheduleDescription.value = schedule.description || '';
         resetTypeButtons(schedule.type || null);
+        resetStatusButtons(schedule.status || 'process');
         updateCharCounter();
 
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
@@ -1222,6 +1363,7 @@
         selectedDateKey = null;
         pendingSave = null;
         formType = { base: null, custom: '' };
+        formStatus = 'process';
         customTypeInput.style.display = 'none';
         customTypeInput.value = '';
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
@@ -1277,6 +1419,12 @@
         const dateKey = selectedDateKey;
         if (!dateKey) return;
 
+        // Final guard: priority is not allowed on overdue dates
+        if (formStatus === 'priority' && getUrgencyLevel(dateKey) === 'overdue') {
+            formStatus = 'process';
+            resetStatusButtons('process');
+        }
+
         if (editingScheduleId) {
             const daySchedules = schedules[dateKey] || [];
             const original = daySchedules.find(s => s.id === editingScheduleId);
@@ -1285,8 +1433,9 @@
             const sameTitle = original.title === title;
             const sameDesc = (original.description || '') === description;
             const sameType = (original.type || '') === resolvedType;
+            const sameStatus = normalizeStatus(original.status) === formStatus;
 
-            if (sameTitle && sameDesc && sameType) {
+            if (sameTitle && sameDesc && sameType && sameStatus) {
                 closeFormModal();
                 return;
             }
@@ -1298,9 +1447,10 @@
                 oldData: {
                     title: original.title,
                     description: original.description || '',
-                    type: original.type || ''
+                    type: original.type || '',
+                    status: normalizeStatus(original.status)
                 },
-                newData: { title, description, type: resolvedType }
+                newData: { title, description, type: resolvedType, status: formStatus }
             };
         } else {
             pendingSave = {
@@ -1308,7 +1458,7 @@
                 dateKey,
                 id: null,
                 oldData: null,
-                newData: { title, description, type: resolvedType }
+                newData: { title, description, type: resolvedType, status: formStatus }
             };
         }
 
@@ -1343,6 +1493,7 @@
             const titleChanged = oldData.title !== newData.title;
             const descChanged = (oldData.description || '') !== (newData.description || '');
             const typeChanged = (oldData.type || '') !== (newData.type || '');
+            const statusChanged = (oldData.status || 'process') !== newData.status;
 
             html += `
                 <div class="review-block">
@@ -1354,6 +1505,10 @@
                     <div class="review-field">
                         <div class="review-field-name">Type${typeChanged ? ' — edited' : ''}</div>
                         <div class="review-value ${typeChanged ? 'old' : 'same'} ${oldData.type ? '' : 'empty'}">${oldData.type ? escapeHtml(oldData.type) : 'No type'}</div>
+                    </div>
+                    <div class="review-field">
+                        <div class="review-field-name">Status${statusChanged ? ' — edited' : ''}</div>
+                        <div class="review-value ${statusChanged ? 'old' : 'same'}">${escapeHtml(getStatusLabel(oldData.status || 'process'))}</div>
                     </div>
                     <div class="review-field">
                         <div class="review-field-name">Description${descChanged ? ' — edited' : ''}</div>
@@ -1374,6 +1529,10 @@
                         <div class="review-value ${typeChanged ? 'new' : 'same'} ${newData.type ? '' : 'empty'}">${newData.type ? escapeHtml(newData.type) : 'No type'}</div>
                     </div>
                     <div class="review-field">
+                        <div class="review-field-name">Status${statusChanged ? ' — changed' : ' — unchanged'}</div>
+                        <div class="review-value ${statusChanged ? 'new' : 'same'}">${escapeHtml(getStatusLabel(newData.status))}</div>
+                    </div>
+                    <div class="review-field">
                         <div class="review-field-name">Description${descChanged ? ' — changed' : ' — unchanged'}</div>
                         <div class="review-value ${descChanged ? 'new' : 'same'} ${newData.description ? '' : 'empty'}">${newData.description ? escapeHtml(newData.description) : 'No description'}</div>
                     </div>
@@ -1390,6 +1549,10 @@
                     <div class="review-field">
                         <div class="review-field-name">Type</div>
                         <div class="review-value new">${escapeHtml(newData.type)}</div>
+                    </div>
+                    <div class="review-field">
+                        <div class="review-field-name">Status</div>
+                        <div class="review-value new">${escapeHtml(getStatusLabel(newData.status))}</div>
                     </div>
                     <div class="review-field">
                         <div class="review-field-name">Description</div>
@@ -1429,6 +1592,7 @@
         scheduleTitle.value = pendingSave.newData.title;
         scheduleDescription.value = pendingSave.newData.description;
         resetTypeButtons(pendingSave.newData.type);
+        resetStatusButtons(pendingSave.newData.status);
         updateCharCounter();
 
         modalOverlay.classList.add('active');
@@ -1447,6 +1611,7 @@
                 item.title = newData.title;
                 item.description = newData.description;
                 item.type = newData.type;
+                item.status = normalizeStatus(newData.status);
                 item.updatedAt = new Date().toISOString();
             }
         } else {
@@ -1456,6 +1621,7 @@
                 title: newData.title,
                 description: newData.description,
                 type: newData.type,
+                status: normalizeStatus(newData.status),
                 createdAt: new Date().toISOString()
             });
         }
@@ -1474,6 +1640,7 @@
         selectedDateKey = null;
         pendingSave = null;
         formType = { base: null, custom: '' };
+        formStatus = 'process';
 
         if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) renderDayScheduleList();
         if (historyOverlay.classList.contains('active')) renderHistory();
@@ -1634,13 +1801,21 @@
                 weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
             });
             const addedLabel = s.createdAt ? formatDateTime(s.createdAt) : '—';
+            const st = normalizeStatus(s.status);
+            const stIcon = getStatusIcon(st);
+            const statusPill = st === 'done'
+                ? `<span class="status-pill-inline done"><i class="fas fa-check-circle"></i> Done</span>`
+                : st === 'priority'
+                ? `<span class="status-pill-inline priority"><i class="fas fa-star"></i> Priority</span>`
+                : '';
 
             html += `
                 <div class="history-schedule-item">
                     <div class="hs-accent"></div>
                     <div class="hs-body">
-                        <div class="hs-title">${escapeHtml(s.title)}</div>
+                        <div class="hs-title"><i class="fas ${stIcon} schedule-status-icon ${st}" style="margin-right:6px;"></i>${escapeHtml(s.title)}</div>
                         ${s.type ? renderTypeBadge(s.type) : ''}
+                        ${statusPill}
                         ${s.description ? `<div class="hs-desc">${escapeHtml(s.description)}</div>` : ''}
                         <div class="hs-desc" style="font-size:0.65rem; color:#94a3b8; margin-top:2px;">
                             <i class="fas fa-calendar-day" style="font-size:0.6rem;"></i> ${escapeHtml(dateLabel)}
@@ -1974,7 +2149,7 @@
     }
 
     // ============================================================
-    // EXPORT TO EXCEL (with preview)
+    // EXPORT TO EXCEL (Month / Day / Year split)
     // ============================================================
     const MONTH_NAMES_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const EXPORT_START_YEAR = 2025;
@@ -2003,12 +2178,8 @@
         return years;
     }
 
-    function getYearFromDateKey(dateKey) {
-        return parseInt(dateKey.split('-')[0], 10);
-    }
-    function getMonthFromDateKey(dateKey) {
-        return parseInt(dateKey.split('-')[1], 10);
-    }
+    function getYearFromDateKey(dateKey) { return parseInt(dateKey.split('-')[0], 10); }
+    function getMonthFromDateKey(dateKey) { return parseInt(dateKey.split('-')[1], 10); }
 
     function getFilteredExportRows() {
         const rows = [];
@@ -2027,6 +2198,7 @@
                     }),
                     title: s.title,
                     type: s.type || '',
+                    status: normalizeStatus(s.status),
                     description: s.description || ''
                 });
             });
@@ -2108,9 +2280,12 @@
             <table class="export-preview-table">
                 <thead>
                     <tr>
-                        <th>Date</th>
+                        <th>Month</th>
+                        <th>Day</th>
+                        <th>Year</th>
                         <th>Title</th>
                         <th>Type</th>
+                        <th>Status</th>
                         <th>Description</th>
                     </tr>
                 </thead>
@@ -2118,11 +2293,16 @@
         `;
 
         rows.forEach(r => {
+            const dateObj = getDateFromKey(r.dateKey);
+            const monthLabel = MONTH_NAMES_FULL[dateObj.getMonth()];
             html += `
                 <tr>
-                    <td class="ep-date">${escapeHtml(r.dateLabel)}</td>
+                    <td class="ep-date">${monthLabel}</td>
+                    <td class="ep-date">${dateObj.getDate()}</td>
+                    <td class="ep-date">${dateObj.getFullYear()}</td>
                     <td class="ep-title">${escapeHtml(r.title)}</td>
                     <td class="ep-type">${r.type ? escapeHtml(r.type) : '<span style="color:#94a3b8;">—</span>'}</td>
+                    <td class="ep-type">${escapeHtml(getStatusLabel(r.status))}</td>
                     <td class="ep-desc">${r.description ? escapeHtml(r.description) : '<span style="color:#cbd5e1;">No description</span>'}</td>
                 </tr>
             `;
@@ -2154,25 +2334,26 @@
         if (rows.length === 0) return;
 
         const sheetData = [
-            ['Date', 'Title', 'Type', 'Description']
+            ['Month', 'Day', 'Year', 'Title', 'Type', 'Status', 'Description']
         ];
         rows.forEach(r => {
             const dateObj = getDateFromKey(r.dateKey);
-            sheetData.push([dateObj, r.title, r.type, r.description]);
+            sheetData.push([
+                dateObj.getMonth() + 1,
+                dateObj.getDate(),
+                dateObj.getFullYear(),
+                r.title,
+                r.type,
+                getStatusLabel(r.status),
+                r.description
+            ]);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(sheetData);
         ws['!cols'] = [
-            { wch: 14 }, { wch: 30 }, { wch: 16 }, { wch: 55 }
+            { wch: 8 }, { wch: 6 }, { wch: 8 },
+            { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 55 }
         ];
-
-        for (let r = 1; r < sheetData.length; r++) {
-            const cellAddr = XLSX.utils.encode_cell({ r, c: 0 });
-            if (ws[cellAddr] && ws[cellAddr].v instanceof Date) {
-                ws[cellAddr].t = 'd';
-                ws[cellAddr].z = 'yyyy-mm-dd';
-            }
-        }
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Schedules');
@@ -2210,7 +2391,7 @@
     });
 
     // ============================================================
-    // IMPORT FROM EXCEL (with validation + template)
+    // IMPORT FROM EXCEL (Month / Day / Year split)
     // ============================================================
     const importOverlay = document.getElementById('importOverlay');
     const importStatus = document.getElementById('importStatus');
@@ -2221,7 +2402,7 @@
     const importCancelBtn = document.getElementById('importCancelBtn');
     const importConfirmBtn = document.getElementById('importConfirmBtn');
 
-    const IMPORT_REQUIRED_HEADERS = ['Date', 'Title', 'Type', 'Description'];
+    const IMPORT_REQUIRED_HEADERS = ['Month', 'Day', 'Year', 'Title', 'Type', 'Status', 'Description'];
     const IMPORT_MAX_TITLE_LEN = 60;
     const IMPORT_MAX_DESC_LEN = 200;
 
@@ -2251,45 +2432,110 @@
         }
 
         const templateData = [
-            ['Date', 'Title', 'Type', 'Description'],
-            ['2025-12-08', 'Team Meeting', 'Meeting', 'Weekly sync with the team'],
-            ['2025-12-15', 'Year-end Seminar', 'Seminar', 'Annual review and planning'],
-            ['2026-01-10', 'New Year Event', 'Special Event', 'Company kickoff celebration']
+            ['Month', 'Day', 'Year', 'Title', 'Type', 'Status', 'Description'],
+            [12, 8, 2025, 'Team Meeting', 'Meeting', 'Process', 'Weekly sync with the team'],
+            [12, 15, 2025, 'Year-end Seminar', 'Seminar', 'Priority', 'Annual review and planning'],
+            [1, 10, 2026, 'New Year Event', 'Special Event', 'Process', 'Company kickoff celebration'],
+            [1, 20, 2026, 'Project Done', 'Meeting', 'Done', 'Quarterly wrap-up']
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(templateData);
-        ws['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 16 }, { wch: 50 }];
-
-        for (let r = 1; r < templateData.length; r++) {
-            const cell = XLSX.utils.encode_cell({ r, c: 0 });
-            if (ws[cell]) { ws[cell].t = 's'; ws[cell].z = '@'; }
-        }
+        ws['!cols'] = [
+            { wch: 8 }, { wch: 6 }, { wch: 8 },
+            { wch: 28 }, { wch: 16 }, { wch: 12 }, { wch: 50 }
+        ];
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Schedules Template');
         XLSX.writeFile(wb, 'schedule_import_template.xlsx');
     }
 
+    function parseMonthCell(v) {
+        if (v == null) return null;
+        const s = String(v).trim();
+        if (!s) return null;
+        if (/^\d+$/.test(s)) {
+            const n = parseInt(s, 10);
+            return (n >= 1 && n <= 12) ? n : null;
+        }
+        const lower = s.toLowerCase();
+        const names = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+        for (let i = 0; i < names.length; i++) {
+            if (lower === names[i] || lower === names[i].slice(0, 3)) return i + 1;
+        }
+        return null;
+    }
+
+    function parseDayCell(v) {
+        if (v == null) return null;
+        const s = String(v).trim();
+        if (!s) return null;
+        if (!/^\d+$/.test(s)) return null;
+        const n = parseInt(s, 10);
+        return (n >= 1 && n <= 31) ? n : null;
+    }
+
+    function parseYearCell(v) {
+        if (v == null) return null;
+        const s = String(v).trim();
+        if (!s) return null;
+        if (!/^\d{4}$/.test(s)) return null;
+        return parseInt(s, 10);
+    }
+
+    function normalizeStatusLabel(s) {
+        const v = String(s || '').trim().toLowerCase();
+        if (v === 'done') return 'done';
+        if (v === 'priority' || v === 'star') return 'priority';
+        return 'process';
+    }
+
     function validateImportRow(row, rowNumber) {
         const errors = [];
-        const dateStr = row.date != null ? String(row.date).trim() : '';
+
+        const monthNum = parseMonthCell(row.month);
+        const dayNum = parseDayCell(row.day);
+        const yearNum = parseYearCell(row.year);
         const titleStr = row.title != null ? String(row.title).trim() : '';
         const typeStr = row.type != null ? String(row.type).trim() : '';
+        const statusStr = row.status != null ? String(row.status).trim() : '';
         const descStr = row.description != null ? String(row.description).trim() : '';
 
-        if (!dateStr && !titleStr && !typeStr && !descStr) {
+        if (
+            (row.month == null || String(row.month).trim() === '') &&
+            (row.day == null || String(row.day).trim() === '') &&
+            (row.year == null || String(row.year).trim() === '') &&
+            !titleStr && !typeStr && !statusStr && !descStr
+        ) {
             return { skip: true, errors: [] };
         }
 
-        if (!dateStr) {
-            errors.push(`Row ${rowNumber}: Date is required.`);
-        } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-            errors.push(`Row ${rowNumber}: Date must be in YYYY-MM-DD format (got "${dateStr}").`);
-        } else {
-            const parts = dateStr.split('-').map(Number);
-            const testDate = new Date(parts[0], parts[1] - 1, parts[2]);
-            if (testDate.getFullYear() !== parts[0] || testDate.getMonth() + 1 !== parts[1] || testDate.getDate() !== parts[2]) {
-                errors.push(`Row ${rowNumber}: "${dateStr}" is not a real calendar date.`);
+        if (row.month == null || String(row.month).trim() === '') {
+            errors.push(`Row ${rowNumber}: Month is required.`);
+        } else if (monthNum == null) {
+            errors.push(`Row ${rowNumber}: Month must be 1–12 or a month name (got "${row.month}").`);
+        }
+
+        if (row.day == null || String(row.day).trim() === '') {
+            errors.push(`Row ${rowNumber}: Day is required.`);
+        } else if (dayNum == null) {
+            errors.push(`Row ${rowNumber}: Day must be a number between 1 and 31 (got "${row.day}").`);
+        }
+
+        if (row.year == null || String(row.year).trim() === '') {
+            errors.push(`Row ${rowNumber}: Year is required.`);
+        } else if (yearNum == null) {
+            errors.push(`Row ${rowNumber}: Year must be a 4-digit number (got "${row.year}").`);
+        }
+
+        if (monthNum != null && dayNum != null && yearNum != null) {
+            const testDate = new Date(yearNum, monthNum - 1, dayNum);
+            if (
+                testDate.getFullYear() !== yearNum ||
+                testDate.getMonth() + 1 !== monthNum ||
+                testDate.getDate() !== dayNum
+            ) {
+                errors.push(`Row ${rowNumber}: ${monthNum}/${dayNum}/${yearNum} is not a real calendar date.`);
             }
         }
 
@@ -2299,20 +2545,32 @@
             errors.push(`Row ${rowNumber}: Title exceeds ${IMPORT_MAX_TITLE_LEN} characters.`);
         }
 
+        if (!typeStr) {
+            errors.push(`Row ${rowNumber}: Type is required (e.g. Meeting, Seminar, Special Event).`);
+        }
+
         if (!descStr) {
             errors.push(`Row ${rowNumber}: Description is required.`);
         } else if (descStr.length > IMPORT_MAX_DESC_LEN) {
             errors.push(`Row ${rowNumber}: Description exceeds ${IMPORT_MAX_DESC_LEN} characters.`);
         }
 
-        if (!typeStr) {
-            errors.push(`Row ${rowNumber}: Type is required (e.g. Meeting, Seminar, Special Event).`);
+        if (errors.length > 0) {
+            return { skip: false, errors };
         }
+
+        const dateKey = `${yearNum}-${String(monthNum).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
 
         return {
             skip: false,
-            errors,
-            parsed: { dateKey: dateStr, title: titleStr, type: typeStr, description: descStr }
+            errors: [],
+            parsed: {
+                dateKey,
+                title: titleStr,
+                type: typeStr,
+                status: normalizeStatusLabel(statusStr),
+                description: descStr
+            }
         };
     }
 
@@ -2346,7 +2604,17 @@
         for (let i = 1; i < grid.length; i++) {
             const raw = grid[i] || [];
             const rowNumber = i + 1;
-            const row = { date: raw[0], title: raw[1], type: raw[2], description: raw[3] };
+
+            const row = {
+                month: raw[0],
+                day: raw[1],
+                year: raw[2],
+                title: raw[3],
+                type: raw[4],
+                status: raw[5],
+                description: raw[6]
+            };
+
             const result = validateImportRow(row, rowNumber);
             if (result.skip) continue;
             if (result.errors.length > 0) errors.push(...result.errors);
@@ -2492,6 +2760,7 @@
                 title: r.title,
                 description: r.description,
                 type: r.type,
+                status: normalizeStatus(r.status),
                 createdAt: now
             });
             added++;
@@ -2579,7 +2848,6 @@
         openTrashModal();
     });
 
-    // LOGOUT
     logoutBtn.addEventListener('click', () => {
         closeSettingsModal();
         openConfirmModal({
@@ -2600,6 +2868,7 @@
                 reopenHistoryAfterEdit = false;
                 pendingSave = null;
                 formType = { base: null, custom: '' };
+                formStatus = 'process';
                 historySort = { kind: 'date-created', order: 'desc' };
                 trashSort = { kind: 'date-created', order: 'desc' };
                 viewContext = { kind: 'schedule', trashId: null };
