@@ -9,6 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="sms/style.css">
+    <!-- SheetJS — for Excel export & import -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -25,7 +27,6 @@
             <button class="nav-btn" id="nextMonthBtn" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
             <button class="nav-btn" id="todayBtn" aria-label="Today">Today</button>
 
-            <!-- Notification bell -->
             <div class="notif-wrap">
                 <button class="nav-btn notif-btn" id="notifBtn" aria-label="Notifications" title="Notifications">
                     <i class="fas fa-bell"></i>
@@ -90,13 +91,12 @@
 
 <div class="floating-navbar">
     <div class="nav-left">
-        <button class="btn-import" id="importBtn" title="Load schedules from JSON file">
+        <button class="btn-import" id="importBtn" title="Import schedules from Excel file">
             <i class="fas fa-upload"></i>
             <span>Import</span>
         </button>
-        <input type="file" id="importFileInput" accept="application/json" style="display:none;">
 
-        <button class="btn-export" id="exportBtn" title="Download all schedules as JSON">
+        <button class="btn-export" id="exportBtn" title="Export schedules to Excel">
             <i class="fas fa-download"></i>
             <span>Export</span>
         </button>
@@ -121,6 +121,7 @@
     </div>
 </div>
 
+<!-- ============ DAY LIST MODAL ============ -->
 <div class="modal-overlay" id="dayListOverlay">
     <div class="modal">
         <h3><i class="fas fa-list-ul" style="color:#3b82f6;"></i> Schedules</h3>
@@ -148,6 +149,7 @@
     </div>
 </div>
 
+<!-- ============ CREATE/EDIT MODAL ============ -->
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
         <h3 id="modalTitle"><i class="fas fa-calendar-plus" style="color:#3b82f6;"></i> New Schedule</h3>
@@ -194,6 +196,7 @@
     </div>
 </div>
 
+<!-- ============ REVIEW MODAL ============ -->
 <div class="modal-overlay" id="reviewOverlay">
     <div class="modal review-modal">
         <h3><i class="fas fa-clipboard-check" style="color:#3b82f6;"></i> <span id="reviewTitleText">Review Changes</span></h3>
@@ -210,6 +213,7 @@
     </div>
 </div>
 
+<!-- ============ VIEW MODAL ============ -->
 <div class="modal-overlay" id="viewOverlay">
     <div class="modal">
         <h3 id="viewModalTitle"><i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details</h3>
@@ -238,6 +242,7 @@
     </div>
 </div>
 
+<!-- ============ DATE PICKER MODAL ============ -->
 <div class="modal-overlay" id="datePickerOverlay">
     <div class="modal">
         <h3><i class="fas fa-calendar-alt" style="color:#3b82f6;"></i> Jump to Date</h3>
@@ -267,6 +272,7 @@
     </div>
 </div>
 
+<!-- ============ HISTORY MODAL ============ -->
 <div class="modal-overlay" id="historyOverlay">
     <div class="modal history-modal">
         <div class="history-title-row">
@@ -319,6 +325,7 @@
     </div>
 </div>
 
+<!-- ============ SETTINGS MODAL ============ -->
 <div class="modal-overlay" id="settingsOverlay">
     <div class="modal settings-modal">
         <h3><i class="fas fa-cog" style="color:#3b82f6;"></i> Settings</h3>
@@ -347,6 +354,7 @@
     </div>
 </div>
 
+<!-- ============ TRASH MODAL ============ -->
 <div class="modal-overlay" id="trashOverlay">
     <div class="modal trash-modal">
         <div class="trash-title-row">
@@ -399,6 +407,7 @@
     </div>
 </div>
 
+<!-- ============ CONFIRM MODAL ============ -->
 <div class="modal-overlay" id="confirmOverlay">
     <div class="modal confirm-modal">
         <div class="confirm-icon danger" id="confirmIcon"><i class="fas fa-trash-alt"></i></div>
@@ -411,6 +420,7 @@
     </div>
 </div>
 
+<!-- ============ VALIDATION MODAL ============ -->
 <div class="modal-overlay" id="validationOverlay">
     <div class="modal validation-modal">
         <div class="confirm-icon warning"><i class="fas fa-exclamation-triangle"></i></div>
@@ -423,7 +433,122 @@
     </div>
 </div>
 
+<!-- ============ EXPORT PREVIEW MODAL ============ -->
+<div class="modal-overlay" id="exportOverlay">
+    <div class="modal export-modal">
+        <h3><i class="fas fa-file-excel" style="color:#16a34a;"></i> Export Preview</h3>
+        <p class="export-subtitle">Select the years and months you want, then preview the data before downloading.</p>
+
+        <div class="export-filter-block">
+            <div class="export-filter-header">
+                <span class="export-filter-label"><i class="fas fa-calendar-alt"></i> Years</span>
+                <div class="export-filter-actions">
+                    <button type="button" class="export-mini-btn" id="exportYearsAll">All</button>
+                    <button type="button" class="export-mini-btn" id="exportYearsNone">None</button>
+                </div>
+            </div>
+            <div class="export-chip-wrap" id="exportYearChips"></div>
+        </div>
+
+        <div class="export-filter-block">
+            <div class="export-filter-header">
+                <span class="export-filter-label"><i class="fas fa-calendar-day"></i> Months</span>
+                <div class="export-filter-actions">
+                    <button type="button" class="export-mini-btn" id="exportMonthsAll">All</button>
+                    <button type="button" class="export-mini-btn" id="exportMonthsNone">None</button>
+                </div>
+            </div>
+            <div class="export-chip-wrap" id="exportMonthChips"></div>
+        </div>
+
+        <div class="export-preview-summary" id="exportPreviewSummary">—</div>
+
+        <div class="export-preview-wrap">
+            <div class="export-preview-header">
+                <span><i class="fas fa-eye"></i> Preview</span>
+                <span class="export-preview-count" id="exportPreviewCount">0 rows</span>
+            </div>
+            <div class="export-preview-scroll" id="exportPreviewScroll"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary" id="exportCancelBtn">Cancel</button>
+            <button class="btn btn-primary" id="exportDownloadBtn">
+                <i class="fas fa-download"></i> Download Excel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ IMPORT MODAL ============ -->
+<div class="modal-overlay" id="importOverlay">
+    <div class="modal import-modal">
+        <h3><i class="fas fa-file-import" style="color:#3b82f6;"></i> Import Schedules</h3>
+        <p class="import-subtitle">Upload an Excel file (.xlsx) with your schedules. The file must match the template exactly.</p>
+
+        <div class="import-section">
+            <div class="import-section-title">
+                <span class="import-step-num">1</span> File requirements
+            </div>
+            <ul class="import-rules">
+                <li><i class="fas fa-check-circle"></i> File format must be <strong>.xlsx</strong> (Excel)</li>
+                <li><i class="fas fa-check-circle"></i> First row must be the header row with these exact columns:
+                    <div class="import-columns">
+                        <code>Date</code>
+                        <code>Title</code>
+                        <code>Type</code>
+                        <code>Description</code>
+                    </div>
+                </li>
+                <li><i class="fas fa-check-circle"></i> <strong>Date</strong> format: <code>YYYY-MM-DD</code> (e.g. <code>2025-12-08</code>)</li>
+                <li><i class="fas fa-check-circle"></i> <strong>Title</strong> is required (max 60 characters)</li>
+                <li><i class="fas fa-check-circle"></i> <strong>Description</strong> is required (max 200 characters)</li>
+                <li><i class="fas fa-check-circle"></i> <strong>Type</strong> — any text (e.g. Meeting, Seminar, Special Event)</li>
+                <li><i class="fas fa-exclamation-triangle"></i> If <strong>any</strong> row is invalid, the entire file is rejected and nothing is imported.</li>
+            </ul>
+        </div>
+
+        <div class="import-section">
+            <div class="import-section-title">
+                <span class="import-step-num">2</span> Get the template
+            </div>
+            <button type="button" class="import-template-btn" id="downloadTemplateBtn">
+                <i class="fas fa-download"></i>
+                <div class="import-template-text">
+                    <strong>Download Excel Template</strong>
+                    <span>Pre-formatted with the correct columns and example rows</span>
+                </div>
+            </button>
+        </div>
+
+        <div class="import-section">
+            <div class="import-section-title">
+                <span class="import-step-num">3</span> Upload your file
+            </div>
+            <input type="file" id="importExcelInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;">
+            <button type="button" class="import-upload-btn" id="importUploadBtn">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <div class="import-upload-text">
+                    <strong>Choose File</strong>
+                    <span id="importFileName">No file selected</span>
+                </div>
+            </button>
+        </div>
+
+        <div class="import-status" id="importStatus" style="display:none;"></div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary" id="importCancelBtn">Cancel</button>
+            <button class="btn btn-primary" id="importConfirmBtn" disabled>
+                <i class="fas fa-file-import"></i> Import
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
 <!-- SUPABASE SETUP (CDN) -->
+<!-- ============================================================ -->
 <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
