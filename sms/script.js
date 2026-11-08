@@ -305,7 +305,6 @@
     const historyBtn = document.getElementById('historyBtn');
     const exportBtn = document.getElementById('exportBtn');
     const importBtn = document.getElementById('importBtn');
-    const importFileInput = document.getElementById('importFileInput');
     const logoutBtn = document.getElementById('logoutBtn');
     const settingsBtn = document.getElementById('settingsBtn');
 
@@ -399,7 +398,7 @@
     const validationList = document.getElementById('validationList');
     const validationOkBtn = document.getElementById('validationOkBtn');
 
-    // Notification DOM refs
+    // Notifications
     const notifBtn = document.getElementById('notifBtn');
     const notifBadge = document.getElementById('notifBadge');
     const notifPanel = document.getElementById('notifPanel');
@@ -431,14 +430,6 @@
         return Math.round((target - today) / 86400000);
     }
 
-    function formatShortDate(dateKey) {
-        const d = getDateFromKey(dateKey);
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        const yy = String(d.getFullYear()).slice(-2);
-        return `${mm}/${dd}/${yy}`;
-    }
-
     function buildNotificationItems() {
         const items = [];
 
@@ -448,28 +439,16 @@
 
                 let status, dotClass, itemClass;
                 if (diff < 0) {
-                    status = 'overdue';
-                    dotClass = 'red';
-                    itemClass = 'overdue';
+                    status = 'overdue'; dotClass = 'red'; itemClass = 'overdue';
                 } else if (diff <= NOTIF_WINDOW_DAYS) {
-                    status = 'urgent';
-                    dotClass = 'yellow';
-                    itemClass = 'imminent';
+                    status = 'urgent'; dotClass = 'yellow'; itemClass = 'imminent';
                 } else {
-                    status = 'upcoming';
-                    dotClass = 'green';
-                    itemClass = 'upcoming';
+                    status = 'upcoming'; dotClass = 'green'; itemClass = 'upcoming';
                 }
 
                 items.push({
-                    id: s.id,
-                    dateKey,
-                    title: s.title,
-                    type: s.type || '',
-                    diff,
-                    status,
-                    dotClass,
-                    itemClass,
+                    id: s.id, dateKey, title: s.title, type: s.type || '',
+                    diff, status, dotClass, itemClass,
                     unread: !notifSeenIds.has(s.id)
                 });
             });
@@ -513,23 +492,22 @@
 
         let html = '';
         items.forEach(it => {
-            const itemClasses = [
-                'notif-item',
-                it.itemClass,
-                it.unread ? 'unread' : ''
-            ].filter(Boolean).join(' ');
-
-            const dateLabel = formatShortDate(it.dateKey);
+            const itemClasses = ['notif-item', it.itemClass, it.unread ? 'unread' : ''].filter(Boolean).join(' ');
+            const dateObj = getDateFromKey(it.dateKey);
+            const dateLabel = dateObj.toLocaleDateString('en-US', {
+                month: 'long', day: '2-digit', year: 'numeric'
+            });
+            const typeLabel = it.type ? escapeHtml(it.type) : 'No type';
 
             html += `
                 <button class="${itemClasses}" data-notif-id="${it.id}" data-notif-date="${it.dateKey}">
-                    <span class="notif-dot ${it.dotClass}" title="${it.status === 'overdue' ? 'Overdue' : it.status === 'urgent' ? 'Soon' : 'Upcoming'}"></span>
+                    <span class="notif-dot ${it.dotClass}" title="${it.status}"></span>
                     <span class="notif-body">
                         <span class="notif-title">${escapeHtml(it.title)}</span>
-                        <span class="notif-meta">
-                            <i class="fas fa-tag"></i> ${it.type ? escapeHtml(it.type) : 'No type'}
-                            &nbsp;·&nbsp;
-                            <i class="fas fa-calendar-day"></i> ${escapeHtml(dateLabel)}
+                        <span class="notif-sub">
+                            <span class="notif-type">${typeLabel}</span>
+                            <span class="notif-sep">•</span>
+                            <span class="notif-date">${escapeHtml(dateLabel)}</span>
                         </span>
                     </span>
                 </button>
@@ -595,7 +573,7 @@
     });
 
     // ============================================================
-    // CONFIRMATION MODAL
+    // CONFIRM MODAL
     // ============================================================
     let pendingConfirmAction = null;
 
@@ -773,12 +751,8 @@
             const daySchedules = schedules[dateKey] || [];
             daySchedules.forEach(s => {
                 rows.push({
-                    dateKey,
-                    dateObj: d,
-                    id: s.id,
-                    title: s.title,
-                    description: s.description || '',
-                    type: s.type || ''
+                    dateKey, dateObj: d, id: s.id,
+                    title: s.title, description: s.description || '', type: s.type || ''
                 });
             });
         }
@@ -1058,7 +1032,7 @@
     }
 
     // ============================================================
-    // DELETE (single → recycle bin)
+    // DELETE
     // ============================================================
     function deleteScheduleFromList(dateKey, id) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === id);
@@ -1085,18 +1059,13 @@
 
                 renderCalendar();
                 renderNotifications();
-                if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
-                    renderDayScheduleList();
-                }
+                if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) renderDayScheduleList();
                 if (historyOverlay.classList.contains('active')) renderHistory();
                 if (trashOverlay.classList.contains('active')) renderTrash();
             }
         });
     }
 
-    // ============================================================
-    // BULK DELETE (day list)
-    // ============================================================
     function deleteSelectedDaySchedules() {
         if (!activeDayListDateKey || dayListSelection.size === 0) return;
         const dateKey = activeDayListDateKey;
@@ -1105,7 +1074,7 @@
 
         openConfirmModal({
             title: `Move ${count} schedule${count === 1 ? '' : 's'} to Recycle Bin?`,
-            message: `The selected schedule${count === 1 ? '' : 's'} will be moved to the Recycle Bin. You can recover them later from Settings.`,
+            message: `The selected schedule${count === 1 ? '' : 's'} will be moved to the Recycle Bin.`,
             okText: 'Move to Bin',
             iconClass: 'warning',
             onConfirm: () => {
@@ -1125,9 +1094,7 @@
 
                 renderCalendar();
                 renderNotifications();
-                if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
-                    renderDayScheduleList();
-                }
+                if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) renderDayScheduleList();
                 if (historyOverlay.classList.contains('active')) renderHistory();
                 if (trashOverlay.classList.contains('active')) renderTrash();
             }
@@ -1164,7 +1131,6 @@
         if (!item) return;
 
         viewContext = { kind: 'trash', trashId };
-
         viewOverlay.classList.add('trash-context');
         viewModalTitle.innerHTML = '<i class="fas fa-eye" style="color:#dc2626;"></i> Deleted Schedule Details';
 
@@ -1182,7 +1148,6 @@
         viewDeletedAt.textContent = item.deletedAt ? formatDateTime(item.deletedAt) : '—';
 
         recoverFromViewBtn.style.display = 'inline-flex';
-
         viewOverlay.classList.add('active');
     }
 
@@ -1221,7 +1186,6 @@
         updateCharCounter();
 
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
-
         modalOverlay.classList.add('active');
         scheduleTitle.focus();
     }
@@ -1231,7 +1195,6 @@
         if (!schedule) return;
 
         reopenHistoryAfterEdit = fromHistory;
-
         editingScheduleId = scheduleId;
         selectedDateKey = dateKey;
         document.getElementById('editingId').value = scheduleId;
@@ -1249,7 +1212,6 @@
         updateCharCounter();
 
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
-
         modalOverlay.classList.add('active');
         scheduleTitle.focus();
     }
@@ -1271,7 +1233,7 @@
     }
 
     // ============================================================
-    // VALIDATION
+    // VALIDATION & SAVE FLOW
     // ============================================================
     function collectValidationErrors() {
         const errors = [];
@@ -1301,9 +1263,6 @@
         else typeField.classList.remove('invalid');
     }
 
-    // ============================================================
-    // SAVE FLOW
-    // ============================================================
     function requestSaveSchedule() {
         const errors = collectValidationErrors();
         if (errors.length > 0) {
@@ -1441,7 +1400,6 @@
         }
 
         reviewBody.innerHTML = html;
-
         modalOverlay.classList.remove('active');
         reviewOverlay.classList.add('active');
     }
@@ -1517,9 +1475,7 @@
         pendingSave = null;
         formType = { base: null, custom: '' };
 
-        if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
-            renderDayScheduleList();
-        }
+        if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) renderDayScheduleList();
         if (historyOverlay.classList.contains('active')) renderHistory();
         if (viewOverlay.classList.contains('active')) {
             const stillExists = (schedules[dateKey] || []).find(s => s.id === id);
@@ -1527,13 +1483,11 @@
             else closeViewModal();
         }
 
-        if (shouldReopenHistory) {
-            openHistoryModal();
-        }
+        if (shouldReopenHistory) openHistoryModal();
     }
 
     // ============================================================
-    // DATE PICKER MODAL
+    // DATE PICKER
     // ============================================================
     function populateDatePicker() {
         const now = new Date();
@@ -1659,7 +1613,6 @@
         if (yearFilter !== 'all') filtered = filtered.filter(s => s.dateKey.startsWith(yearFilter + '-'));
 
         filtered = applySort(filtered, historySort);
-
         updateSortIcon(historySortBtn, historySort);
         syncSortPopover(historySortPopover, historySort);
 
@@ -1715,15 +1668,9 @@
                 const id = btn.dataset.id;
                 if (!dateKey || !id) return;
 
-                if (action === 'view') {
-                    closeHistoryModal();
-                    openViewModal(dateKey, id, true);
-                } else if (action === 'edit') {
-                    closeHistoryModal();
-                    openEditFormModal(dateKey, id, true);
-                } else if (action === 'delete') {
-                    deleteScheduleFromList(dateKey, id);
-                }
+                if (action === 'view') { closeHistoryModal(); openViewModal(dateKey, id, true); }
+                else if (action === 'edit') { closeHistoryModal(); openEditFormModal(dateKey, id, true); }
+                else if (action === 'delete') { deleteScheduleFromList(dateKey, id); }
             });
         });
     }
@@ -1749,7 +1696,7 @@
 
         openConfirmModal({
             title: 'Move ALL schedules to Recycle Bin?',
-            message: `${all.length} schedule${all.length === 1 ? '' : 's'} will be moved to the Recycle Bin. You can recover them from Settings.`,
+            message: `${all.length} schedule${all.length === 1 ? '' : 's'} will be moved to the Recycle Bin.`,
             okText: 'Move All to Bin',
             iconClass: 'warning',
             onConfirm: () => {
@@ -1773,14 +1720,11 @@
     }
 
     // ============================================================
-    // SETTINGS MODAL
+    // SETTINGS & TRASH
     // ============================================================
     function openSettingsModal() { settingsOverlay.classList.add('active'); }
     function closeSettingsModal() { settingsOverlay.classList.remove('active'); }
 
-    // ============================================================
-    // RECYCLE BIN
-    // ============================================================
     function openTrashModal() {
         trashSelection.clear();
         renderTrash();
@@ -1832,7 +1776,6 @@
         }
 
         emptyTrashBtn.style.display = 'inline-flex';
-
         const sorted = applySort(trash, trashSort);
 
         let html = '';
@@ -1984,7 +1927,7 @@
     }
 
     // ============================================================
-    // SORT POPOVER LOGIC
+    // SORT POPOVERS
     // ============================================================
     function closeSortPopovers() {
         [historySortPopover, trashSortPopover].forEach(p => p.classList.remove('open'));
@@ -2031,55 +1974,551 @@
     }
 
     // ============================================================
-    // EXPORT / IMPORT
+    // EXPORT TO EXCEL (with preview)
     // ============================================================
-    function exportSchedulesToFile() {
-        const dataStr = JSON.stringify(schedules, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `schedules_${formatDateKey(new Date())}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    const MONTH_NAMES_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const EXPORT_START_YEAR = 2025;
+
+    let exportSelectedYears = new Set();
+    let exportSelectedMonths = new Set();
+
+    const exportOverlay = document.getElementById('exportOverlay');
+    const exportYearChips = document.getElementById('exportYearChips');
+    const exportMonthChips = document.getElementById('exportMonthChips');
+    const exportPreviewSummary = document.getElementById('exportPreviewSummary');
+    const exportPreviewCount = document.getElementById('exportPreviewCount');
+    const exportPreviewScroll = document.getElementById('exportPreviewScroll');
+    const exportCancelBtn = document.getElementById('exportCancelBtn');
+    const exportDownloadBtn = document.getElementById('exportDownloadBtn');
+    const exportYearsAll = document.getElementById('exportYearsAll');
+    const exportYearsNone = document.getElementById('exportYearsNone');
+    const exportMonthsAll = document.getElementById('exportMonthsAll');
+    const exportMonthsNone = document.getElementById('exportMonthsNone');
+
+    function getExportYearRange() {
+        const currentYear = new Date().getFullYear();
+        const end = Math.max(currentYear, EXPORT_START_YEAR);
+        const years = [];
+        for (let y = EXPORT_START_YEAR; y <= end; y++) years.push(y);
+        return years;
     }
 
-    function importSchedulesFromFile(file, onDone) {
+    function getYearFromDateKey(dateKey) {
+        return parseInt(dateKey.split('-')[0], 10);
+    }
+    function getMonthFromDateKey(dateKey) {
+        return parseInt(dateKey.split('-')[1], 10);
+    }
+
+    function getFilteredExportRows() {
+        const rows = [];
+        Object.keys(schedules).forEach(dateKey => {
+            const y = getYearFromDateKey(dateKey);
+            const m = getMonthFromDateKey(dateKey);
+            if (!exportSelectedYears.has(y)) return;
+            if (!exportSelectedMonths.has(m)) return;
+
+            (schedules[dateKey] || []).forEach(s => {
+                const dateObj = getDateFromKey(dateKey);
+                rows.push({
+                    dateKey,
+                    dateLabel: dateObj.toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric'
+                    }),
+                    title: s.title,
+                    type: s.type || '',
+                    description: s.description || ''
+                });
+            });
+        });
+        rows.sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+        return rows;
+    }
+
+    function renderExportChips() {
+        const years = getExportYearRange();
+        exportYearChips.innerHTML = '';
+        years.forEach(y => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'export-chip' + (exportSelectedYears.has(y) ? ' selected' : '');
+            btn.innerHTML = `<i class="fas fa-check"></i> ${y}`;
+            btn.addEventListener('click', () => {
+                if (exportSelectedYears.has(y)) exportSelectedYears.delete(y);
+                else exportSelectedYears.add(y);
+                renderExportChips();
+                renderExportPreview();
+            });
+            exportYearChips.appendChild(btn);
+        });
+
+        exportMonthChips.innerHTML = '';
+        MONTH_NAMES_FULL.forEach((name, idx) => {
+            const m = idx + 1;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'export-chip' + (exportSelectedMonths.has(m) ? ' selected' : '');
+            btn.innerHTML = `<i class="fas fa-check"></i> ${name}`;
+            btn.addEventListener('click', () => {
+                if (exportSelectedMonths.has(m)) exportSelectedMonths.delete(m);
+                else exportSelectedMonths.add(m);
+                renderExportChips();
+                renderExportPreview();
+            });
+            exportMonthChips.appendChild(btn);
+        });
+    }
+
+    function renderExportPreview() {
+        const rows = getFilteredExportRows();
+        exportPreviewCount.textContent = `${rows.length} row${rows.length === 1 ? '' : 's'}`;
+
+        const yearList = Array.from(exportSelectedYears).sort();
+        const monthList = Array.from(exportSelectedMonths).sort((a, b) => a - b)
+            .map(m => MONTH_NAMES_FULL[m - 1]);
+
+        const yearLabel = yearList.length === 0 ? 'No years selected'
+            : yearList.length === getExportYearRange().length ? 'All years'
+            : yearList.join(', ');
+
+        const monthLabel = monthList.length === 0 ? 'No months selected'
+            : monthList.length === 12 ? 'All months'
+            : monthList.join(', ');
+
+        exportPreviewSummary.innerHTML = `
+            <span><i class="fas fa-filter"></i> <strong>${yearLabel}</strong></span>
+            <span>·</span>
+            <span><i class="fas fa-calendar"></i> <strong>${monthLabel}</strong></span>
+        `;
+
+        if (rows.length === 0) {
+            exportPreviewScroll.innerHTML = `
+                <div class="export-preview-empty">
+                    <i class="fas fa-inbox"></i>
+                    No schedules match the selected filters.
+                </div>
+            `;
+            exportDownloadBtn.disabled = true;
+            return;
+        }
+
+        exportDownloadBtn.disabled = false;
+
+        let html = `
+            <table class="export-preview-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Title</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        rows.forEach(r => {
+            html += `
+                <tr>
+                    <td class="ep-date">${escapeHtml(r.dateLabel)}</td>
+                    <td class="ep-title">${escapeHtml(r.title)}</td>
+                    <td class="ep-type">${r.type ? escapeHtml(r.type) : '<span style="color:#94a3b8;">—</span>'}</td>
+                    <td class="ep-desc">${r.description ? escapeHtml(r.description) : '<span style="color:#cbd5e1;">No description</span>'}</td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        exportPreviewScroll.innerHTML = html;
+    }
+
+    function openExportModal() {
+        exportSelectedYears = new Set(getExportYearRange());
+        exportSelectedMonths = new Set([1,2,3,4,5,6,7,8,9,10,11,12]);
+        renderExportChips();
+        renderExportPreview();
+        exportOverlay.classList.add('active');
+    }
+
+    function closeExportModal() {
+        exportOverlay.classList.remove('active');
+    }
+
+    function downloadExcelFile() {
+        if (typeof XLSX === 'undefined') {
+            alert('Excel library not loaded. Please check your internet connection and reload.');
+            return;
+        }
+
+        const rows = getFilteredExportRows();
+        if (rows.length === 0) return;
+
+        const sheetData = [
+            ['Date', 'Title', 'Type', 'Description']
+        ];
+        rows.forEach(r => {
+            const dateObj = getDateFromKey(r.dateKey);
+            sheetData.push([dateObj, r.title, r.type, r.description]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(sheetData);
+        ws['!cols'] = [
+            { wch: 14 }, { wch: 30 }, { wch: 16 }, { wch: 55 }
+        ];
+
+        for (let r = 1; r < sheetData.length; r++) {
+            const cellAddr = XLSX.utils.encode_cell({ r, c: 0 });
+            if (ws[cellAddr] && ws[cellAddr].v instanceof Date) {
+                ws[cellAddr].t = 'd';
+                ws[cellAddr].z = 'yyyy-mm-dd';
+            }
+        }
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Schedules');
+
+        const today = formatDateKey(new Date());
+        XLSX.writeFile(wb, `schedules_${today}.xlsx`);
+        closeExportModal();
+    }
+
+    exportCancelBtn.addEventListener('click', closeExportModal);
+    exportDownloadBtn.addEventListener('click', downloadExcelFile);
+    exportOverlay.addEventListener('click', (e) => {
+        if (e.target === exportOverlay) closeExportModal();
+    });
+
+    exportYearsAll.addEventListener('click', () => {
+        exportSelectedYears = new Set(getExportYearRange());
+        renderExportChips();
+        renderExportPreview();
+    });
+    exportYearsNone.addEventListener('click', () => {
+        exportSelectedYears.clear();
+        renderExportChips();
+        renderExportPreview();
+    });
+    exportMonthsAll.addEventListener('click', () => {
+        exportSelectedMonths = new Set([1,2,3,4,5,6,7,8,9,10,11,12]);
+        renderExportChips();
+        renderExportPreview();
+    });
+    exportMonthsNone.addEventListener('click', () => {
+        exportSelectedMonths.clear();
+        renderExportChips();
+        renderExportPreview();
+    });
+
+    // ============================================================
+    // IMPORT FROM EXCEL (with validation + template)
+    // ============================================================
+    const importOverlay = document.getElementById('importOverlay');
+    const importStatus = document.getElementById('importStatus');
+    const importFileName = document.getElementById('importFileName');
+    const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
+    const importUploadBtn = document.getElementById('importUploadBtn');
+    const importExcelInput = document.getElementById('importExcelInput');
+    const importCancelBtn = document.getElementById('importCancelBtn');
+    const importConfirmBtn = document.getElementById('importConfirmBtn');
+
+    const IMPORT_REQUIRED_HEADERS = ['Date', 'Title', 'Type', 'Description'];
+    const IMPORT_MAX_TITLE_LEN = 60;
+    const IMPORT_MAX_DESC_LEN = 200;
+
+    let importParsedRows = null;
+
+    function openImportModal() {
+        importParsedRows = null;
+        importExcelInput.value = '';
+        importFileName.textContent = 'No file selected';
+        importStatus.style.display = 'none';
+        importStatus.innerHTML = '';
+        importStatus.className = 'import-status';
+        importConfirmBtn.disabled = true;
+        importOverlay.classList.add('active');
+    }
+
+    function closeImportModal() {
+        importOverlay.classList.remove('active');
+        importParsedRows = null;
+        importExcelInput.value = '';
+    }
+
+    function downloadImportTemplate() {
+        if (typeof XLSX === 'undefined') {
+            alert('Excel library not loaded. Please reload the page.');
+            return;
+        }
+
+        const templateData = [
+            ['Date', 'Title', 'Type', 'Description'],
+            ['2025-12-08', 'Team Meeting', 'Meeting', 'Weekly sync with the team'],
+            ['2025-12-15', 'Year-end Seminar', 'Seminar', 'Annual review and planning'],
+            ['2026-01-10', 'New Year Event', 'Special Event', 'Company kickoff celebration']
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet(templateData);
+        ws['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 16 }, { wch: 50 }];
+
+        for (let r = 1; r < templateData.length; r++) {
+            const cell = XLSX.utils.encode_cell({ r, c: 0 });
+            if (ws[cell]) { ws[cell].t = 's'; ws[cell].z = '@'; }
+        }
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Schedules Template');
+        XLSX.writeFile(wb, 'schedule_import_template.xlsx');
+    }
+
+    function validateImportRow(row, rowNumber) {
+        const errors = [];
+        const dateStr = row.date != null ? String(row.date).trim() : '';
+        const titleStr = row.title != null ? String(row.title).trim() : '';
+        const typeStr = row.type != null ? String(row.type).trim() : '';
+        const descStr = row.description != null ? String(row.description).trim() : '';
+
+        if (!dateStr && !titleStr && !typeStr && !descStr) {
+            return { skip: true, errors: [] };
+        }
+
+        if (!dateStr) {
+            errors.push(`Row ${rowNumber}: Date is required.`);
+        } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            errors.push(`Row ${rowNumber}: Date must be in YYYY-MM-DD format (got "${dateStr}").`);
+        } else {
+            const parts = dateStr.split('-').map(Number);
+            const testDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            if (testDate.getFullYear() !== parts[0] || testDate.getMonth() + 1 !== parts[1] || testDate.getDate() !== parts[2]) {
+                errors.push(`Row ${rowNumber}: "${dateStr}" is not a real calendar date.`);
+            }
+        }
+
+        if (!titleStr) {
+            errors.push(`Row ${rowNumber}: Title is required.`);
+        } else if (titleStr.length > IMPORT_MAX_TITLE_LEN) {
+            errors.push(`Row ${rowNumber}: Title exceeds ${IMPORT_MAX_TITLE_LEN} characters.`);
+        }
+
+        if (!descStr) {
+            errors.push(`Row ${rowNumber}: Description is required.`);
+        } else if (descStr.length > IMPORT_MAX_DESC_LEN) {
+            errors.push(`Row ${rowNumber}: Description exceeds ${IMPORT_MAX_DESC_LEN} characters.`);
+        }
+
+        if (!typeStr) {
+            errors.push(`Row ${rowNumber}: Type is required (e.g. Meeting, Seminar, Special Event).`);
+        }
+
+        return {
+            skip: false,
+            errors,
+            parsed: { dateKey: dateStr, title: titleStr, type: typeStr, description: descStr }
+        };
+    }
+
+    function parseImportWorkbook(wb) {
+        const errors = [];
+        const rows = [];
+
+        if (!wb.SheetNames || wb.SheetNames.length === 0) {
+            return { rows, errors: ['The Excel file has no sheets.'] };
+        }
+
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const grid = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+
+        if (!grid || grid.length === 0) {
+            return { rows, errors: ['The first sheet is empty.'] };
+        }
+
+        const header = (grid[0] || []).map(h => String(h).trim());
+        const headerErrors = [];
+        IMPORT_REQUIRED_HEADERS.forEach((required, idx) => {
+            if (header[idx] !== required) {
+                headerErrors.push(`Column ${idx + 1} must be "${required}" (found "${header[idx] || ''}").`);
+            }
+        });
+
+        if (headerErrors.length > 0) {
+            return { rows, errors: ['The header row does not match the template.', ...headerErrors] };
+        }
+
+        for (let i = 1; i < grid.length; i++) {
+            const raw = grid[i] || [];
+            const rowNumber = i + 1;
+            const row = { date: raw[0], title: raw[1], type: raw[2], description: raw[3] };
+            const result = validateImportRow(row, rowNumber);
+            if (result.skip) continue;
+            if (result.errors.length > 0) errors.push(...result.errors);
+            else rows.push(result.parsed);
+        }
+
+        return { rows, errors };
+    }
+
+    function renderImportStatus(result) {
+        importStatus.style.display = 'block';
+
+        if (result.errors.length > 0) {
+            importStatus.className = 'import-status error';
+            const shown = result.errors.slice(0, 20);
+            const extra = result.errors.length - shown.length;
+            importStatus.innerHTML = `
+                <div class="import-status-title">
+                    <i class="fas fa-times-circle"></i>
+                    Import rejected — ${result.errors.length} problem${result.errors.length === 1 ? '' : 's'} found
+                </div>
+                <div class="import-status-detail">
+                    Nothing will be imported. Please fix the file and try again, or download the template.
+                </div>
+                <ul class="import-error-list">
+                    ${shown.map(e => `<li><i class="fas fa-exclamation-circle"></i> ${escapeHtml(e)}</li>`).join('')}
+                    ${extra > 0 ? `<li><i class="fas fa-ellipsis-h"></i> …and ${extra} more problem${extra === 1 ? '' : 's'}.</li>` : ''}
+                </ul>
+            `;
+            importConfirmBtn.disabled = true;
+            importParsedRows = null;
+            return;
+        }
+
+        if (result.rows.length === 0) {
+            importStatus.className = 'import-status error';
+            importStatus.innerHTML = `
+                <div class="import-status-title">
+                    <i class="fas fa-info-circle"></i>
+                    No data to import
+                </div>
+                <div class="import-status-detail">
+                    The file doesn't contain any rows with schedules.
+                </div>
+            `;
+            importConfirmBtn.disabled = true;
+            importParsedRows = null;
+            return;
+        }
+
+        importStatus.className = 'import-status success';
+        const shown = result.rows.slice(0, 15);
+        const extra = result.rows.length - shown.length;
+
+        importStatus.innerHTML = `
+            <div class="import-status-title">
+                <i class="fas fa-check-circle"></i>
+                Ready to import ${result.rows.length} schedule${result.rows.length === 1 ? '' : 's'}
+            </div>
+            <div class="import-status-detail">
+                The file is valid. Preview below — click <strong>Import</strong> to save to your calendar.
+            </div>
+            <ul class="import-preview-list">
+                ${shown.map(r => `
+                    <li>
+                        <span class="imp-date">${escapeHtml(r.dateKey)}</span>
+                        <span><strong>${escapeHtml(r.title)}</strong> <span class="imp-type">· ${escapeHtml(r.type)}</span></span>
+                    </li>
+                `).join('')}
+                ${extra > 0 ? `<li><i class="fas fa-ellipsis-h"></i> …and ${extra} more row${extra === 1 ? '' : 's'}.</li>` : ''}
+            </ul>
+        `;
+        importConfirmBtn.disabled = false;
+        importParsedRows = result.rows;
+    }
+
+    function handleImportFile(file) {
+        if (!file) return;
+
+        if (!/\.xlsx$/i.test(file.name)) {
+            importStatus.style.display = 'block';
+            importStatus.className = 'import-status error';
+            importStatus.innerHTML = `
+                <div class="import-status-title">
+                    <i class="fas fa-times-circle"></i>
+                    Invalid file type
+                </div>
+                <div class="import-status-detail">
+                    Please upload a <strong>.xlsx</strong> Excel file. Older <code>.xls</code> and <code>.csv</code> are not supported.
+                </div>
+            `;
+            importConfirmBtn.disabled = true;
+            importParsedRows = null;
+            return;
+        }
+
+        if (typeof XLSX === 'undefined') {
+            alert('Excel library not loaded. Please reload the page.');
+            return;
+        }
+
+        importFileName.textContent = file.name;
+
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const parsed = JSON.parse(e.target.result);
-                if (!parsed || typeof parsed !== 'object') {
-                    onDone(false, 'Invalid file format.');
-                    return;
-                }
-                Object.keys(parsed).forEach(dateKey => {
-                    const incoming = parsed[dateKey];
-                    if (!Array.isArray(incoming)) return;
-                    if (!schedules[dateKey]) schedules[dateKey] = [];
-                    const existingIds = new Set(schedules[dateKey].map(s => s.id));
-                    incoming.forEach(s => {
-                        if (!s.id) s.id = uid();
-                        if (existingIds.has(s.id)) return;
-                        if (!s.createdAt) s.createdAt = new Date().toISOString();
-                        schedules[dateKey].push(s);
-                        existingIds.add(s.id);
-                    });
-                });
-                scheduleSave();
-                renderCalendar();
-                renderNotifications();
-                if (historyOverlay.classList.contains('active')) renderHistory();
-                onDone(true);
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, { type: 'array', cellDates: false });
+                const result = parseImportWorkbook(wb);
+                renderImportStatus(result);
             } catch (err) {
-                onDone(false, 'Could not parse JSON file.');
+                console.error('Parse error:', err);
+                importStatus.style.display = 'block';
+                importStatus.className = 'import-status error';
+                importStatus.innerHTML = `
+                    <div class="import-status-title">
+                        <i class="fas fa-times-circle"></i>
+                        Could not read file
+                    </div>
+                    <div class="import-status-detail">
+                        The file may be corrupted or not a valid Excel file.
+                    </div>
+                `;
+                importConfirmBtn.disabled = true;
+                importParsedRows = null;
             }
         };
-        reader.onerror = () => onDone(false, 'Failed to read file.');
-        reader.readAsText(file);
+        reader.onerror = () => alert('Failed to read the file.');
+        reader.readAsArrayBuffer(file);
     }
+
+    function commitImport() {
+        if (!importParsedRows || importParsedRows.length === 0) return;
+
+        let added = 0;
+        const now = new Date().toISOString();
+
+        importParsedRows.forEach(r => {
+            const dateKey = r.dateKey;
+            if (!schedules[dateKey]) schedules[dateKey] = [];
+            schedules[dateKey].push({
+                id: uid(),
+                title: r.title,
+                description: r.description,
+                type: r.type,
+                createdAt: now
+            });
+            added++;
+        });
+
+        scheduleSave();
+        renderCalendar();
+        renderNotifications();
+        if (historyOverlay.classList.contains('active')) renderHistory();
+
+        closeImportModal();
+        setTimeout(() => {
+            alert(`Successfully imported ${added} schedule${added === 1 ? '' : 's'}.`);
+        }, 100);
+    }
+
+    downloadTemplateBtn.addEventListener('click', downloadImportTemplate);
+    importUploadBtn.addEventListener('click', () => importExcelInput.click());
+    importExcelInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) handleImportFile(file);
+    });
+    importCancelBtn.addEventListener('click', closeImportModal);
+    importConfirmBtn.addEventListener('click', commitImport);
+    importOverlay.addEventListener('click', (e) => {
+        if (e.target === importOverlay) closeImportModal();
+    });
 
     // ============================================================
     // EVENT LISTENERS
@@ -2110,37 +2549,20 @@
     });
 
     historyBtn.addEventListener('click', openHistoryModal);
-
-    exportBtn.addEventListener('click', exportSchedulesToFile);
-    importBtn.addEventListener('click', () => importFileInput.click());
-    importFileInput.addEventListener('change', (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        importSchedulesFromFile(file, (ok, msg) => {
-            if (ok) {
-                alert('Schedules imported successfully.');
-            } else {
-                alert('Import failed: ' + (msg || 'unknown error'));
-            }
-            importFileInput.value = '';
-        });
-    });
+    exportBtn.addEventListener('click', openExportModal);
+    importBtn.addEventListener('click', openImportModal);
 
     historySortBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleSortPopover(historySortPopover, historySortBtn);
     });
-    wireSortPopover(historySortPopover, historySort, () => {
-        renderHistory();
-    });
+    wireSortPopover(historySortPopover, historySort, () => renderHistory());
 
     trashSortBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleSortPopover(trashSortPopover, trashSortBtn);
     });
-    wireSortPopover(trashSortPopover, trashSort, () => {
-        renderTrash();
-    });
+    wireSortPopover(trashSortPopover, trashSort, () => renderTrash());
 
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.sort-wrap')) closeSortPopovers();
@@ -2157,7 +2579,7 @@
         openTrashModal();
     });
 
-    // ---------- LOGOUT ----------
+    // LOGOUT
     logoutBtn.addEventListener('click', () => {
         closeSettingsModal();
         openConfirmModal({
@@ -2200,7 +2622,6 @@
         });
     });
 
-    // ---------- TRASH EVENTS ----------
     closeTrashBtn.addEventListener('click', closeTrashModal);
     trashOverlay.addEventListener('click', (e) => {
         if (e.target === trashOverlay) closeTrashModal();
@@ -2222,7 +2643,6 @@
     trashDeleteSelectedBtn.addEventListener('click', deleteSelectedPermanently);
     emptyTrashBtn.addEventListener('click', emptyTrash);
 
-    // ---------- VIEW MODAL EVENTS ----------
     closeViewBtn.addEventListener('click', closeViewModal);
     viewOverlay.addEventListener('click', (e) => {
         if (e.target === viewOverlay) closeViewModal();
@@ -2233,7 +2653,6 @@
         recoverOne(viewContext.trashId);
     });
 
-    // ---------- DAY LIST BULK EVENTS ----------
     daySelectAll.addEventListener('change', () => {
         if (!activeDayListDateKey) return;
         const daySchedules = schedules[activeDayListDateKey] || [];
@@ -2251,7 +2670,6 @@
 
     dayDeleteSelectedBtn.addEventListener('click', deleteSelectedDaySchedules);
 
-    // ---------- OTHER MODAL EVENTS ----------
     closeDayListBtn.addEventListener('click', closeDayListModal);
     dayListOverlay.addEventListener('click', (e) => {
         if (e.target === dayListOverlay) closeDayListModal();
@@ -2314,6 +2732,8 @@
             if (dayListOverlay.classList.contains('active')) closeDayListModal();
             if (modalOverlay.classList.contains('active')) closeFormModal();
             if (datePickerOverlay.classList.contains('active')) closeDatePickerModal();
+            if (exportOverlay.classList.contains('active')) closeExportModal();
+            if (importOverlay.classList.contains('active')) closeImportModal();
             closeSortPopovers();
         }
     });
