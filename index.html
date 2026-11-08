@@ -24,6 +24,29 @@
             <button class="nav-btn" id="prevMonthBtn" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
             <button class="nav-btn" id="nextMonthBtn" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
             <button class="nav-btn" id="todayBtn" aria-label="Today">Today</button>
+
+            <!-- Notification bell -->
+            <div class="notif-wrap">
+                <button class="nav-btn notif-btn" id="notifBtn" aria-label="Notifications" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+                </button>
+
+                <div class="notif-panel" id="notifPanel" role="dialog" aria-label="Notifications">
+                    <div class="notif-header">
+                        <h4><i class="fas fa-bell"></i> Notifications</h4>
+                        <button class="notif-close" id="notifCloseBtn" aria-label="Close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="notif-list" id="notifList"></div>
+                    <div class="notif-footer">
+                        <button class="notif-mark-read" id="notifMarkReadBtn">
+                            <i class="fas fa-check-double"></i> Mark all as read
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -400,21 +423,14 @@
     </div>
 </div>
 
-<!-- ============================================================ -->
-<!-- SUPABASE SETUP (CDN) — MUST LOAD BEFORE sms/script.js        -->
-<!-- ============================================================ -->
+<!-- SUPABASE SETUP (CDN) -->
 <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-    // 🔴 REPLACE THESE TWO LINES WITH YOUR ACTUAL SUPABASE CREDENTIALS
-    // Find them in Supabase Dashboard → Project Settings → API
     const SUPABASE_URL = 'https://kajpgmhfctzevaaobtnv.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthanBnbWhmY3R6ZXZhYW9idG52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwMTA2NjIsImV4cCI6MjEwOTU4NjY2Mn0.NFF8TWeXElUyB9W0FQ4smjBepF6agM0tf6BFsHWgYng';
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY_HERE';
 
-    // Expose Supabase client globally so sms/script.js can use it
     window.supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // Signal that Supabase is ready (the main script will wait for this)
     window.supabaseReady = true;
     window.dispatchEvent(new Event('supabase-ready'));
 </script>
