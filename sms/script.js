@@ -1419,7 +1419,6 @@
         const dateKey = selectedDateKey;
         if (!dateKey) return;
 
-        // Final guard: priority is not allowed on overdue dates
         if (formStatus === 'priority' && getUrgencyLevel(dateKey) === 'overdue') {
             formStatus = 'process';
             resetStatusButtons('process');
@@ -2149,7 +2148,7 @@
     }
 
     // ============================================================
-    // EXPORT TO EXCEL (Month / Day / Year split)
+    // EXPORT
     // ============================================================
     const MONTH_NAMES_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const EXPORT_START_YEAR = 2025;
@@ -2193,9 +2192,6 @@
                 const dateObj = getDateFromKey(dateKey);
                 rows.push({
                     dateKey,
-                    dateLabel: dateObj.toLocaleDateString('en-US', {
-                        month: 'short', day: 'numeric', year: 'numeric'
-                    }),
                     title: s.title,
                     type: s.type || '',
                     status: normalizeStatus(s.status),
@@ -2391,7 +2387,7 @@
     });
 
     // ============================================================
-    // IMPORT FROM EXCEL (Month / Day / Year split)
+    // IMPORT (with Cancel = wipe, Import = commit)
     // ============================================================
     const importOverlay = document.getElementById('importOverlay');
     const importStatus = document.getElementById('importStatus');
@@ -2408,6 +2404,7 @@
 
     let importParsedRows = null;
 
+    // Open modal: full reset
     function openImportModal() {
         importParsedRows = null;
         importExcelInput.value = '';
@@ -2419,10 +2416,48 @@
         importOverlay.classList.add('active');
     }
 
+    // Cancel: closes AND fully wipes file + status + parsed rows
     function closeImportModal() {
         importOverlay.classList.remove('active');
         importParsedRows = null;
-        importExcelInput.value = '';
+        importExcelInput.value = '';                 // clears file input
+        importFileName.textContent = 'No file selected';
+        importStatus.style.display = 'none';
+        importStatus.innerHTML = '';
+        importStatus.className = 'import-status';
+        importConfirmBtn.disabled = true;
+    }
+
+    // Import (confirm): only runs if a valid file has been loaded
+    function commitImport() {
+        if (!importParsedRows || importParsedRows.length === 0) return;
+
+        let added = 0;
+        const now = new Date().toISOString();
+
+        importParsedRows.forEach(r => {
+            const dateKey = r.dateKey;
+            if (!schedules[dateKey]) schedules[dateKey] = [];
+            schedules[dateKey].push({
+                id: uid(),
+                title: r.title,
+                description: r.description,
+                type: r.type,
+                status: normalizeStatus(r.status),
+                createdAt: now
+            });
+            added++;
+        });
+
+        scheduleSave();
+        renderCalendar();
+        renderNotifications();
+        if (historyOverlay.classList.contains('active')) renderHistory();
+
+        closeImportModal();
+        setTimeout(() => {
+            alert(`Successfully imported ${added} schedule${added === 1 ? '' : 's'}.`);
+        }, 100);
     }
 
     function downloadImportTemplate() {
@@ -2744,37 +2779,6 @@
         };
         reader.onerror = () => alert('Failed to read the file.');
         reader.readAsArrayBuffer(file);
-    }
-
-    function commitImport() {
-        if (!importParsedRows || importParsedRows.length === 0) return;
-
-        let added = 0;
-        const now = new Date().toISOString();
-
-        importParsedRows.forEach(r => {
-            const dateKey = r.dateKey;
-            if (!schedules[dateKey]) schedules[dateKey] = [];
-            schedules[dateKey].push({
-                id: uid(),
-                title: r.title,
-                description: r.description,
-                type: r.type,
-                status: normalizeStatus(r.status),
-                createdAt: now
-            });
-            added++;
-        });
-
-        scheduleSave();
-        renderCalendar();
-        renderNotifications();
-        if (historyOverlay.classList.contains('active')) renderHistory();
-
-        closeImportModal();
-        setTimeout(() => {
-            alert(`Successfully imported ${added} schedule${added === 1 ? '' : 's'}.`);
-        }, 100);
     }
 
     downloadTemplateBtn.addEventListener('click', downloadImportTemplate);
