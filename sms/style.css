@@ -786,7 +786,7 @@ body {
 .day-schedule-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px -4px rgba(0,0,0,0.08); }
 
 .day-schedule-card .card-accent {
-    width: 4px;
+    width: 2px;
     align-self: stretch;
     background: #3b82f6;
     border-radius: 4px;
