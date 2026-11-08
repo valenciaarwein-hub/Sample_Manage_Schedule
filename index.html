@@ -400,6 +400,25 @@
     </div>
 </div>
 
+<!-- ============================================================ -->
+<!-- SUPABASE SETUP (CDN) — MUST LOAD BEFORE sms/script.js        -->
+<!-- ============================================================ -->
+<script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    // 🔴 REPLACE THESE TWO LINES WITH YOUR ACTUAL SUPABASE CREDENTIALS
+    // Find them in Supabase Dashboard → Project Settings → API
+    const SUPABASE_URL = 'https://YOUR_PROJECT_REF.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY_HERE';
+
+    // Expose Supabase client globally so sms/script.js can use it
+    window.supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Signal that Supabase is ready (the main script will wait for this)
+    window.supabaseReady = true;
+    window.dispatchEvent(new Event('supabase-ready'));
+</script>
+
 <script src="sms/script.js"></script>
 </body>
 </html>
