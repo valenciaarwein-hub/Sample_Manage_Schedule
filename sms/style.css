@@ -1401,6 +1401,7 @@ body {
 .confirm-icon.danger { background: #fee2e2; color: #dc2626; }
 .confirm-icon.warning { background: #fef9c3; color: #a16207; }
 .confirm-icon.info { background: #eff6ff; color: #2563eb; }
+.confirm-icon.success { background: #dcfce7; color: #16a34a; }
 
 .confirm-modal h3 { justify-content: center; text-align: center; font-size: 1.3rem; margin-bottom: 8px; }
 
@@ -2359,6 +2360,165 @@ body {
 }
 
 /* ============================================================
+   IMPORT SUCCESS MODAL
+   ============================================================ */
+.import-success-modal {
+    max-width: 440px;
+    text-align: center;
+    align-items: center;
+}
+
+.import-success-modal h3 {
+    justify-content: center;
+    text-align: center;
+    font-size: 1.35rem;
+    margin-bottom: 8px;
+    color: #0f172a;
+}
+
+.import-success-modal .confirm-message {
+    margin-bottom: 18px;
+}
+
+.import-success-modal .confirm-icon.success {
+    background: #dcfce7;
+    color: #16a34a;
+    width: 72px;
+    height: 72px;
+    font-size: 2rem;
+    margin: 4px auto 14px;
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.12),
+                0 0 24px 4px rgba(34, 197, 94, 0.25);
+    animation: successPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes successPop {
+    0% { transform: scale(0.4); opacity: 0; }
+    60% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.import-success-summary {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border: 1.5px solid #bbf7d0;
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.import-success-count {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.import-success-count-num {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: #15803d;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.import-success-count-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #166534;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.import-success-dates {
+    width: 100%;
+    background: #f8fafc;
+    border: 1.5px solid #eef2f6;
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    text-align: left;
+}
+
+.import-success-dates::-webkit-scrollbar { width: 4px; }
+.import-success-dates::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+.import-success-dates-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.import-success-dates-title i { color: #3b82f6; font-size: 0.7rem; }
+
+.import-success-dates-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.import-success-dates-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: #334155;
+    background: white;
+    border: 1px solid #eef2f6;
+    border-radius: 10px;
+    padding: 7px 10px;
+}
+
+.import-success-dates-list li .succ-date {
+    background: #dcfce7;
+    color: #15803d;
+    font-weight: 700;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.import-success-dates-list li .succ-count {
+    margin-left: auto;
+    color: #16a34a;
+    font-weight: 700;
+    font-size: 0.72rem;
+    background: #f0fdf4;
+    padding: 2px 8px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.import-success-modal .modal-actions {
+    justify-content: center;
+    width: 100%;
+    margin-top: 18px;
+    gap: 10px;
+}
+
+.import-success-modal .modal-actions .btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 120px;
+}
+
+/* ============================================================
    SCHEDULE ITEM STATUS BORDERS (all rounded, match pill shape)
    ============================================================ */
 .schedule-title-highlight {
@@ -2368,12 +2528,8 @@ body {
     line-height: 1.35;
 }
 
-/* Base pill — explicit rounded corners for all statuses */
-.schedule-item {
-    border-radius: 8px;
-}
+.schedule-item { border-radius: 8px; }
 
-/* ── PROCESS (default): neutral rounded border, no glow ── */
 .schedule-item.status-process {
     background: #f1f5f9;
     border: 1.5px solid #cbd5e1;
@@ -2381,18 +2537,11 @@ body {
     box-shadow: none;
     padding: 3px 5px;
 }
-
-.schedule-item.status-process .schedule-status-icon {
-    color: #64748b;
-}
+.schedule-item.status-process .schedule-status-icon { color: #64748b; }
 .schedule-item.status-process .schedule-title-highlight {
-    background: transparent;
-    color: #1e293b;
-    font-weight: 500;
-    padding: 0;
+    background: transparent; color: #1e293b; font-weight: 500; padding: 0;
 }
 
-/* Overdue (still Process): red tint on icon only */
 .schedule-item.status-overdue {
     background: #fef2f2;
     border: 1.5px solid #fca5a5;
@@ -2402,13 +2551,9 @@ body {
 }
 .schedule-item.status-overdue .schedule-status-icon { color: #dc2626; }
 .schedule-item.status-overdue .schedule-title-highlight {
-    background: transparent;
-    color: #1e293b;
-    font-weight: 500;
-    padding: 0;
+    background: transparent; color: #1e293b; font-weight: 500; padding: 0;
 }
 
-/* Urgent (still Process): amber tint on icon only */
 .schedule-item.status-urgent {
     background: #fefce8;
     border: 1.5px solid #fde047;
@@ -2418,13 +2563,9 @@ body {
 }
 .schedule-item.status-urgent .schedule-status-icon { color: #ca8a04; }
 .schedule-item.status-urgent .schedule-title-highlight {
-    background: transparent;
-    color: #1e293b;
-    font-weight: 500;
-    padding: 0;
+    background: transparent; color: #1e293b; font-weight: 500; padding: 0;
 }
 
-/* Upcoming (still Process): green tint on icon only */
 .schedule-item.status-upcoming {
     background: #f0fdf4;
     border: 1.5px solid #86efac;
@@ -2434,13 +2575,9 @@ body {
 }
 .schedule-item.status-upcoming .schedule-status-icon { color: #16a34a; }
 .schedule-item.status-upcoming .schedule-title-highlight {
-    background: transparent;
-    color: #1e293b;
-    font-weight: 500;
-    padding: 0;
+    background: transparent; color: #1e293b; font-weight: 500; padding: 0;
 }
 
-/* ── DONE: green rounded border + soft green glow ── */
 .schedule-item.status-done {
     background: #f0fdf4;
     border: 1.5px solid #22c55e;
@@ -2459,7 +2596,6 @@ body {
     padding: 1px 5px;
 }
 
-/* ── PRIORITY: #FFEB3B rounded border + soft yellow glow ── */
 .schedule-item.status-priority {
     background: #fefce8;
     border: 1.5px solid #FFEB3B;
@@ -2468,17 +2604,11 @@ body {
                 0 0 8px 1px rgba(255, 235, 59, 0.65);
     padding: 3px 5px;
 }
-.schedule-item.status-priority .schedule-status-icon {
-    color: #FFEB3B;
-}
+.schedule-item.status-priority .schedule-status-icon { color: #FFEB3B; }
 .schedule-item.status-priority .schedule-title-highlight {
-    background: transparent;
-    color: #1e293b;
-    font-weight: 600;
-    padding: 0;
+    background: transparent; color: #1e293b; font-weight: 600; padding: 0;
 }
 
-/* Day-list card variants */
 .day-schedule-card.status-done .card-title .schedule-title-highlight {
     background: #dcfce7;
     color: #14532d;
@@ -2492,7 +2622,6 @@ body {
     font-weight: 700;
 }
 
-/* History variants */
 .history-schedule-item .hs-title .schedule-title-highlight.done {
     background: #dcfce7;
     color: #14532d;
@@ -2591,10 +2720,7 @@ body {
     width: 100%;
 }
 
-.status-popup-option:hover {
-    background: #f1f5f9;
-    color: #0f172a;
-}
+.status-popup-option:hover { background: #f1f5f9; color: #0f172a; }
 
 .status-popup-option > i:first-child {
     font-size: 0.85rem;
@@ -2607,10 +2733,7 @@ body {
 .status-popup-option[data-pick="done"]:hover > i:first-child { color: #16a34a; }
 .status-popup-option[data-pick="priority"]:hover > i:first-child { color: #FFEB3B; }
 
-.status-popup-option span {
-    flex: 1;
-    min-width: 0;
-}
+.status-popup-option span { flex: 1; min-width: 0; }
 
 .status-popup-check {
     font-size: 0.7rem;
@@ -2625,17 +2748,11 @@ body {
     font-weight: 600;
 }
 
-.status-popup-option.selected .status-popup-check {
-    opacity: 1;
-}
-
-.status-popup-option.selected > i:first-child {
-    color: #2563eb;
-}
+.status-popup-option.selected .status-popup-check { opacity: 1; }
+.status-popup-option.selected > i:first-child { color: #2563eb; }
 
 .status-popup-option.selected[data-pick="done"] {
-    background: #f0fdf4;
-    color: #15803d;
+    background: #f0fdf4; color: #15803d;
 }
 .status-popup-option.selected[data-pick="done"] .status-popup-check,
 .status-popup-option.selected[data-pick="done"] > i:first-child {
@@ -2643,8 +2760,7 @@ body {
 }
 
 .status-popup-option.selected[data-pick="priority"] {
-    background: #fefce8;
-    color: #a16207;
+    background: #fefce8; color: #a16207;
 }
 .status-popup-option.selected[data-pick="priority"] .status-popup-check,
 .status-popup-option.selected[data-pick="priority"] > i:first-child {
@@ -2826,10 +2942,7 @@ body {
         padding: 16px 16px 16px;
     }
     .import-scroll-body { padding-right: 2px; margin-right: -2px; }
-    .import-modal > .modal-actions {
-        margin-top: 10px;
-        padding-top: 10px;
-    }
+    .import-modal > .modal-actions { margin-top: 10px; padding-top: 10px; }
     .import-section { padding: 12px 14px; border-radius: 12px; }
     .import-section-title { font-size: 0.78rem; }
     .import-rules li { font-size: 0.72rem; }
@@ -2841,6 +2954,12 @@ body {
     .import-status { padding: 10px 12px; }
     .import-error-list li, .import-preview-list li { font-size: 0.68rem; }
     .import-preview-actions .btn { padding: 6px 12px; font-size: 0.72rem; }
+    .import-success-modal { max-width: calc(100vw - 20px); }
+    .import-success-count-num { font-size: 2rem; }
+    .import-success-modal h3 { font-size: 1.2rem; }
+    .import-success-dates { max-height: 140px; }
+    .import-success-dates-list li { font-size: 0.72rem; }
+    .import-success-modal .modal-actions .btn { min-width: 100px; }
     .status-icon-btn { width: 30px; height: 30px; font-size: 0.78rem; margin-right: 2px; }
     .day-schedule-card .card-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
     .status-popup { width: 160px !important; }
