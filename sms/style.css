@@ -178,12 +178,12 @@ body {
     transition: background 0.15s;
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
     flex-shrink: 0;
     max-width: 100%;
 }
 
-.schedule-item i { font-size: 0.5rem; color: #3b82f6; flex-shrink: 0; }
+.schedule-item i { font-size: 0.55rem; flex-shrink: 0; }
 .schedule-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .schedule-item:hover { background: #e2e8f0; }
 
@@ -816,6 +816,7 @@ body {
     gap: 4px;
     flex-shrink: 0;
     align-self: center;
+    align-items: center;
 }
 
 .icon-btn {
@@ -2327,155 +2328,211 @@ body {
 }
 
 /* ============================================================
-   SCHEDULE STATUS SYSTEM
+   SCHEDULE TITLE HIGHLIGHT (status colors on title only)
    ============================================================ */
-.status-button-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-}
-
-.status-btn {
-    background: #f8fafc;
-    border: 1.5px solid #e2e8f0;
-    color: #334155;
-    padding: 10px 16px;
-    border-radius: 14px;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.85rem;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.status-btn i { font-size: 0.85rem; color: #94a3b8; transition: color 0.15s; }
-.status-btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
-.status-btn:active { transform: scale(0.97); }
-
-.status-btn.selected {
-    background: #eff6ff;
-    border-color: #3b82f6;
-    color: #1d4ed8;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-}
-
-.status-btn.selected i { color: #2563eb; }
-
-.status-btn[data-status="done"].selected {
-    background: #f0fdf4;
-    border-color: #22c55e;
-    color: #15803d;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
-}
-.status-btn[data-status="done"].selected i { color: #16a34a; }
-
-.status-btn[data-status="priority"].selected {
-    background: #fefce8;
-    border-color: #eab308;
-    color: #a16207;
-    box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.18);
-}
-.status-btn[data-status="priority"].selected i { color: #ca8a04; }
-
-.schedule-status-icon {
-    font-size: 0.55rem;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.schedule-status-icon.process { color: #94a3b8; }
-.schedule-status-icon.done { color: #16a34a; }
-.schedule-status-icon.priority { color: #ca8a04; }
-
-.day-cell.status-done {
-    border-color: #86efac !important;
-    background: #f0fdf4 !important;
-}
-.day-cell.status-done .day-number {
-    background: #22c55e;
-    color: white;
-    font-weight: 600;
-}
-
-.day-cell.status-priority {
-    border-color: #fde047 !important;
-    background: #fefce8 !important;
-}
-.day-cell.status-priority .day-number {
-    background: #eab308;
-    color: white;
-    font-weight: 600;
-}
-
-.day-cell.status-overdue:not(.status-done):not(.status-priority) {
-    border-color: #fca5a5;
-    background: #fef2f2;
-}
-.day-cell.status-urgent:not(.status-done):not(.status-priority) {
-    border-color: #fde047;
-    background: #fefce8;
-}
-.day-cell.status-upcoming:not(.status-done):not(.status-priority) {
-    border-color: #86efac;
-    background: #f0fdf4;
+.schedule-title-highlight {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 5px;
+    line-height: 1.35;
 }
 
 .schedule-item.status-done {
-    background: #dcfce7;
     border-left-color: #16a34a;
+}
+.schedule-item.status-done .schedule-status-icon { color: #16a34a; }
+.schedule-item.status-done .schedule-title-highlight {
+    background: #dcfce7;
     color: #14532d;
     text-decoration: line-through;
-    text-decoration-color: rgba(22, 163, 74, 0.45);
+    text-decoration-color: rgba(22, 163, 74, 0.55);
+    font-weight: 600;
 }
-.schedule-item.status-done i { color: #16a34a; }
 
 .schedule-item.status-priority {
-    background: #fef9c3;
     border-left-color: #ca8a04;
+}
+.schedule-item.status-priority .schedule-status-icon { color: #ca8a04; }
+.schedule-item.status-priority .schedule-title-highlight {
+    background: #fef08a;
     color: #713f12;
-}
-.schedule-item.status-priority i { color: #ca8a04; }
-
-.day-schedule-card.status-done {
-    border-color: #bbf7d0;
-    background: #f0fdf4;
-}
-.day-schedule-card.status-priority {
-    border-color: #fde68a;
-    background: #fefce8;
+    font-weight: 700;
 }
 
-.status-pill-inline {
+.schedule-item.status-overdue .schedule-status-icon { color: #dc2626; }
+.schedule-item.status-urgent .schedule-status-icon { color: #ca8a04; }
+.schedule-item.status-upcoming .schedule-status-icon { color: #16a34a; }
+.schedule-item.status-process .schedule-status-icon { color: #94a3b8; }
+
+.day-schedule-card.status-done .card-title .schedule-title-highlight {
+    background: #dcfce7;
+    color: #14532d;
+    text-decoration: line-through;
+    text-decoration-color: rgba(22, 163, 74, 0.55);
+    font-weight: 600;
+}
+.day-schedule-card.status-priority .card-title .schedule-title-highlight {
+    background: #fef08a;
+    color: #713f12;
+    font-weight: 700;
+}
+
+.history-schedule-item .hs-title .schedule-title-highlight.done {
+    background: #dcfce7;
+    color: #14532d;
+    text-decoration: line-through;
+    text-decoration-color: rgba(22, 163, 74, 0.55);
+}
+.history-schedule-item .hs-title .schedule-title-highlight.priority {
+    background: #fef08a;
+    color: #713f12;
+    font-weight: 700;
+}
+
+/* ============================================================
+   STATUS ICON BUTTON (opens picker popup)
+   ============================================================ */
+.status-icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.62rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    margin-top: 4px;
-    width: fit-content;
+    justify-content: center;
+    font-size: 0.9rem;
+    transition: background 0.15s, color 0.15s, transform 0.1s, box-shadow 0.15s;
+    flex-shrink: 0;
+    background: #f1f5f9;
+    color: #94a3b8;
+    box-shadow: inset 0 0 0 1.5px #e2e8f0;
+    margin-right: 4px;
 }
 
-.status-pill-inline.done {
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
+.status-icon-btn:hover {
+    transform: scale(1.08);
+    box-shadow: inset 0 0 0 1.5px #cbd5e1;
 }
-.status-pill-inline.priority {
-    background: #fef9c3;
+
+.status-icon-btn:active { transform: scale(0.94); }
+
+.status-icon-btn.process {
+    background: #f1f5f9;
+    color: #64748b;
+    box-shadow: inset 0 0 0 1.5px #cbd5e1;
+}
+
+.status-icon-btn.done {
+    background: #dcfce7;
+    color: #16a34a;
+    box-shadow: inset 0 0 0 1.5px #86efac;
+}
+
+.status-icon-btn.priority {
+    background: #fef08a;
+    color: #ca8a04;
+    box-shadow: inset 0 0 0 1.5px #fde047;
+}
+
+/* ============================================================
+   STATUS PICKER POPUP
+   ============================================================ */
+.status-popup {
+    position: absolute;
+    z-index: 5000;
+    background: white;
+    border: 1.5px solid #eef2f6;
+    border-radius: 14px;
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.28), 0 8px 20px -8px rgba(0, 0, 0, 0.15);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    animation: statusPopIn 0.14s ease-out;
+}
+
+@keyframes statusPopIn {
+    from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.status-popup-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border: none;
+    padding: 9px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #334155;
+    text-align: left;
+    transition: background 0.12s, color 0.12s;
+    width: 100%;
+}
+
+.status-popup-option:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.status-popup-option > i:first-child {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    width: 16px;
+    text-align: center;
+}
+
+.status-popup-option[data-pick="process"]:hover > i:first-child { color: #64748b; }
+.status-popup-option[data-pick="done"]:hover > i:first-child { color: #16a34a; }
+.status-popup-option[data-pick="priority"]:hover > i:first-child { color: #ca8a04; }
+
+.status-popup-option span {
+    flex: 1;
+    min-width: 0;
+}
+
+.status-popup-check {
+    font-size: 0.7rem;
+    color: #3b82f6;
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.status-popup-option.selected {
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+.status-popup-option.selected .status-popup-check {
+    opacity: 1;
+}
+
+.status-popup-option.selected > i:first-child {
+    color: #2563eb;
+}
+
+.status-popup-option.selected[data-pick="done"] {
+    background: #f0fdf4;
+    color: #15803d;
+}
+.status-popup-option.selected[data-pick="done"] .status-popup-check,
+.status-popup-option.selected[data-pick="done"] > i:first-child {
+    color: #16a34a;
+}
+
+.status-popup-option.selected[data-pick="priority"] {
+    background: #fefce8;
     color: #a16207;
-    border: 1px solid #fde68a;
+}
+.status-popup-option.selected[data-pick="priority"] .status-popup-check,
+.status-popup-option.selected[data-pick="priority"] > i:first-child {
+    color: #ca8a04;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -2659,9 +2716,8 @@ body {
     .import-status { padding: 10px 12px; max-height: 220px; }
     .import-error-list li, .import-preview-list li { font-size: 0.68rem; }
     .import-preview-actions .btn { padding: 6px 12px; font-size: 0.72rem; }
-    .status-btn { padding: 8px 12px; font-size: 0.78rem; border-radius: 12px; gap: 4px; }
-    .status-btn i { font-size: 0.75rem; }
-    .schedule-status-icon { font-size: 0.5rem; }
+    .status-icon-btn { width: 30px; height: 30px; font-size: 0.78rem; margin-right: 2px; }
+    .day-schedule-card .card-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
 }
 
 @media (max-width: 380px) {
