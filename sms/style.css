@@ -2037,13 +2037,42 @@ body {
 /* ============================================================
    IMPORT MODAL
    ============================================================ */
-.import-modal { max-width: 620px; }
+.import-modal {
+    max-width: 620px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 24px 20px;
+}
 
 .import-subtitle {
     color: #64748b;
     font-size: 0.82rem;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     line-height: 1.45;
+    flex-shrink: 0;
+}
+
+/* The scrollable body: hides scrollbar but stays scrollable */
+.import-scroll-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+    margin-right: -4px;
+    margin-bottom: 8px;
+    scrollbar-width: none;              /* Firefox */
+    -ms-overflow-style: none;           /* Edge/IE */
+    -webkit-overflow-scrolling: touch;  /* iOS momentum */
+    overscroll-behavior: contain;
+}
+
+.import-scroll-body::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;           /* Chrome / Safari / Edge */
 }
 
 .import-section {
@@ -2053,6 +2082,8 @@ body {
     padding: 14px 16px;
     margin-bottom: 10px;
 }
+
+.import-section:last-child { margin-bottom: 0; }
 
 .import-section-title {
     font-size: 0.82rem;
@@ -2184,33 +2215,14 @@ body {
     word-break: break-word;
 }
 
-/* ============================================================
-   IMPORT STATUS CONTAINER — scrollable but scrollbar hidden
-   ============================================================ */
 .import-status {
     background: #f8fafc;
     border: 1.5px solid #eef2f6;
     border-radius: 14px;
     padding: 12px 14px;
-    margin-bottom: 10px;
-    max-height: 300px;
-    overflow-y: auto;
-    overflow-x: hidden;
-
-    /* Hide scrollbar on Firefox */
-    scrollbar-width: none;
-    /* Hide scrollbar on IE/Edge legacy */
-    -ms-overflow-style: none;
-
-    /* Smooth momentum scrolling on touch devices */
-    -webkit-overflow-scrolling: touch;
-}
-
-/* Hide scrollbar on Chrome / Safari / Edge (WebKit) */
-.import-status::-webkit-scrollbar {
-    display: none;
-    width: 0;
-    height: 0;
+    margin-bottom: 0;
+    max-height: none;
+    overflow: visible;
 }
 
 .import-status.success {
@@ -2246,21 +2258,15 @@ body {
 
 .import-error-list {
     list-style: none;
-    padding: 0;
+    padding: 8px 10px;
     margin: 0;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    max-height: 160px;
-    overflow-y: auto;
     background: white;
     border: 1px solid #fecaca;
     border-radius: 10px;
-    padding: 8px 10px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
 }
-.import-error-list::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
 .import-error-list li {
     font-size: 0.72rem;
@@ -2343,6 +2349,13 @@ body {
     font-size: 0.8rem;
     border-radius: 22px;
     flex-shrink: 0;
+}
+
+.import-modal > .modal-actions {
+    flex-shrink: 0;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1.5px solid #eef2f6;
 }
 
 /* ============================================================
@@ -2807,7 +2820,16 @@ body {
     .export-preview-table th, .export-preview-table td { padding: 6px 9px; font-size: 0.72rem; }
     .export-preview-scroll { max-height: 200px; }
     .export-preview-header { padding: 8px 12px; font-size: 0.68rem; }
-    .import-modal { max-width: calc(100vw - 20px); }
+    .import-modal {
+        max-width: calc(100vw - 20px);
+        max-height: 92vh;
+        padding: 16px 16px 16px;
+    }
+    .import-scroll-body { padding-right: 2px; margin-right: -2px; }
+    .import-modal > .modal-actions {
+        margin-top: 10px;
+        padding-top: 10px;
+    }
     .import-section { padding: 12px 14px; border-radius: 12px; }
     .import-section-title { font-size: 0.78rem; }
     .import-rules li { font-size: 0.72rem; }
@@ -2816,7 +2838,7 @@ body {
     .import-template-btn i, .import-upload-btn i { font-size: 1.05rem; }
     .import-template-text strong, .import-upload-text strong { font-size: 0.78rem; }
     .import-template-text span, .import-upload-text span { font-size: 0.68rem; }
-    .import-status { padding: 10px 12px; max-height: 220px; }
+    .import-status { padding: 10px 12px; }
     .import-error-list li, .import-preview-list li { font-size: 0.68rem; }
     .import-preview-actions .btn { padding: 6px 12px; font-size: 0.72rem; }
     .status-icon-btn { width: 30px; height: 30px; font-size: 0.78rem; margin-right: 2px; }
