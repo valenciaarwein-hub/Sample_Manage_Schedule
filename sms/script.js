@@ -2189,7 +2189,6 @@
             if (!exportSelectedMonths.has(m)) return;
 
             (schedules[dateKey] || []).forEach(s => {
-                const dateObj = getDateFromKey(dateKey);
                 rows.push({
                     dateKey,
                     title: s.title,
@@ -2387,7 +2386,7 @@
     });
 
     // ============================================================
-    // IMPORT (with Cancel = wipe, Import = commit)
+    // IMPORT (with in-preview Cancel + Confirm)
     // ============================================================
     const importOverlay = document.getElementById('importOverlay');
     const importStatus = document.getElementById('importStatus');
@@ -2420,7 +2419,7 @@
     function closeImportModal() {
         importOverlay.classList.remove('active');
         importParsedRows = null;
-        importExcelInput.value = '';                 // clears file input
+        importExcelInput.value = '';
         importFileName.textContent = 'No file selected';
         importStatus.style.display = 'none';
         importStatus.innerHTML = '';
@@ -2659,6 +2658,13 @@
         return { rows, errors };
     }
 
+    function wireInPreviewButtons() {
+        const previewCancel = document.getElementById('importPreviewCancelBtn');
+        const previewConfirm = document.getElementById('importPreviewConfirmBtn');
+        if (previewCancel) previewCancel.addEventListener('click', closeImportModal);
+        if (previewConfirm) previewConfirm.addEventListener('click', commitImport);
+    }
+
     function renderImportStatus(result) {
         importStatus.style.display = 'block';
 
@@ -2678,9 +2684,18 @@
                     ${shown.map(e => `<li><i class="fas fa-exclamation-circle"></i> ${escapeHtml(e)}</li>`).join('')}
                     ${extra > 0 ? `<li><i class="fas fa-ellipsis-h"></i> …and ${extra} more problem${extra === 1 ? '' : 's'}.</li>` : ''}
                 </ul>
+                <div class="import-preview-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" id="importPreviewCancelBtn">
+                        <i class="fas fa-times"></i> Cancel &amp; Clear File
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" disabled>
+                        <i class="fas fa-file-import"></i> Import
+                    </button>
+                </div>
             `;
             importConfirmBtn.disabled = true;
             importParsedRows = null;
+            wireInPreviewButtons();
             return;
         }
 
@@ -2694,9 +2709,15 @@
                 <div class="import-status-detail">
                     The file doesn't contain any rows with schedules.
                 </div>
+                <div class="import-preview-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" id="importPreviewCancelBtn">
+                        <i class="fas fa-times"></i> Cancel &amp; Clear File
+                    </button>
+                </div>
             `;
             importConfirmBtn.disabled = true;
             importParsedRows = null;
+            wireInPreviewButtons();
             return;
         }
 
@@ -2710,7 +2731,7 @@
                 Ready to import ${result.rows.length} schedule${result.rows.length === 1 ? '' : 's'}
             </div>
             <div class="import-status-detail">
-                The file is valid. Preview below — click <strong>Import</strong> to save to your calendar.
+                The file is valid. Preview below — click <strong>Confirm Import</strong> to save to your calendar.
             </div>
             <ul class="import-preview-list">
                 ${shown.map(r => `
@@ -2721,9 +2742,18 @@
                 `).join('')}
                 ${extra > 0 ? `<li><i class="fas fa-ellipsis-h"></i> …and ${extra} more row${extra === 1 ? '' : 's'}.</li>` : ''}
             </ul>
+            <div class="import-preview-actions">
+                <button type="button" class="btn btn-secondary btn-sm" id="importPreviewCancelBtn">
+                    <i class="fas fa-times"></i> Cancel &amp; Clear File
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" id="importPreviewConfirmBtn">
+                    <i class="fas fa-check"></i> Confirm Import
+                </button>
+            </div>
         `;
         importConfirmBtn.disabled = false;
         importParsedRows = result.rows;
+        wireInPreviewButtons();
     }
 
     function handleImportFile(file) {
@@ -2740,9 +2770,15 @@
                 <div class="import-status-detail">
                     Please upload a <strong>.xlsx</strong> Excel file. Older <code>.xls</code> and <code>.csv</code> are not supported.
                 </div>
+                <div class="import-preview-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" id="importPreviewCancelBtn">
+                        <i class="fas fa-times"></i> Cancel &amp; Clear File
+                    </button>
+                </div>
             `;
             importConfirmBtn.disabled = true;
             importParsedRows = null;
+            wireInPreviewButtons();
             return;
         }
 
@@ -2772,9 +2808,15 @@
                     <div class="import-status-detail">
                         The file may be corrupted or not a valid Excel file.
                     </div>
+                    <div class="import-preview-actions">
+                        <button type="button" class="btn btn-secondary btn-sm" id="importPreviewCancelBtn">
+                            <i class="fas fa-times"></i> Cancel &amp; Clear File
+                        </button>
+                    </div>
                 `;
                 importConfirmBtn.disabled = true;
                 importParsedRows = null;
+                wireInPreviewButtons();
             }
         };
         reader.onerror = () => alert('Failed to read the file.');
