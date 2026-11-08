@@ -786,7 +786,7 @@ body {
 .day-schedule-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px -4px rgba(0,0,0,0.08); }
 
 .day-schedule-card .card-accent {
-    width: 2px;
+    width: 4px;
     align-self: stretch;
     background: #3b82f6;
     border-radius: 4px;
@@ -1252,6 +1252,7 @@ body {
 
 .settings-item-icon.trash { background: #fee2e2; color: #b91c1c; }
 .settings-item-icon.logout { background: #fef9c3; color: #a16207; }
+.settings-item-icon.import { background: #dbeafe; color: #2563eb; }
 
 .settings-item-body { flex: 1; min-width: 0; }
 
@@ -2055,7 +2056,6 @@ body {
     flex-shrink: 0;
 }
 
-/* The scrollable body: hides scrollbar but stays scrollable */
 .import-scroll-body {
     flex: 1 1 auto;
     min-height: 0;
@@ -2064,16 +2064,16 @@ body {
     padding-right: 4px;
     margin-right: -4px;
     margin-bottom: 8px;
-    scrollbar-width: none;              /* Firefox */
-    -ms-overflow-style: none;           /* Edge/IE */
-    -webkit-overflow-scrolling: touch;  /* iOS momentum */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
 }
 
 .import-scroll-body::-webkit-scrollbar {
     width: 0 !important;
     height: 0 !important;
-    display: none !important;           /* Chrome / Safari / Edge */
+    display: none !important;
 }
 
 .import-section {
@@ -2519,7 +2519,7 @@ body {
 }
 
 /* ============================================================
-   SCHEDULE ITEM STATUS BORDERS (all rounded, match pill shape)
+   SCHEDULE ITEM STATUS BORDERS
    ============================================================ */
 .schedule-title-highlight {
     display: inline-block;
@@ -2530,15 +2530,15 @@ body {
 
 .schedule-item { border-radius: 8px; }
 
-.schedule-item.status-process {
+.schedule-item.status-upcoming-status {
     background: #f1f5f9;
     border: 1.5px solid #cbd5e1;
     border-left: 1.5px solid #cbd5e1;
     box-shadow: none;
     padding: 3px 5px;
 }
-.schedule-item.status-process .schedule-status-icon { color: #64748b; }
-.schedule-item.status-process .schedule-title-highlight {
+.schedule-item.status-upcoming-status .schedule-status-icon { color: #64748b; }
+.schedule-item.status-upcoming-status .schedule-title-highlight {
     background: transparent; color: #1e293b; font-weight: 500; padding: 0;
 }
 
@@ -2662,7 +2662,7 @@ body {
 
 .status-icon-btn:active { transform: scale(0.94); }
 
-.status-icon-btn.process {
+.status-icon-btn.upcoming {
     background: #f1f5f9;
     color: #64748b;
     box-shadow: inset 0 0 0 1.5px #cbd5e1;
@@ -2729,7 +2729,7 @@ body {
     text-align: center;
 }
 
-.status-popup-option[data-pick="process"]:hover > i:first-child { color: #64748b; }
+.status-popup-option[data-pick="upcoming"]:hover > i:first-child { color: #64748b; }
 .status-popup-option[data-pick="done"]:hover > i:first-child { color: #16a34a; }
 .status-popup-option[data-pick="priority"]:hover > i:first-child { color: #FFEB3B; }
 
@@ -2936,11 +2936,7 @@ body {
     .export-preview-table th, .export-preview-table td { padding: 6px 9px; font-size: 0.72rem; }
     .export-preview-scroll { max-height: 200px; }
     .export-preview-header { padding: 8px 12px; font-size: 0.68rem; }
-    .import-modal {
-        max-width: calc(100vw - 20px);
-        max-height: 92vh;
-        padding: 16px 16px 16px;
-    }
+    .import-modal { max-width: calc(100vw - 20px); max-height: 92vh; padding: 16px 16px 16px; }
     .import-scroll-body { padding-right: 2px; margin-right: -2px; }
     .import-modal > .modal-actions { margin-top: 10px; padding-top: 10px; }
     .import-section { padding: 12px 14px; border-radius: 12px; }
