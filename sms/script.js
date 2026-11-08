@@ -5,8 +5,8 @@
     // ============================================================
     // STATE
     // ============================================================
-    let schedules = {};   // { "YYYY-MM-DD": [ {id, title, description, type, createdAt}, ... ] }
-    let trash = [];       // [ {id, title, description, type, dateKey, createdAt, deletedAt}, ... ]
+    let schedules = {};
+    let trash = [];
     let isLoaded = false;
     let saveTimer = null;
     let savingInFlight = false;
@@ -23,14 +23,10 @@
         return window.supabaseClient;
     }
 
-    // ============================================================
-    // API HELPERS (Supabase-backed)
-    // ============================================================
     async function loadFromApi(showErrors) {
         try {
             const supabase = getSupabase();
 
-            // Fetch active (non-deleted) schedules
             const { data: activeData, error: activeError } = await supabase
                 .from('schedules')
                 .select('*')
@@ -38,7 +34,6 @@
 
             if (activeError) throw activeError;
 
-            // Rebuild schedules object { "YYYY-MM-DD": [ ... ] }
             schedules = {};
             (activeData || []).forEach(item => {
                 if (!schedules[item.date_key]) schedules[item.date_key] = [];
@@ -51,7 +46,6 @@
                 });
             });
 
-            // Fetch trash (deleted items)
             const { data: trashData, error: trashError } = await supabase
                 .from('schedules')
                 .select('*')
@@ -71,6 +65,7 @@
 
             isLoaded = true;
             renderCalendar();
+            renderNotifications();
             if (historyOverlay && historyOverlay.classList.contains('active')) renderHistory();
             if (trashOverlay && trashOverlay.classList.contains('active')) renderTrash();
             if (dayListOverlay.classList.contains('active') && activeDayListDateKey) {
@@ -90,8 +85,6 @@
         saveTimer = setTimeout(pushToApi, 400);
     }
 
-    // Syncs the in-memory state to Supabase using targeted CRUD.
-    // Strategy: upsert everything that exists + delete rows that were removed.
     async function pushToApi() {
         if (savingInFlight) {
             scheduleSave();
@@ -101,7 +94,6 @@
         try {
             const supabase = getSupabase();
 
-            // Build the full set of rows that *should* exist
             const allRows = [];
             Object.keys(schedules).forEach(dateKey => {
                 (schedules[dateKey] || []).forEach(s => {
@@ -130,7 +122,6 @@
                 });
             });
 
-            // 1. UPSERT all current rows
             if (allRows.length > 0) {
                 const { error: upsertError } = await supabase
                     .from('schedules')
@@ -138,7 +129,6 @@
                 if (upsertError) throw upsertError;
             }
 
-            // 2. DELETE rows that no longer exist in memory
             const currentIds = allRows.map(r => r.id);
             if (currentIds.length > 0) {
                 const { error: delError } = await supabase
@@ -147,7 +137,6 @@
                     .not('id', 'in', `(${currentIds.map(id => `"${id}"`).join(',')})`);
                 if (delError) throw delError;
             } else {
-                // Nothing in memory → wipe all rows
                 const { error: delAllError } = await supabase
                     .from('schedules')
                     .delete()
@@ -409,6 +398,201 @@
     const validationMessage = document.getElementById('validationMessage');
     const validationList = document.getElementById('validationList');
     const validationOkBtn = document.getElementById('validationOkBtn');
+
+    // Notification DOM refs
+    const notifBtn = document.getElementById('notifBtn');
+    const notifBadge = document.getElementById('notifBadge');
+    const notifPanel = document.getElementById('notifPanel');
+    const notifList = document.getElementById('notifList');
+    const notifCloseBtn = document.getElementById('notifCloseBtn');
+    const notifMarkReadBtn = document.getElementById('notifMarkReadBtn');
+
+    // ============================================================
+    // NOTIFICATION SYSTEM
+    // ============================================================
+    const NOTIF_SEEN_KEY = 'schedule_notif_seen_v2';
+    const NOTIF_WINDOW_DAYS = 3;
+
+    function loadJson(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : fallback;
+        } catch { return fallback; }
+    }
+    function saveJson(key, val) {
+        try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+    }
+
+    let notifSeenIds = new Set(loadJson(NOTIF_SEEN_KEY, []));
+
+    function daysUntil(dateKey) {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const target = getDateFromKey(dateKey);
+        return Math.round((target - today) / 86400000);
+    }
+
+    function formatShortDate(dateKey) {
+        const d = getDateFromKey(dateKey);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const yy = String(d.getFullYear()).slice(-2);
+        return `${mm}/${dd}/${yy}`;
+    }
+
+    function buildNotificationItems() {
+        const items = [];
+
+        Object.keys(schedules).forEach(dateKey => {
+            (schedules[dateKey] || []).forEach(s => {
+                const diff = daysUntil(dateKey);
+
+                let status, dotClass, itemClass;
+                if (diff < 0) {
+                    status = 'overdue';
+                    dotClass = 'red';
+                    itemClass = 'overdue';
+                } else if (diff <= NOTIF_WINDOW_DAYS) {
+                    status = 'urgent';
+                    dotClass = 'yellow';
+                    itemClass = 'imminent';
+                } else {
+                    status = 'upcoming';
+                    dotClass = 'green';
+                    itemClass = 'upcoming';
+                }
+
+                items.push({
+                    id: s.id,
+                    dateKey,
+                    title: s.title,
+                    type: s.type || '',
+                    diff,
+                    status,
+                    dotClass,
+                    itemClass,
+                    unread: !notifSeenIds.has(s.id)
+                });
+            });
+        });
+
+        const statusRank = { overdue: 0, urgent: 1, upcoming: 2 };
+        items.sort((a, b) => {
+            const r = statusRank[a.status] - statusRank[b.status];
+            if (r !== 0) return r;
+            return a.diff - b.diff;
+        });
+
+        return items;
+    }
+
+    function renderNotifications() {
+        const items = buildNotificationItems();
+
+        const unreadCount = items.filter(i => i.unread).length;
+        if (unreadCount > 0) {
+            notifBadge.style.display = 'flex';
+            notifBadge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+            notifBadge.classList.add('pulse');
+        } else {
+            notifBadge.style.display = 'none';
+            notifBadge.classList.remove('pulse');
+        }
+
+        notifMarkReadBtn.disabled = unreadCount === 0;
+
+        if (items.length === 0) {
+            notifList.innerHTML = `
+                <div class="notif-empty">
+                    <i class="fas fa-bell-slash"></i>
+                    No schedules yet.<br>
+                    Create one to see it here.
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        items.forEach(it => {
+            const itemClasses = [
+                'notif-item',
+                it.itemClass,
+                it.unread ? 'unread' : ''
+            ].filter(Boolean).join(' ');
+
+            const dateLabel = formatShortDate(it.dateKey);
+
+            html += `
+                <button class="${itemClasses}" data-notif-id="${it.id}" data-notif-date="${it.dateKey}">
+                    <span class="notif-dot ${it.dotClass}" title="${it.status === 'overdue' ? 'Overdue' : it.status === 'urgent' ? 'Soon' : 'Upcoming'}"></span>
+                    <span class="notif-body">
+                        <span class="notif-title">${escapeHtml(it.title)}</span>
+                        <span class="notif-meta">
+                            <i class="fas fa-tag"></i> ${it.type ? escapeHtml(it.type) : 'No type'}
+                            &nbsp;·&nbsp;
+                            <i class="fas fa-calendar-day"></i> ${escapeHtml(dateLabel)}
+                        </span>
+                    </span>
+                </button>
+            `;
+        });
+        notifList.innerHTML = html;
+
+        notifList.querySelectorAll('[data-notif-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const dateKey = btn.dataset.notifDate;
+                const id = btn.dataset.notifId;
+                markNotificationSeen(id);
+                closeNotifPanel();
+                if (dateKey && id) openViewModal(dateKey, id);
+            });
+        });
+    }
+
+    function markNotificationSeen(id) {
+        notifSeenIds.add(id);
+        saveJson(NOTIF_SEEN_KEY, Array.from(notifSeenIds));
+        renderNotifications();
+    }
+
+    function markAllNotificationsRead() {
+        const items = buildNotificationItems();
+        items.forEach(i => notifSeenIds.add(i.id));
+        saveJson(NOTIF_SEEN_KEY, Array.from(notifSeenIds));
+        renderNotifications();
+    }
+
+    function openNotifPanel() {
+        notifPanel.classList.add('open');
+        notifBtn.classList.add('active');
+        renderNotifications();
+    }
+    function closeNotifPanel() {
+        notifPanel.classList.remove('open');
+        notifBtn.classList.remove('active');
+    }
+    function toggleNotifPanel() {
+        if (notifPanel.classList.contains('open')) closeNotifPanel();
+        else openNotifPanel();
+    }
+
+    notifBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleNotifPanel();
+    });
+    notifCloseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeNotifPanel();
+    });
+    notifMarkReadBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        markAllNotificationsRead();
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.notif-wrap')) closeNotifPanel();
+    });
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && notifPanel.classList.contains('open')) closeNotifPanel();
+    });
 
     // ============================================================
     // CONFIRMATION MODAL
@@ -900,6 +1084,7 @@
                 scheduleSave();
 
                 renderCalendar();
+                renderNotifications();
                 if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
                     renderDayScheduleList();
                 }
@@ -939,6 +1124,7 @@
                 scheduleSave();
 
                 renderCalendar();
+                renderNotifications();
                 if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) {
                     renderDayScheduleList();
                 }
@@ -1318,6 +1504,7 @@
 
         scheduleSave();
         renderCalendar();
+        renderNotifications();
 
         const shouldReopenHistory = reopenHistoryAfterEdit;
         reopenHistoryAfterEdit = false;
@@ -1578,6 +1765,7 @@
                 scheduleSave();
 
                 renderCalendar();
+                renderNotifications();
                 closeHistoryModal();
                 if (dayListOverlay.classList.contains('active')) closeDayListModal();
             }
@@ -1714,6 +1902,7 @@
         scheduleSave();
 
         renderCalendar();
+        renderNotifications();
         renderTrash();
         if (historyOverlay.classList.contains('active')) renderHistory();
         if (viewContext.kind === 'trash' && viewContext.trashId === id) closeViewModal();
@@ -1752,6 +1941,7 @@
         trashSelection.clear();
         scheduleSave();
         renderCalendar();
+        renderNotifications();
         renderTrash();
         if (historyOverlay.classList.contains('active')) renderHistory();
     }
@@ -1880,6 +2070,7 @@
                 });
                 scheduleSave();
                 renderCalendar();
+                renderNotifications();
                 if (historyOverlay.classList.contains('active')) renderHistory();
                 onDone(true);
             } catch (err) {
@@ -2004,6 +2195,7 @@
                 closeSortPopovers();
 
                 renderCalendar();
+                renderNotifications();
             }
         });
     });
@@ -2111,6 +2303,7 @@
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            if (notifPanel && notifPanel.classList.contains('open')) { closeNotifPanel(); return; }
             if (validationOverlay.classList.contains('active')) { closeValidationModal(); return; }
             if (confirmOverlay.classList.contains('active')) { closeConfirmModal(); return; }
             if (viewOverlay.classList.contains('active')) { closeViewModal(); return; }
@@ -2128,12 +2321,11 @@
     // ============================================================
     // BOOT
     // ============================================================
-    // Wait for Supabase to be initialized by the inline module script in index.html
     function boot() {
         renderCalendar();
+        renderNotifications();
         loadFromApi(true);
 
-        // Auto-refresh every 30s (in case changes were made from another device)
         setInterval(() => {
             if (!savingInFlight && !document.hidden) loadFromApi(false);
         }, 30000);
@@ -2143,7 +2335,6 @@
         boot();
     } else {
         window.addEventListener('supabase-ready', boot, { once: true });
-        // Fallback in case the event fired before this script ran
         setTimeout(() => {
             if (window.supabaseClient && !isLoaded) boot();
         }, 500);
