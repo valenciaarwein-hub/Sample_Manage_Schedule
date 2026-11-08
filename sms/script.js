@@ -12,7 +12,7 @@
     let savingInFlight = false;
 
     const TYPE_OPTIONS = ['Meeting', 'Seminar', 'Special Event', 'Other'];
-    const STATUS_OPTIONS = ['process', 'done', 'priority'];
+    const STATUS_OPTIONS = ['upcoming', 'done', 'priority'];
 
     // ============================================================
     // SUPABASE HELPERS
@@ -237,7 +237,7 @@
         switch (status) {
             case 'done': return 'fa-check-circle';
             case 'priority': return 'fa-star';
-            default: return 'fa-hourglass-half';
+            default: return 'fa-calendar-check';
         }
     }
 
@@ -245,12 +245,14 @@
         switch (status) {
             case 'done': return 'Done';
             case 'priority': return 'Priority';
-            default: return 'Process';
+            default: return 'Upcoming';
         }
     }
 
     function normalizeStatus(s) {
-        return STATUS_OPTIONS.includes(s) ? s : 'process';
+        if (STATUS_OPTIONS.includes(s)) return s;
+        if (s === 'process') return 'upcoming';   // migrate old value
+        return 'upcoming';
     }
 
     function daysUntil(dateKey) {
@@ -927,7 +929,7 @@
 
                     const itemClass = st === 'done' ? ' status-done'
                                     : st === 'priority' ? ' status-priority'
-                                    : ' status-process status-' + urgency;
+                                    : ' status-upcoming-status status-' + urgency;
 
                     schedulesHtml += `
                         <div class="schedule-item${itemClass}" data-date="${dateKey}" data-id="${s.id}" title="${escapeHtml(s.title)} — ${escapeHtml(s.description || '')}">
@@ -1023,7 +1025,7 @@
     }
 
     // ============================================================
-    // STATUS POPUP (per-row dropdown)
+    // STATUS POPUP
     // ============================================================
     let openStatusPopup = null;
 
@@ -1040,9 +1042,9 @@
         const popup = document.createElement('div');
         popup.className = 'status-popup';
         popup.innerHTML = `
-            <button type="button" class="status-popup-option ${currentStatus === 'process' ? 'selected' : ''}" data-pick="process">
-                <i class="fas fa-hourglass-half"></i>
-                <span>Process</span>
+            <button type="button" class="status-popup-option ${currentStatus === 'upcoming' ? 'selected' : ''}" data-pick="upcoming">
+                <i class="fas fa-calendar-check"></i>
+                <span>Upcoming</span>
                 <i class="fas fa-check status-popup-check"></i>
             </button>
             <button type="button" class="status-popup-option ${currentStatus === 'done' ? 'selected' : ''}" data-pick="done">
@@ -1110,7 +1112,7 @@
         if (normalized === 'priority' && getUrgencyLevel(dateKey) === 'overdue') {
             openConfirmModal({
                 title: 'Cannot set as Priority',
-                message: 'This schedule is overdue / late, so it cannot be marked as a Priority (star). It will stay in Process status.',
+                message: 'This schedule is overdue / late, so it cannot be marked as a Priority (star). It will stay in Upcoming status.',
                 okText: 'OK',
                 iconClass: 'warning',
                 showCancel: false,
@@ -1530,7 +1532,7 @@
                     title,
                     description,
                     type: resolvedType,
-                    status: 'process'
+                    status: 'upcoming'
                 }
             };
         }
@@ -1836,7 +1838,6 @@
         const yearFilter = historyYearFilter.value;
         const monthFilter = historyMonthFilter.value;
 
-        // Default scope: current year + current month (when both filters are "all")
         const now = new Date();
         const currentYearStr = String(now.getFullYear());
         const currentMonthStr = String(now.getMonth() + 1).padStart(2, '0');
@@ -1953,8 +1954,6 @@
 
     function openHistoryModal() {
         historySearch.value = '';
-
-        // Default: current year + current month
         const now = new Date();
         historyYearFilter.value = String(now.getFullYear());
         historyMonthFilter.value = String(now.getMonth() + 1);
@@ -2519,10 +2518,47 @@
     const IMPORT_MAX_TITLE_LEN = 60;
     const IMPORT_MAX_DESC_LEN = 200;
 
+    // ============================================================
+    // IMPORT FILE SIGNATURE STORE (prevents duplicate imports)
+    // ============================================================
+    const IMPORT_HISTORY_KEY = 'schedule_import_history_v1';
+
+    function loadImportHistory() {
+        try {
+            const raw = localStorage.getItem(IMPORT_HISTORY_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch { return []; }
+    }
+
+    function saveImportHistory(history) {
+        try { localStorage.setItem(IMPORT_HISTORY_KEY, JSON.stringify(history.slice(-30))); } catch {}
+    }
+
+    function computeFileSignature(file) {
+        return `${file.name}|${file.size}|${file.lastModified || 0}`;
+    }
+
+    function isDuplicateImport(file) {
+        const history = loadImportHistory();
+        const sig = computeFileSignature(file);
+        return history.includes(sig);
+    }
+
+    function recordImportSignature(file) {
+        const history = loadImportHistory();
+        const sig = computeFileSignature(file);
+        if (!history.includes(sig)) {
+            history.push(sig);
+            saveImportHistory(history);
+        }
+    }
+
     let importParsedRows = null;
+    let currentImportFile = null;
 
     function openImportModal() {
         importParsedRows = null;
+        currentImportFile = null;
         importExcelInput.value = '';
         importFileName.textContent = 'No file selected';
         importStatus.style.display = 'none';
@@ -2535,6 +2571,7 @@
     function closeImportModal() {
         importOverlay.classList.remove('active');
         importParsedRows = null;
+        currentImportFile = null;
         importExcelInput.value = '';
         importFileName.textContent = 'No file selected';
         importStatus.style.display = 'none';
@@ -2564,6 +2601,10 @@
             added++;
             perDateCounts[dateKey] = (perDateCounts[dateKey] || 0) + 1;
         });
+
+        if (currentImportFile) {
+            recordImportSignature(currentImportFile);
+        }
 
         scheduleSave();
         renderCalendar();
@@ -2641,9 +2682,9 @@
 
         const templateData = [
             ['Month', 'Day', 'Year', 'Title', 'Type', 'Status', 'Description'],
-            [12, 8, 2025, 'Team Meeting', 'Meeting', 'Process', 'Weekly sync with the team'],
+            [12, 8, 2025, 'Team Meeting', 'Meeting', 'Upcoming', 'Weekly sync with the team'],
             [12, 15, 2025, 'Year-end Seminar', 'Seminar', 'Priority', 'Annual review and planning'],
-            [1, 10, 2026, 'New Year Event', 'Special Event', 'Process', 'Company kickoff celebration'],
+            [1, 10, 2026, 'New Year Event', 'Special Event', 'Upcoming', 'Company kickoff celebration'],
             [1, 20, 2026, 'Project Done', 'Meeting', 'Done', 'Quarterly wrap-up']
         ];
 
@@ -2695,7 +2736,8 @@
         const v = String(s || '').trim().toLowerCase();
         if (v === 'done') return 'done';
         if (v === 'priority' || v === 'star') return 'priority';
-        return 'process';
+        if (v === 'upcoming' || v === 'process') return 'upcoming';
+        return 'upcoming';
     }
 
     function validateImportRow(row, rowNumber) {
@@ -2933,6 +2975,33 @@
     function handleImportFile(file) {
         if (!file) return;
 
+        // Block re-importing the same file
+        if (isDuplicateImport(file)) {
+            importStatus.style.display = 'block';
+            importStatus.className = 'import-status error';
+            importStatus.innerHTML = `
+                <div class="import-status-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Already imported
+                </div>
+                <div class="import-status-detail">
+                    This file was already imported before. To avoid duplicates, the same file cannot be imported twice.<br>
+                    If you made changes, save the Excel file again (its size or modified time will change) and re-upload.
+                </div>
+                <div class="import-preview-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" id="importPreviewCancelBtn">
+                        <i class="fas fa-times"></i> Cancel &amp; Clear File
+                    </button>
+                </div>
+            `;
+            importConfirmBtn.disabled = true;
+            importParsedRows = null;
+            currentImportFile = null;
+            importFileName.textContent = file.name;
+            wireInPreviewButtons();
+            return;
+        }
+
         if (!/\.xlsx$/i.test(file.name)) {
             importStatus.style.display = 'block';
             importStatus.className = 'import-status error';
@@ -2962,6 +3031,7 @@
         }
 
         importFileName.textContent = file.name;
+        currentImportFile = file;
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -3008,6 +3078,25 @@
     importOverlay.addEventListener('click', (e) => {
         if (e.target === importOverlay) closeImportModal();
     });
+
+    // ============================================================
+    // CLEAR IMPORT HISTORY (from Settings)
+    // ============================================================
+    const clearImportHistoryBtn = document.getElementById('clearImportHistoryBtn');
+    if (clearImportHistoryBtn) {
+        clearImportHistoryBtn.addEventListener('click', () => {
+            closeSettingsModal();
+            openConfirmModal({
+                title: 'Reset Import History?',
+                message: 'This will allow files you already imported to be imported again. Your existing schedules will not be deleted.',
+                okText: 'Reset',
+                iconClass: 'warning',
+                onConfirm: () => {
+                    try { localStorage.removeItem(IMPORT_HISTORY_KEY); } catch {}
+                }
+            });
+        });
+    }
 
     // ============================================================
     // EVENT LISTENERS
