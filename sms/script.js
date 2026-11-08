@@ -253,28 +253,17 @@
         return STATUS_OPTIONS.includes(s) ? s : 'process';
     }
 
+    function daysUntil(dateKey) {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const target = getDateFromKey(dateKey);
+        return Math.round((target - today) / 86400000);
+    }
+
     function getUrgencyLevel(dateKey) {
         const diff = daysUntil(dateKey);
         if (diff < 0) return 'overdue';
         if (diff <= 2) return 'urgent';
         return 'upcoming';
-    }
-
-    function computeCellStatus(daySchedules, dateKey) {
-        if (!daySchedules || daySchedules.length === 0) return null;
-
-        if (daySchedules.some(s => normalizeStatus(s.status) === 'priority')) {
-            if (getUrgencyLevel(dateKey) !== 'overdue') return 'status-priority';
-        }
-
-        if (daySchedules.every(s => normalizeStatus(s.status) === 'done')) {
-            return 'status-done';
-        }
-
-        const urgency = getUrgencyLevel(dateKey);
-        if (urgency === 'overdue') return 'status-overdue';
-        if (urgency === 'urgent') return 'status-urgent';
-        return 'status-upcoming';
     }
 
     // ============================================================
@@ -338,7 +327,6 @@
     let pendingSave = null;
 
     let formType = { base: null, custom: '' };
-    let formStatus = 'process';
 
     let historySort = { kind: 'date-created', order: 'desc' };
     let trashSort = { kind: 'date-created', order: 'desc' };
@@ -381,7 +369,6 @@
     const scheduleDescription = document.getElementById('scheduleDescription');
     const charCount = document.getElementById('charCount');
     const typeButtonGroup = document.getElementById('typeButtonGroup');
-    const statusButtonGroup = document.getElementById('statusButtonGroup');
     const customTypeInput = document.getElementById('customTypeInput');
     const cancelModalBtn = document.getElementById('cancelModalBtn');
     const saveScheduleBtn = document.getElementById('saveScheduleBtn');
@@ -478,12 +465,6 @@
     }
 
     let notifSeenIds = new Set(loadJson(NOTIF_SEEN_KEY, []));
-
-    function daysUntil(dateKey) {
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-        const target = getDateFromKey(dateKey);
-        return Math.round((target - today) / 86400000);
-    }
 
     function buildNotificationItems() {
         const items = [];
@@ -797,43 +778,6 @@
     }
 
     // ============================================================
-    // FORM: STATUS BUTTONS
-    // ============================================================
-    function resetStatusButtons(selected) {
-        formStatus = normalizeStatus(selected);
-        statusButtonGroup.querySelectorAll('.status-btn').forEach(btn => {
-            btn.classList.toggle('selected', btn.dataset.status === formStatus);
-        });
-    }
-
-    statusButtonGroup.addEventListener('click', (e) => {
-        const btn = e.target.closest('.status-btn');
-        if (!btn) return;
-        const chosen = btn.dataset.status;
-        if (!STATUS_OPTIONS.includes(chosen)) return;
-
-        if (chosen === 'priority' && selectedDateKey) {
-            const urgency = getUrgencyLevel(selectedDateKey);
-            if (urgency === 'overdue') {
-                openConfirmModal({
-                    title: 'Cannot set as Priority',
-                    message: 'This schedule is overdue / late, so it cannot be marked as a Priority (star). It will remain in Process status.',
-                    okText: 'OK',
-                    iconClass: 'warning',
-                    showCancel: false,
-                    onConfirm: () => {}
-                });
-                formStatus = 'process';
-                resetStatusButtons('process');
-                return;
-            }
-        }
-
-        formStatus = chosen;
-        resetStatusButtons(chosen);
-    });
-
-    // ============================================================
     // UPCOMING 7 DAYS TABLE
     // ============================================================
     function renderUpcomingTable() {
@@ -978,13 +922,16 @@
                     const shortTitle = s.title.length > 16 ? s.title.slice(0, 14) + '…' : s.title;
                     const st = normalizeStatus(s.status);
                     const statusIcon = getStatusIcon(st);
+                    const urgency = getUrgencyLevel(dateKey);
+
                     const itemClass = st === 'done' ? ' status-done'
                                     : st === 'priority' ? ' status-priority'
-                                    : '';
+                                    : ' status-process status-' + urgency;
+
                     schedulesHtml += `
                         <div class="schedule-item${itemClass}" data-date="${dateKey}" data-id="${s.id}" title="${escapeHtml(s.title)} — ${escapeHtml(s.description || '')}">
                             <i class="fas ${statusIcon} schedule-status-icon ${st}"></i>
-                            <span>${escapeHtml(shortTitle)}</span>
+                            <span class="schedule-title-highlight">${escapeHtml(shortTitle)}</span>
                         </div>
                     `;
                 });
@@ -995,13 +942,10 @@
                 schedulesHtml = `<div class="empty-hint">—</div>`;
             }
 
-            const cellStatusClass = computeCellStatus(daySchedules, dateKey) || '';
-
             const cellClasses = [
                 'day-cell',
                 !isCurrentMonth ? 'other-month' : '',
-                isToday ? 'today' : '',
-                cellStatusClass
+                isToday ? 'today' : ''
             ].filter(Boolean).join(' ');
 
             gridHtml += `
@@ -1051,6 +995,7 @@
     }
 
     function closeDayListModal() {
+        closeStatusPopup();
         dayListOverlay.classList.remove('active');
         activeDayListDateKey = null;
         dayListSelection.clear();
@@ -1076,6 +1021,115 @@
         }
     }
 
+    // ============================================================
+    // STATUS POPUP (per-row dropdown)
+    // ============================================================
+    let openStatusPopup = null;
+
+    function closeStatusPopup() {
+        if (openStatusPopup && openStatusPopup.parentNode) {
+            openStatusPopup.parentNode.removeChild(openStatusPopup);
+        }
+        openStatusPopup = null;
+    }
+
+    function openStatusPicker(anchorEl, dateKey, id, currentStatus) {
+        closeStatusPopup();
+
+        const popup = document.createElement('div');
+        popup.className = 'status-popup';
+        popup.innerHTML = `
+            <button type="button" class="status-popup-option ${currentStatus === 'process' ? 'selected' : ''}" data-pick="process">
+                <i class="fas fa-hourglass-half"></i>
+                <span>Process</span>
+                <i class="fas fa-check status-popup-check"></i>
+            </button>
+            <button type="button" class="status-popup-option ${currentStatus === 'done' ? 'selected' : ''}" data-pick="done">
+                <i class="fas fa-check-circle"></i>
+                <span>Done</span>
+                <i class="fas fa-check status-popup-check"></i>
+            </button>
+            <button type="button" class="status-popup-option ${currentStatus === 'priority' ? 'selected' : ''}" data-pick="priority">
+                <i class="fas fa-star"></i>
+                <span>Priority</span>
+                <i class="fas fa-check status-popup-check"></i>
+            </button>
+        `;
+
+        document.body.appendChild(popup);
+        openStatusPopup = popup;
+
+        const rect = anchorEl.getBoundingClientRect();
+        const popupWidth = 170;
+        const popupHeight = popup.offsetHeight || 150;
+
+        let top = rect.bottom + window.scrollY + 6;
+        if (top + popupHeight > window.scrollY + window.innerHeight - 8) {
+            top = rect.top + window.scrollY - popupHeight - 6;
+        }
+        let left = rect.left + window.scrollX - (popupWidth / 2) + (rect.width / 2);
+        if (left < 8) left = 8;
+        if (left + popupWidth > window.innerWidth - 8) left = window.innerWidth - popupWidth - 8;
+
+        popup.style.top = top + 'px';
+        popup.style.left = left + 'px';
+        popup.style.width = popupWidth + 'px';
+
+        popup.querySelectorAll('[data-pick]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const chosen = btn.dataset.pick;
+                closeStatusPopup();
+                setScheduleStatus(dateKey, id, chosen);
+            });
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (openStatusPopup && !e.target.closest('.status-popup') && !e.target.closest('[data-status-trigger]')) {
+            closeStatusPopup();
+        }
+    });
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && openStatusPopup) closeStatusPopup();
+    });
+    window.addEventListener('scroll', closeStatusPopup, { passive: true });
+    window.addEventListener('resize', closeStatusPopup);
+
+    // ============================================================
+    // CHANGE STATUS
+    // ============================================================
+    function setScheduleStatus(dateKey, id, newStatus) {
+        const list = schedules[dateKey] || [];
+        const item = list.find(s => s.id === id);
+        if (!item) return;
+
+        const normalized = normalizeStatus(newStatus);
+
+        if (normalized === 'priority' && getUrgencyLevel(dateKey) === 'overdue') {
+            openConfirmModal({
+                title: 'Cannot set as Priority',
+                message: 'This schedule is overdue / late, so it cannot be marked as a Priority (star). It will stay in Process status.',
+                okText: 'OK',
+                iconClass: 'warning',
+                showCancel: false,
+                onConfirm: () => {}
+            });
+            return;
+        }
+
+        if (normalizeStatus(item.status) === normalized) return;
+
+        item.status = normalized;
+        item.updatedAt = new Date().toISOString();
+
+        scheduleSave();
+        renderCalendar();
+        renderNotifications();
+        renderDayScheduleList();
+        if (historyOverlay.classList.contains('active')) renderHistory();
+    }
+
     function renderDayScheduleList() {
         if (!activeDayListDateKey) return;
         const daySchedules = schedules[activeDayListDateKey] || [];
@@ -1084,6 +1138,8 @@
         Array.from(dayListSelection).forEach(id => {
             if (!validIds.has(id)) dayListSelection.delete(id);
         });
+
+        closeStatusPopup();
 
         if (daySchedules.length === 0) {
             dayScheduleList.innerHTML = `
@@ -1105,23 +1161,28 @@
             const cardStatusClass = st === 'done' ? ' status-done'
                                   : st === 'priority' ? ' status-priority'
                                   : '';
-            const statusPill = st === 'done'
-                ? `<span class="status-pill-inline done"><i class="fas fa-check-circle"></i> Done</span>`
-                : st === 'priority'
-                ? `<span class="status-pill-inline priority"><i class="fas fa-star"></i> Priority</span>`
-                : '';
 
             html += `
                 <div class="day-schedule-card${cardStatusClass}">
                     <input type="checkbox" class="day-checkbox" data-day-id="${s.id}" ${isChecked ? 'checked' : ''}>
                     <div class="card-accent"></div>
                     <div class="card-body">
-                        <div class="card-title"><i class="fas ${statusIcon} schedule-status-icon ${st}" style="margin-right:6px;"></i>${escapeHtml(s.title)}</div>
+                        <div class="card-title">
+                            <span class="schedule-title-highlight">${escapeHtml(s.title)}</span>
+                        </div>
                         <div class="card-desc">${escapeHtml(desc)}</div>
                         ${s.type ? renderTypeBadge(s.type) : ''}
-                        ${statusPill}
                     </div>
                     <div class="card-actions">
+                        <button type="button"
+                                class="status-icon-btn ${st}"
+                                data-status-trigger
+                                data-date="${activeDayListDateKey}"
+                                data-id="${s.id}"
+                                data-current="${st}"
+                                title="Change status (${getStatusLabel(st)})">
+                            <i class="fas ${statusIcon}"></i>
+                        </button>
                         <button class="icon-btn view" data-action="view" data-id="${s.id}" title="View details"><i class="fas fa-eye"></i></button>
                         <button class="icon-btn edit" data-action="edit" data-id="${s.id}" title="Edit schedule"><i class="fas fa-pen"></i></button>
                         <button class="icon-btn delete" data-action="delete" data-id="${s.id}" title="Move to recycle bin"><i class="fas fa-trash-alt"></i></button>
@@ -1137,6 +1198,17 @@
                 if (cb.checked) dayListSelection.add(id);
                 else dayListSelection.delete(id);
                 updateDayListBulkUI();
+            });
+        });
+
+        dayScheduleList.querySelectorAll('[data-status-trigger]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const dateKey = btn.dataset.date;
+                const id = btn.dataset.id;
+                const current = btn.dataset.current;
+                if (!dateKey || !id) return;
+                openStatusPicker(btn, dateKey, id, current);
             });
         });
 
@@ -1322,7 +1394,6 @@
         scheduleTitle.value = '';
         scheduleDescription.value = '';
         resetTypeButtons(null);
-        resetStatusButtons('process');
         updateCharCounter();
 
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
@@ -1349,7 +1420,6 @@
         scheduleTitle.value = schedule.title;
         scheduleDescription.value = schedule.description || '';
         resetTypeButtons(schedule.type || null);
-        resetStatusButtons(schedule.status || 'process');
         updateCharCounter();
 
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
@@ -1363,7 +1433,6 @@
         selectedDateKey = null;
         pendingSave = null;
         formType = { base: null, custom: '' };
-        formStatus = 'process';
         customTypeInput.style.display = 'none';
         customTypeInput.value = '';
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
@@ -1419,11 +1488,6 @@
         const dateKey = selectedDateKey;
         if (!dateKey) return;
 
-        if (formStatus === 'priority' && getUrgencyLevel(dateKey) === 'overdue') {
-            formStatus = 'process';
-            resetStatusButtons('process');
-        }
-
         if (editingScheduleId) {
             const daySchedules = schedules[dateKey] || [];
             const original = daySchedules.find(s => s.id === editingScheduleId);
@@ -1432,9 +1496,8 @@
             const sameTitle = original.title === title;
             const sameDesc = (original.description || '') === description;
             const sameType = (original.type || '') === resolvedType;
-            const sameStatus = normalizeStatus(original.status) === formStatus;
 
-            if (sameTitle && sameDesc && sameType && sameStatus) {
+            if (sameTitle && sameDesc && sameType) {
                 closeFormModal();
                 return;
             }
@@ -1449,7 +1512,12 @@
                     type: original.type || '',
                     status: normalizeStatus(original.status)
                 },
-                newData: { title, description, type: resolvedType, status: formStatus }
+                newData: {
+                    title,
+                    description,
+                    type: resolvedType,
+                    status: normalizeStatus(original.status)
+                }
             };
         } else {
             pendingSave = {
@@ -1457,7 +1525,12 @@
                 dateKey,
                 id: null,
                 oldData: null,
-                newData: { title, description, type: resolvedType, status: formStatus }
+                newData: {
+                    title,
+                    description,
+                    type: resolvedType,
+                    status: 'process'
+                }
             };
         }
 
@@ -1492,7 +1565,6 @@
             const titleChanged = oldData.title !== newData.title;
             const descChanged = (oldData.description || '') !== (newData.description || '');
             const typeChanged = (oldData.type || '') !== (newData.type || '');
-            const statusChanged = (oldData.status || 'process') !== newData.status;
 
             html += `
                 <div class="review-block">
@@ -1504,10 +1576,6 @@
                     <div class="review-field">
                         <div class="review-field-name">Type${typeChanged ? ' — edited' : ''}</div>
                         <div class="review-value ${typeChanged ? 'old' : 'same'} ${oldData.type ? '' : 'empty'}">${oldData.type ? escapeHtml(oldData.type) : 'No type'}</div>
-                    </div>
-                    <div class="review-field">
-                        <div class="review-field-name">Status${statusChanged ? ' — edited' : ''}</div>
-                        <div class="review-value ${statusChanged ? 'old' : 'same'}">${escapeHtml(getStatusLabel(oldData.status || 'process'))}</div>
                     </div>
                     <div class="review-field">
                         <div class="review-field-name">Description${descChanged ? ' — edited' : ''}</div>
@@ -1528,10 +1596,6 @@
                         <div class="review-value ${typeChanged ? 'new' : 'same'} ${newData.type ? '' : 'empty'}">${newData.type ? escapeHtml(newData.type) : 'No type'}</div>
                     </div>
                     <div class="review-field">
-                        <div class="review-field-name">Status${statusChanged ? ' — changed' : ' — unchanged'}</div>
-                        <div class="review-value ${statusChanged ? 'new' : 'same'}">${escapeHtml(getStatusLabel(newData.status))}</div>
-                    </div>
-                    <div class="review-field">
                         <div class="review-field-name">Description${descChanged ? ' — changed' : ' — unchanged'}</div>
                         <div class="review-value ${descChanged ? 'new' : 'same'} ${newData.description ? '' : 'empty'}">${newData.description ? escapeHtml(newData.description) : 'No description'}</div>
                     </div>
@@ -1548,10 +1612,6 @@
                     <div class="review-field">
                         <div class="review-field-name">Type</div>
                         <div class="review-value new">${escapeHtml(newData.type)}</div>
-                    </div>
-                    <div class="review-field">
-                        <div class="review-field-name">Status</div>
-                        <div class="review-value new">${escapeHtml(getStatusLabel(newData.status))}</div>
                     </div>
                     <div class="review-field">
                         <div class="review-field-name">Description</div>
@@ -1591,7 +1651,6 @@
         scheduleTitle.value = pendingSave.newData.title;
         scheduleDescription.value = pendingSave.newData.description;
         resetTypeButtons(pendingSave.newData.type);
-        resetStatusButtons(pendingSave.newData.status);
         updateCharCounter();
 
         modalOverlay.classList.add('active');
@@ -1639,7 +1698,6 @@
         selectedDateKey = null;
         pendingSave = null;
         formType = { base: null, custom: '' };
-        formStatus = 'process';
 
         if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) renderDayScheduleList();
         if (historyOverlay.classList.contains('active')) renderHistory();
@@ -1812,7 +1870,7 @@
                 <div class="history-schedule-item">
                     <div class="hs-accent"></div>
                     <div class="hs-body">
-                        <div class="hs-title"><i class="fas ${stIcon} schedule-status-icon ${st}" style="margin-right:6px;"></i>${escapeHtml(s.title)}</div>
+                        <div class="hs-title"><i class="fas ${stIcon} schedule-status-icon ${st}" style="margin-right:6px;"></i><span class="schedule-title-highlight ${st}">${escapeHtml(s.title)}</span></div>
                         ${s.type ? renderTypeBadge(s.type) : ''}
                         ${statusPill}
                         ${s.description ? `<div class="hs-desc">${escapeHtml(s.description)}</div>` : ''}
@@ -2386,7 +2444,7 @@
     });
 
     // ============================================================
-    // IMPORT (with in-preview Cancel + Confirm)
+    // IMPORT
     // ============================================================
     const importOverlay = document.getElementById('importOverlay');
     const importStatus = document.getElementById('importStatus');
@@ -2403,7 +2461,6 @@
 
     let importParsedRows = null;
 
-    // Open modal: full reset
     function openImportModal() {
         importParsedRows = null;
         importExcelInput.value = '';
@@ -2415,7 +2472,6 @@
         importOverlay.classList.add('active');
     }
 
-    // Cancel: closes AND fully wipes file + status + parsed rows
     function closeImportModal() {
         importOverlay.classList.remove('active');
         importParsedRows = null;
@@ -2427,7 +2483,6 @@
         importConfirmBtn.disabled = true;
     }
 
-    // Import (confirm): only runs if a valid file has been loaded
     function commitImport() {
         if (!importParsedRows || importParsedRows.length === 0) return;
 
@@ -2914,7 +2969,6 @@
                 reopenHistoryAfterEdit = false;
                 pendingSave = null;
                 formType = { base: null, custom: '' };
-                formStatus = 'process';
                 historySort = { kind: 'date-created', order: 'desc' };
                 trashSort = { kind: 'date-created', order: 'desc' };
                 viewContext = { kind: 'schedule', trashId: null };
@@ -2930,6 +2984,7 @@
                 settingsOverlay.classList.remove('active');
                 validationOverlay.classList.remove('active');
                 closeSortPopovers();
+                closeStatusPopup();
 
                 renderCalendar();
                 renderNotifications();
@@ -3036,6 +3091,7 @@
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            if (openStatusPopup) { closeStatusPopup(); return; }
             if (notifPanel && notifPanel.classList.contains('open')) { closeNotifPanel(); return; }
             if (validationOverlay.classList.contains('active')) { closeValidationModal(); return; }
             if (confirmOverlay.classList.contains('active')) { closeConfirmModal(); return; }
