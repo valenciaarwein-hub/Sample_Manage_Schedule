@@ -175,7 +175,7 @@ body {
     text-overflow: ellipsis;
     border-left: 3px solid #3b82f6;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -2301,7 +2301,6 @@ body {
     font-weight: 600;
 }
 
-/* Action buttons INSIDE the import preview panel */
 .import-preview-actions {
     display: flex;
     justify-content: flex-end;
@@ -2328,7 +2327,7 @@ body {
 }
 
 /* ============================================================
-   SCHEDULE TITLE HIGHLIGHT (status colors on title only)
+   SCHEDULE ITEM STATUS BORDERS (all rounded, match pill shape)
    ============================================================ */
 .schedule-title-highlight {
     display: inline-block;
@@ -2337,8 +2336,86 @@ body {
     line-height: 1.35;
 }
 
+/* Base pill — explicit rounded corners for all statuses */
+.schedule-item {
+    border-radius: 8px;
+}
+
+/* ── PROCESS (default): neutral rounded border, no glow ── */
+.schedule-item.status-process {
+    background: #f1f5f9;
+    border: 1.5px solid #cbd5e1;
+    border-left: 1.5px solid #cbd5e1;
+    box-shadow: none;
+    padding: 3px 5px;
+}
+
+.schedule-item.status-process .schedule-status-icon {
+    color: #64748b;
+}
+.schedule-item.status-process .schedule-title-highlight {
+    background: transparent;
+    color: #1e293b;
+    font-weight: 500;
+    padding: 0;
+}
+
+/* Overdue (still Process): red tint on icon only */
+.schedule-item.status-overdue {
+    background: #fef2f2;
+    border: 1.5px solid #fca5a5;
+    border-left: 1.5px solid #fca5a5;
+    box-shadow: none;
+    padding: 3px 5px;
+}
+.schedule-item.status-overdue .schedule-status-icon { color: #dc2626; }
+.schedule-item.status-overdue .schedule-title-highlight {
+    background: transparent;
+    color: #1e293b;
+    font-weight: 500;
+    padding: 0;
+}
+
+/* Urgent (still Process): amber tint on icon only */
+.schedule-item.status-urgent {
+    background: #fefce8;
+    border: 1.5px solid #fde047;
+    border-left: 1.5px solid #fde047;
+    box-shadow: none;
+    padding: 3px 5px;
+}
+.schedule-item.status-urgent .schedule-status-icon { color: #ca8a04; }
+.schedule-item.status-urgent .schedule-title-highlight {
+    background: transparent;
+    color: #1e293b;
+    font-weight: 500;
+    padding: 0;
+}
+
+/* Upcoming (still Process): green tint on icon only */
+.schedule-item.status-upcoming {
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    border-left: 1.5px solid #86efac;
+    box-shadow: none;
+    padding: 3px 5px;
+}
+.schedule-item.status-upcoming .schedule-status-icon { color: #16a34a; }
+.schedule-item.status-upcoming .schedule-title-highlight {
+    background: transparent;
+    color: #1e293b;
+    font-weight: 500;
+    padding: 0;
+}
+
+/* ── DONE: green rounded border + soft green glow ── */
 .schedule-item.status-done {
-    border-left-color: #16a34a;
+    background: #f0fdf4;
+    border: 1.5px solid #22c55e;
+    border-left: 1.5px solid #22c55e;
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2),
+                0 0 8px 1px rgba(34, 197, 94, 0.5);
+    padding: 3px 5px;
 }
 .schedule-item.status-done .schedule-status-icon { color: #16a34a; }
 .schedule-item.status-done .schedule-title-highlight {
@@ -2347,22 +2424,21 @@ body {
     text-decoration: line-through;
     text-decoration-color: rgba(22, 163, 74, 0.55);
     font-weight: 600;
+    padding: 1px 5px;
 }
 
-/* Priority: full yellow border + soft glow (no title highlight) */
+/* ── PRIORITY: #FFEB3B rounded border + soft yellow glow ── */
 .schedule-item.status-priority {
-    background: #f1f5f9;
-    border: 1.5px solid #facc15;
-    border-left: 1.5px solid #facc15;
-    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.25),
-                0 0 8px 1px rgba(250, 204, 21, 0.55);
+    background: #fefce8;
+    border: 1.5px solid #FFEB3B;
+    border-left: 1.5px solid #FFEB3B;
+    box-shadow: 0 0 0 1px rgba(255, 235, 59, 0.3),
+                0 0 8px 1px rgba(255, 235, 59, 0.65);
     padding: 3px 5px;
 }
-
 .schedule-item.status-priority .schedule-status-icon {
-    color: #eab308;
+    color: #FFEB3B;
 }
-
 .schedule-item.status-priority .schedule-title-highlight {
     background: transparent;
     color: #1e293b;
@@ -2370,11 +2446,7 @@ body {
     padding: 0;
 }
 
-.schedule-item.status-overdue .schedule-status-icon { color: #dc2626; }
-.schedule-item.status-urgent .schedule-status-icon { color: #ca8a04; }
-.schedule-item.status-upcoming .schedule-status-icon { color: #16a34a; }
-.schedule-item.status-process .schedule-status-icon { color: #94a3b8; }
-
+/* Day-list card variants */
 .day-schedule-card.status-done .card-title .schedule-title-highlight {
     background: #dcfce7;
     color: #14532d;
@@ -2388,6 +2460,7 @@ body {
     font-weight: 700;
 }
 
+/* History variants */
 .history-schedule-item .hs-title .schedule-title-highlight.done {
     background: #dcfce7;
     color: #14532d;
