@@ -14,15 +14,61 @@
     const TYPE_OPTIONS = ['Meeting', 'Seminar', 'Special Event', 'Other'];
 
     // ============================================================
-    // API HELPERS
+    // SUPABASE HELPERS
+    // ============================================================
+    function getSupabase() {
+        if (!window.supabaseClient) {
+            throw new Error('Supabase client not initialized. Check your credentials in index.html.');
+        }
+        return window.supabaseClient;
+    }
+
+    // ============================================================
+    // API HELPERS (Supabase-backed)
     // ============================================================
     async function loadFromApi(showErrors) {
         try {
-            const res = await fetch('/api/schedules', { cache: 'no-store' });
-            if (!res.ok) throw new Error('Load failed (' + res.status + ')');
-            const data = await res.json();
-            schedules = (data && typeof data.schedules === 'object' && data.schedules) ? data.schedules : {};
-            trash = Array.isArray(data && data.trash) ? data.trash : [];
+            const supabase = getSupabase();
+
+            // Fetch active (non-deleted) schedules
+            const { data: activeData, error: activeError } = await supabase
+                .from('schedules')
+                .select('*')
+                .is('deleted_at', null);
+
+            if (activeError) throw activeError;
+
+            // Rebuild schedules object { "YYYY-MM-DD": [ ... ] }
+            schedules = {};
+            (activeData || []).forEach(item => {
+                if (!schedules[item.date_key]) schedules[item.date_key] = [];
+                schedules[item.date_key].push({
+                    id: item.id,
+                    title: item.title,
+                    description: item.description || '',
+                    type: item.type || '',
+                    createdAt: item.created_at
+                });
+            });
+
+            // Fetch trash (deleted items)
+            const { data: trashData, error: trashError } = await supabase
+                .from('schedules')
+                .select('*')
+                .not('deleted_at', 'is', null);
+
+            if (trashError) throw trashError;
+
+            trash = (trashData || []).map(item => ({
+                id: item.id,
+                title: item.title,
+                description: item.description || '',
+                type: item.type || '',
+                dateKey: item.date_key,
+                createdAt: item.created_at,
+                deletedAt: item.deleted_at
+            }));
+
             isLoaded = true;
             renderCalendar();
             if (historyOverlay && historyOverlay.classList.contains('active')) renderHistory();
@@ -33,7 +79,7 @@
         } catch (err) {
             console.error('Load error:', err);
             isLoaded = true;
-            if (showErrors) alert('Could not load schedules from the database.');
+            if (showErrors) alert('Could not load schedules from Supabase: ' + err.message);
             renderCalendar();
         }
     }
@@ -44,6 +90,8 @@
         saveTimer = setTimeout(pushToApi, 400);
     }
 
+    // Syncs the in-memory state to Supabase using targeted CRUD.
+    // Strategy: upsert everything that exists + delete rows that were removed.
     async function pushToApi() {
         if (savingInFlight) {
             scheduleSave();
@@ -51,15 +99,64 @@
         }
         savingInFlight = true;
         try {
-            const res = await fetch('/api/schedules', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ schedules, trash })
+            const supabase = getSupabase();
+
+            // Build the full set of rows that *should* exist
+            const allRows = [];
+            Object.keys(schedules).forEach(dateKey => {
+                (schedules[dateKey] || []).forEach(s => {
+                    allRows.push({
+                        id: s.id,
+                        date_key: dateKey,
+                        title: s.title,
+                        description: s.description || '',
+                        type: s.type || '',
+                        created_at: s.createdAt || new Date().toISOString(),
+                        updated_at: s.updatedAt || null,
+                        deleted_at: null
+                    });
+                });
             });
-            if (!res.ok) throw new Error('Save failed (' + res.status + ')');
+            trash.forEach(t => {
+                allRows.push({
+                    id: t.id,
+                    date_key: t.dateKey,
+                    title: t.title,
+                    description: t.description || '',
+                    type: t.type || '',
+                    created_at: t.createdAt || new Date().toISOString(),
+                    updated_at: null,
+                    deleted_at: t.deletedAt || new Date().toISOString()
+                });
+            });
+
+            // 1. UPSERT all current rows
+            if (allRows.length > 0) {
+                const { error: upsertError } = await supabase
+                    .from('schedules')
+                    .upsert(allRows, { onConflict: 'id' });
+                if (upsertError) throw upsertError;
+            }
+
+            // 2. DELETE rows that no longer exist in memory
+            const currentIds = allRows.map(r => r.id);
+            if (currentIds.length > 0) {
+                const { error: delError } = await supabase
+                    .from('schedules')
+                    .delete()
+                    .not('id', 'in', `(${currentIds.map(id => `"${id}"`).join(',')})`);
+                if (delError) throw delError;
+            } else {
+                // Nothing in memory → wipe all rows
+                const { error: delAllError } = await supabase
+                    .from('schedules')
+                    .delete()
+                    .neq('id', '');
+                if (delAllError) throw delAllError;
+            }
         } catch (err) {
             console.error('Save error:', err);
-            alert('Could not save to the database. Your change may not persist.');
+            alert('Could not save to Supabase. Your change may not persist.\n\n' + err.message);
         } finally {
             savingInFlight = false;
         }
@@ -67,11 +164,15 @@
 
     async function clearRemote() {
         try {
-            const res = await fetch('/api/schedules', { method: 'DELETE' });
-            if (!res.ok) throw new Error('Clear failed');
+            const supabase = getSupabase();
+            const { error } = await supabase
+                .from('schedules')
+                .delete()
+                .neq('id', '');
+            if (error) throw error;
         } catch (err) {
             console.error('Clear error:', err);
-            alert('Could not clear the database.');
+            alert('Could not clear the database: ' + err.message);
         }
     }
 
@@ -2027,10 +2128,24 @@
     // ============================================================
     // BOOT
     // ============================================================
-    renderCalendar();
-    loadFromApi(true);
+    // Wait for Supabase to be initialized by the inline module script in index.html
+    function boot() {
+        renderCalendar();
+        loadFromApi(true);
 
-    setInterval(() => {
-        if (!savingInFlight && !document.hidden) loadFromApi(false);
-    }, 30000);
+        // Auto-refresh every 30s (in case changes were made from another device)
+        setInterval(() => {
+            if (!savingInFlight && !document.hidden) loadFromApi(false);
+        }, 30000);
+    }
+
+    if (window.supabaseReady && window.supabaseClient) {
+        boot();
+    } else {
+        window.addEventListener('supabase-ready', boot, { once: true });
+        // Fallback in case the event fired before this script ran
+        setTimeout(() => {
+            if (window.supabaseClient && !isLoaded) boot();
+        }, 500);
+    }
 })();
