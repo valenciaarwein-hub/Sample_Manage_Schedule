@@ -2349,14 +2349,25 @@ body {
     font-weight: 600;
 }
 
+/* Priority: full yellow border + soft glow (no title highlight) */
 .schedule-item.status-priority {
-    border-left-color: #ca8a04;
+    background: #f1f5f9;
+    border: 1.5px solid #facc15;
+    border-left: 1.5px solid #facc15;
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.25),
+                0 0 8px 1px rgba(250, 204, 21, 0.55);
+    padding: 3px 5px;
 }
-.schedule-item.status-priority .schedule-status-icon { color: #ca8a04; }
+
+.schedule-item.status-priority .schedule-status-icon {
+    color: #eab308;
+}
+
 .schedule-item.status-priority .schedule-title-highlight {
-    background: #fef08a;
-    color: #713f12;
-    font-weight: 700;
+    background: transparent;
+    color: #1e293b;
+    font-weight: 600;
+    padding: 0;
 }
 
 .schedule-item.status-overdue .schedule-status-icon { color: #dc2626; }
@@ -2430,8 +2441,8 @@ body {
 }
 
 .status-icon-btn.priority {
-    background: #fef08a;
-    color: #ca8a04;
+    background: #fef9c3;
+    color: #FFEB3B;
     box-shadow: inset 0 0 0 1.5px #fde047;
 }
 
@@ -2489,7 +2500,7 @@ body {
 
 .status-popup-option[data-pick="process"]:hover > i:first-child { color: #64748b; }
 .status-popup-option[data-pick="done"]:hover > i:first-child { color: #16a34a; }
-.status-popup-option[data-pick="priority"]:hover > i:first-child { color: #ca8a04; }
+.status-popup-option[data-pick="priority"]:hover > i:first-child { color: #FFEB3B; }
 
 .status-popup-option span {
     flex: 1;
@@ -2532,7 +2543,7 @@ body {
 }
 .status-popup-option.selected[data-pick="priority"] .status-popup-check,
 .status-popup-option.selected[data-pick="priority"] > i:first-child {
-    color: #ca8a04;
+    color: #FFEB3B;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -2718,6 +2729,8 @@ body {
     .import-preview-actions .btn { padding: 6px 12px; font-size: 0.72rem; }
     .status-icon-btn { width: 30px; height: 30px; font-size: 0.78rem; margin-right: 2px; }
     .day-schedule-card .card-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+    .status-popup { width: 160px !important; }
+    .status-popup-option { font-size: 0.78rem; padding: 8px 10px; }
 }
 
 @media (max-width: 380px) {
