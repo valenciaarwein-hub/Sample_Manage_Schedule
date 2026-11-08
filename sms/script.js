@@ -405,6 +405,7 @@
     const historyOverlay = document.getElementById('historyOverlay');
     const historySearch = document.getElementById('historySearch');
     const historyYearFilter = document.getElementById('historyYearFilter');
+    const historyMonthFilter = document.getElementById('historyMonthFilter');
     const historySortBtn = document.getElementById('historySortBtn');
     const historySortPopover = document.getElementById('historySortPopover');
     const historyStats = document.getElementById('historyStats');
@@ -1803,10 +1804,13 @@
 
     function populateHistoryYearFilter() {
         const years = new Set();
+        years.add(new Date().getFullYear());
+
         Object.keys(schedules).forEach(dateKey => {
             const y = dateKey.split('-')[0];
             if (y) years.add(parseInt(y, 10));
         });
+
         const sorted = Array.from(years).sort((a, b) => b - a);
         const currentVal = historyYearFilter.value;
         historyYearFilter.innerHTML = '<option value="all">All Years</option>';
@@ -1830,21 +1834,61 @@
 
         const query = historySearch.value.trim().toLowerCase();
         const yearFilter = historyYearFilter.value;
+        const monthFilter = historyMonthFilter.value;
+
+        // Default scope: current year + current month (when both filters are "all")
+        const now = new Date();
+        const currentYearStr = String(now.getFullYear());
+        const currentMonthStr = String(now.getMonth() + 1).padStart(2, '0');
 
         let filtered = all;
-        if (query) filtered = filtered.filter(s =>
-            s.title.toLowerCase().includes(query) || (s.description || '').toLowerCase().includes(query));
-        if (yearFilter !== 'all') filtered = filtered.filter(s => s.dateKey.startsWith(yearFilter + '-'));
+
+        if (yearFilter === 'all' && monthFilter === 'all') {
+            const currentPrefix = `${currentYearStr}-${currentMonthStr}`;
+            filtered = filtered.filter(s => s.dateKey.startsWith(currentPrefix));
+        } else {
+            if (yearFilter !== 'all') {
+                filtered = filtered.filter(s => s.dateKey.startsWith(yearFilter + '-'));
+            }
+            if (monthFilter !== 'all') {
+                const mm = String(monthFilter).padStart(2, '0');
+                filtered = filtered.filter(s => s.dateKey.slice(5, 7) === mm);
+            }
+        }
+
+        if (query) {
+            filtered = filtered.filter(s =>
+                s.title.toLowerCase().includes(query) ||
+                (s.description || '').toLowerCase().includes(query)
+            );
+        }
 
         filtered = applySort(filtered, historySort);
         updateSortIcon(historySortBtn, historySort);
         syncSortPopover(historySortPopover, historySort);
 
         if (filtered.length === 0) {
+            let emptyLabel = 'No schedules found';
+
+            if (yearFilter === 'all' && monthFilter === 'all' && !query) {
+                emptyLabel = `No schedules this month (${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })})`;
+            } else if (query) {
+                emptyLabel = 'No schedules match your search';
+            } else {
+                const yearLabel = yearFilter === 'all' ? 'any year' : yearFilter;
+                const monthLabel = monthFilter === 'all'
+                    ? 'any month'
+                    : monthNames[parseInt(monthFilter, 10) - 1];
+                emptyLabel = `No schedules for ${monthLabel}${yearFilter === 'all' ? '' : ' ' + yearLabel}`;
+            }
+
             historyList.innerHTML = `
                 <div class="history-empty">
                     <i class="fas fa-folder-open"></i>
-                    No schedules found${query || yearFilter !== 'all' ? ' matching your filters' : ' yet'}.
+                    ${escapeHtml(emptyLabel)}.<br>
+                    <span style="font-size:0.72rem; color:#cbd5e1; margin-top:4px; display:inline-block;">
+                        Try choosing a different year or month.
+                    </span>
                 </div>
             `;
             clearAllHistoryBtn.style.display = all.length > 0 ? 'inline-flex' : 'none';
@@ -1909,7 +1953,12 @@
 
     function openHistoryModal() {
         historySearch.value = '';
-        historyYearFilter.value = 'all';
+
+        // Default: current year + current month
+        const now = new Date();
+        historyYearFilter.value = String(now.getFullYear());
+        historyMonthFilter.value = String(now.getMonth() + 1);
+
         renderHistory();
         historyOverlay.classList.add('active');
     }
@@ -2455,6 +2504,17 @@
     const importCancelBtn = document.getElementById('importCancelBtn');
     const importConfirmBtn = document.getElementById('importConfirmBtn');
 
+    const importSuccessOverlay = document.getElementById('importSuccessOverlay');
+    const importSuccessIcon = document.getElementById('importSuccessIcon');
+    const importSuccessTitle = document.getElementById('importSuccessTitle');
+    const importSuccessMessage = document.getElementById('importSuccessMessage');
+    const importSuccessCount = document.getElementById('importSuccessCount');
+    const importSuccessCountLabel = document.getElementById('importSuccessCountLabel');
+    const importSuccessDates = document.getElementById('importSuccessDates');
+    const importSuccessDatesList = document.getElementById('importSuccessDatesList');
+    const importSuccessCloseBtn = document.getElementById('importSuccessCloseBtn');
+    const importSuccessViewBtn = document.getElementById('importSuccessViewBtn');
+
     const IMPORT_REQUIRED_HEADERS = ['Month', 'Day', 'Year', 'Title', 'Type', 'Status', 'Description'];
     const IMPORT_MAX_TITLE_LEN = 60;
     const IMPORT_MAX_DESC_LEN = 200;
@@ -2488,6 +2548,7 @@
 
         let added = 0;
         const now = new Date().toISOString();
+        const perDateCounts = {};
 
         importParsedRows.forEach(r => {
             const dateKey = r.dateKey;
@@ -2501,6 +2562,7 @@
                 createdAt: now
             });
             added++;
+            perDateCounts[dateKey] = (perDateCounts[dateKey] || 0) + 1;
         });
 
         scheduleSave();
@@ -2509,9 +2571,66 @@
         if (historyOverlay.classList.contains('active')) renderHistory();
 
         closeImportModal();
-        setTimeout(() => {
-            alert(`Successfully imported ${added} schedule${added === 1 ? '' : 's'}.`);
-        }, 100);
+        showImportSuccessModal(added, perDateCounts);
+    }
+
+    function showImportSuccessModal(added, perDateCounts) {
+        importSuccessCount.textContent = String(added);
+        importSuccessCountLabel.textContent = added === 1 ? 'schedule added' : 'schedules added';
+
+        importSuccessMessage.textContent = added === 1
+            ? 'Your schedule was imported successfully and is now on your calendar.'
+            : `All ${added} schedules were imported successfully and are now on your calendar.`;
+
+        const dateKeys = Object.keys(perDateCounts).sort();
+        if (dateKeys.length > 0) {
+            importSuccessDates.style.display = 'block';
+            importSuccessDatesList.innerHTML = dateKeys.map(dateKey => {
+                const d = getDateFromKey(dateKey);
+                const label = d.toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                });
+                const count = perDateCounts[dateKey];
+                return `
+                    <li>
+                        <span class="succ-date">${escapeHtml(label)}</span>
+                        <span class="succ-count">${count} schedule${count === 1 ? '' : 's'}</span>
+                    </li>
+                `;
+            }).join('');
+        } else {
+            importSuccessDates.style.display = 'none';
+            importSuccessDatesList.innerHTML = '';
+        }
+
+        importSuccessViewBtn.dataset.firstDate = dateKeys[0] || '';
+        importSuccessOverlay.classList.add('active');
+    }
+
+    function closeImportSuccessModal() {
+        importSuccessOverlay.classList.remove('active');
+    }
+
+    if (!importSuccessCloseBtn.dataset.wired) {
+        importSuccessCloseBtn.dataset.wired = '1';
+
+        importSuccessCloseBtn.addEventListener('click', closeImportSuccessModal);
+
+        importSuccessViewBtn.addEventListener('click', () => {
+            const dateKey = importSuccessViewBtn.dataset.firstDate;
+            closeImportSuccessModal();
+            if (dateKey) {
+                const d = getDateFromKey(dateKey);
+                currentYear = d.getFullYear();
+                currentMonth = d.getMonth();
+                renderCalendar();
+                setTimeout(() => openDayListModal(dateKey), 120);
+            }
+        });
+
+        importSuccessOverlay.addEventListener('click', (e) => {
+            if (e.target === importSuccessOverlay) closeImportSuccessModal();
+        });
     }
 
     function downloadImportTemplate() {
@@ -3087,11 +3206,13 @@
     });
     historySearch.addEventListener('input', renderHistory);
     historyYearFilter.addEventListener('change', renderHistory);
+    historyMonthFilter.addEventListener('change', renderHistory);
     clearAllHistoryBtn.addEventListener('click', clearAllHistory);
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (openStatusPopup) { closeStatusPopup(); return; }
+            if (importSuccessOverlay.classList.contains('active')) { closeImportSuccessModal(); return; }
             if (notifPanel && notifPanel.classList.contains('open')) { closeNotifPanel(); return; }
             if (validationOverlay.classList.contains('active')) { closeValidationModal(); return; }
             if (confirmOverlay.classList.contains('active')) { closeConfirmModal(); return; }
