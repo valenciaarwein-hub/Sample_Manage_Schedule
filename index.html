@@ -357,6 +357,14 @@
                 </div>
                 <i class="fas fa-chevron-right settings-item-arrow"></i>
             </button>
+            <button class="settings-item" id="clearImportHistoryBtn">
+                <div class="settings-item-icon import"><i class="fas fa-file-import"></i></div>
+                <div class="settings-item-body">
+                    <div class="settings-item-title">Reset Import History</div>
+                    <div class="settings-item-desc">Allow the same Excel file to be imported again</div>
+                </div>
+                <i class="fas fa-chevron-right settings-item-arrow"></i>
+            </button>
             <button class="settings-item" id="logoutBtn">
                 <div class="settings-item-icon logout"><i class="fas fa-sign-out-alt"></i></div>
                 <div class="settings-item-body">
@@ -527,9 +535,10 @@
                     <li><i class="fas fa-check-circle"></i> <strong>Year</strong> — 4-digit, e.g. <code>2025</code></li>
                     <li><i class="fas fa-check-circle"></i> <strong>Title</strong> is required (max 60 characters)</li>
                     <li><i class="fas fa-check-circle"></i> <strong>Type</strong> — any text (e.g. Meeting, Seminar, Special Event)</li>
-                    <li><i class="fas fa-check-circle"></i> <strong>Status</strong> — <code>Process</code>, <code>Done</code>, or <code>Priority</code> (defaults to Process)</li>
+                    <li><i class="fas fa-check-circle"></i> <strong>Status</strong> — <code>Upcoming</code>, <code>Done</code>, or <code>Priority</code> (defaults to Upcoming)</li>
                     <li><i class="fas fa-check-circle"></i> <strong>Description</strong> is required (max 200 characters)</li>
                     <li><i class="fas fa-exclamation-triangle"></i> If <strong>any</strong> row is invalid, the entire file is rejected and nothing is imported.</li>
+                    <li><i class="fas fa-exclamation-triangle"></i> <strong>Duplicate files</strong> are blocked — the same file can only be imported once. Use <em>Settings → Reset Import History</em> to allow re-importing.</li>
                 </ul>
             </div>
 
