@@ -80,15 +80,10 @@
         return nowPH.totalMinutes > range.endMin;
     }
 
-    /**
-     * Called when the user opens a past day in the calendar.
-     * Marks all un-done schedules on that day as late (persisted).
-     */
     function autoMarkPastDayAsLate(dateKey) {
         const nowPH = getNowPH();
         const list = schedules[dateKey] || [];
         if (list.length === 0) return false;
-
         if (dateKey >= nowPH.dateKey) return false;
 
         let changed = false;
@@ -188,10 +183,12 @@
     }
 
     // ============================================================
-    // RECENT IMPORT HISTORY
+    // RECENT IMPORT HISTORY (with max cap + page state)
     // ============================================================
     const RECENT_IMPORTS_KEY = 'skedo_recent_imports_v1';
     const RECENT_IMPORTS_MAX = 10;
+    const RECENT_IMPORTS_PAGE_SIZE = 2;
+    let recentImportsPage = 0;
 
     function loadRecentImports() {
         try {
@@ -213,7 +210,8 @@
             count: Number(count) || 0,
             importedAt: new Date().toISOString()
         });
-        saveRecentImports(list);
+        saveRecentImports(list.slice(0, RECENT_IMPORTS_MAX));
+        recentImportsPage = 0;
         renderRecentImports();
     }
 
@@ -382,6 +380,9 @@
         }
     }
 
+    // ============================================================
+    // HELPERS
+    // ============================================================
     function uid() {
         return 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
     }
@@ -470,7 +471,7 @@
     function getUrgencyLevel(dateKey) {
         const diff = daysUntil(dateKey);
         if (diff < 0) return 'overdue';
-        if (diff <= 2) return 'urgent';
+        if (diff <= 3) return 'urgent';
         return 'upcoming';
     }
 
@@ -799,7 +800,7 @@
             renderDropdown();
         });
 
-        // DROPDOWN AUTO-FILL (mousedown preventDefault + rAF close)
+        // DROPDOWN AUTO-FILL — mousedown preventDefault + rAF close
         dropdown.querySelectorAll('.time-option').forEach(btn => {
             btn.addEventListener('mousedown', (e) => {
                 e.preventDefault();
@@ -1403,13 +1404,17 @@
     }
 
     // ============================================================
-    // RECENT IMPORTS RENDERER
+    // RECENT IMPORTS RENDERER (with pagination)
     // ============================================================
     function renderRecentImports() {
         const body = document.getElementById('recentImportsBody');
         const empty = document.getElementById('recentImportsEmpty');
         const tableWrap = document.querySelector('.recent-imports-table-wrap');
         const clearBtn = document.getElementById('clearRecentImportsBtn');
+        const pager = document.getElementById('recentImportsPager');
+        const pagerDots = document.getElementById('riPagerDots');
+        const prevBtn = document.getElementById('riPrevBtn');
+        const nextBtn = document.getElementById('riNextBtn');
         if (!body || !empty) return;
 
         const list = loadRecentImports();
@@ -1419,6 +1424,8 @@
             empty.style.display = 'block';
             if (tableWrap) tableWrap.style.display = 'none';
             if (clearBtn) clearBtn.style.display = 'none';
+            if (pager) pager.style.display = 'none';
+            recentImportsPage = 0;
             return;
         }
 
@@ -1426,7 +1433,14 @@
         if (tableWrap) tableWrap.style.display = '';
         if (clearBtn) clearBtn.style.display = '';
 
-        const rowsHtml = list.map(item => {
+        const totalPages = Math.ceil(list.length / RECENT_IMPORTS_PAGE_SIZE);
+        if (recentImportsPage >= totalPages) recentImportsPage = totalPages - 1;
+        if (recentImportsPage < 0) recentImportsPage = 0;
+
+        const start = recentImportsPage * RECENT_IMPORTS_PAGE_SIZE;
+        const slice = list.slice(start, start + RECENT_IMPORTS_PAGE_SIZE);
+
+        const rowsHtml = slice.map(item => {
             const date = new Date(item.importedAt);
             const dateLabel = isNaN(date.getTime())
                 ? '—'
@@ -1460,6 +1474,42 @@
         }).join('');
 
         body.innerHTML = rowsHtml;
+
+        if (pager && pagerDots && prevBtn && nextBtn) {
+            if (totalPages <= 1) {
+                pager.style.display = 'none';
+            } else {
+                pager.style.display = 'flex';
+                prevBtn.disabled = recentImportsPage === 0;
+                nextBtn.disabled = recentImportsPage === totalPages - 1;
+
+                let dotsHtml = '';
+                for (let i = 0; i < totalPages; i++) {
+                    dotsHtml += `<button type="button" class="ri-pager-dot${i === recentImportsPage ? ' active' : ''}" data-page="${i}" aria-label="Page ${i + 1}"></button>`;
+                }
+                pagerDots.innerHTML = dotsHtml;
+
+                pagerDots.querySelectorAll('.ri-pager-dot').forEach(dot => {
+                    dot.addEventListener('click', () => {
+                        recentImportsPage = parseInt(dot.dataset.page, 10) || 0;
+                        renderRecentImports();
+                    });
+                });
+
+                prevBtn.onclick = () => {
+                    if (recentImportsPage > 0) {
+                        recentImportsPage--;
+                        renderRecentImports();
+                    }
+                };
+                nextBtn.onclick = () => {
+                    if (recentImportsPage < totalPages - 1) {
+                        recentImportsPage++;
+                        renderRecentImports();
+                    }
+                };
+            }
+        }
     }
 
     // ============================================================
@@ -1673,7 +1723,7 @@
     }
 
     // ============================================================
-    // LATE TICKER (detects the moment "today" schedules become late)
+    // LATE TICKER
     // ============================================================
     let lateTicker = null;
     let lastLateSnapshot = '';
@@ -1707,20 +1757,6 @@
         lastLateSnapshot = buildLateSnapshot();
         lateTicker = setInterval(tickLate, 1000);
     }
-
-    // ============================================================
-    // PLACEHOLDER — Part 2 defines these
-    // ============================================================
-    let openStatusPopup = null;
-    function closeStatusPopup() {}
-    function setScheduleStatus() {}
-    function renderDayScheduleList() {}
-    function openDayListModal() {}
-    function openEditFormModal() {}
-    function openViewModal() {}
-    function deleteScheduleFromList() {}
-    function renderHistory() {}
-    function renderTrash() {}
 
     /* === CONTINUE WITH PART 2 === */
      // ============================================================
@@ -1772,14 +1808,14 @@
     // ============================================================
     // STATUS POPUP
     // ============================================================
-    openStatusPopup = null;
+    let openStatusPopup = null;
 
-    closeStatusPopup = function() {
+    function closeStatusPopup() {
         if (openStatusPopup && openStatusPopup.parentNode) {
             openStatusPopup.parentNode.removeChild(openStatusPopup);
         }
         openStatusPopup = null;
-    };
+    }
 
     function openStatusPicker(anchorEl, dateKey, id, currentStatus) {
         closeStatusPopup();
@@ -1844,10 +1880,7 @@
     window.addEventListener('scroll', closeStatusPopup, { passive: true });
     window.addEventListener('resize', closeStatusPopup);
 
-    // ============================================================
-    // SET STATUS
-    // ============================================================
-    setScheduleStatus = function(dateKey, id, newStatus) {
+    function setScheduleStatus(dateKey, id, newStatus) {
         const list = schedules[dateKey] || [];
         const item = list.find(s => s.id === id);
         if (!item) return;
@@ -1877,12 +1910,12 @@
         renderNotifications();
         renderDayScheduleList();
         if (historyOverlay.classList.contains('active')) renderHistory();
-    };
+    }
 
     // ============================================================
     // DAY SCHEDULE LIST
     // ============================================================
-    renderDayScheduleList = function() {
+    function renderDayScheduleList() {
         if (!activeDayListDateKey) return;
         const daySchedules = schedules[activeDayListDateKey] || [];
 
@@ -1994,12 +2027,12 @@
         });
 
         updateDayListBulkUI();
-    };
+    }
 
     // ============================================================
     // DELETE
     // ============================================================
-    deleteScheduleFromList = function(dateKey, id) {
+    function deleteScheduleFromList(dateKey, id) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === id);
         if (!schedule) return;
 
@@ -2029,7 +2062,7 @@
                 if (trashOverlay.classList.contains('active')) renderTrash();
             }
         });
-    };
+    }
 
     function deleteSelectedDaySchedules() {
         if (!activeDayListDateKey || dayListSelection.size === 0) return;
@@ -2069,7 +2102,7 @@
     // ============================================================
     // VIEW MODAL
     // ============================================================
-    openViewModal = function(dateKey, scheduleId, fromHistory = false) {
+    function openViewModal(dateKey, scheduleId, fromHistory = false) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === scheduleId);
         if (!schedule) return;
         reopenHistoryAfterEdit = fromHistory;
@@ -2104,7 +2137,7 @@
         viewStatus.innerHTML = `<span style="color:${stColor}; font-weight:600;"><i class="fas ${finalIcon}"></i> ${finalLabel}</span>`;
 
         viewOverlay.classList.add('active');
-    };
+    }
 
     function openTrashViewModal(trashId) {
         const item = trash.find(t => t.id === trashId);
@@ -2180,7 +2213,7 @@
         scheduleTitle.focus();
     }
 
-    openEditFormModal = function(dateKey, scheduleId, fromHistory = false) {
+    function openEditFormModal(dateKey, scheduleId, fromHistory = false) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === scheduleId);
         if (!schedule) return;
 
@@ -2215,7 +2248,7 @@
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
         modalOverlay.classList.add('active');
         scheduleTitle.focus();
-    };
+    }
 
     function closeFormModal() {
         modalOverlay.classList.remove('active');
@@ -2653,7 +2686,7 @@
         }
     }
 
-    renderHistory = function() {
+    function renderHistory() {
         populateHistoryYearFilter();
 
         const all = getAllSchedulesFlat();
@@ -2778,7 +2811,7 @@
                 else if (action === 'delete') { deleteScheduleFromList(dateKey, id); }
             });
         });
-    };
+    }
 
     function openHistoryModal() {
         historySearch.value = '';
@@ -2859,7 +2892,7 @@
         }
     }
 
-    renderTrash = function() {
+    function renderTrash() {
         const validIds = new Set(trash.map(t => t.id));
         Array.from(trashSelection).forEach(id => {
             if (!validIds.has(id)) trashSelection.delete(id);
@@ -2937,7 +2970,7 @@
         });
 
         updateTrashBulkButtons();
-    };
+    }
 
     function recoverOne(id) {
         const idx = trash.findIndex(t => t.id === id);
@@ -3650,7 +3683,6 @@
         }
 
         const dateKey = `${yearNum}-${String(monthNum).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-
         const lateMarked = lateStr === 'yes' || lateStr === 'true' || lateStr === '1' || lateStr === 'y';
 
         return {
@@ -3684,8 +3716,8 @@
         }
 
         const header = (grid[0] || []).map(h => String(h).trim());
-
         const REQUIRED = ['Month', 'Day', 'Year', 'Title', 'Type', 'Status', 'Description'];
+
         const colIndex = {};
         header.forEach((h, i) => { if (h) colIndex[h] = i; });
 
@@ -4207,6 +4239,7 @@
                 iconClass: 'warning',
                 onConfirm: () => {
                     try { localStorage.removeItem(RECENT_IMPORTS_KEY); } catch {}
+                    recentImportsPage = 0;
                     renderRecentImports();
                 }
             });
