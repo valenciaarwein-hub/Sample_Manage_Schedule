@@ -1,4 +1,7 @@
-/* style.css */
+/* ============================================================
+   SKEDO · style.css  (Part 1 of 2)
+   ============================================================ */
+
 /* ============================================================
    PURE WHITE THEME · Purple accents only
    ============================================================ */
@@ -164,7 +167,6 @@ body {
     pointer-events: none;
 }
 .day-cell.other-month .schedule-item { pointer-events: none; }
-
 .day-cell.today { border: 2px solid #6d28d9; background: #faf5ff; }
 
 .day-header {
@@ -190,7 +192,6 @@ body {
     flex-shrink: 0;
     color: #111827;
 }
-
 .today .day-number { background: #6d28d9; color: white; font-weight: 600; }
 
 .schedule-list {
@@ -319,12 +320,21 @@ body {
 .upcoming-table .col-date { width: 110px; }
 .upcoming-table .col-day { width: 90px; }
 .upcoming-table .col-title { width: 22%; }
+.upcoming-table .col-time { width: 130px; }
 .upcoming-table .col-type { width: 130px; }
+.upcoming-table .col-status { width: 120px; }
 .upcoming-table .col-desc { width: auto; }
 .upcoming-table .col-actions { width: 120px; text-align: right; }
 
 .upcoming-date-cell { font-weight: 600; color: #111827; font-size: 0.82rem; white-space: nowrap; }
 .upcoming-day-cell { font-size: 0.78rem; color: #6b7280; font-weight: 500; white-space: nowrap; }
+
+.upcoming-time-cell {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #6d28d9;
+    white-space: nowrap;
+}
 
 .upcoming-today-badge {
     display: inline-block;
@@ -357,6 +367,212 @@ body {
 }
 .upcoming-empty i { font-size: 1.8rem; color: #d1d5db; margin-bottom: 8px; display: block; }
 .upcoming-empty p { line-height: 1.5; }
+
+/* ===== UPCOMING STATUS BADGES ===== */
+.upcoming-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+.upcoming-status-badge i { font-size: 0.6rem; }
+
+.upcoming-status-badge.upcoming {
+    background: #ede9fe;
+    color: #5b21b6;
+    border-color: #ddd6fe;
+}
+.upcoming-status-badge.done {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #bbf7d0;
+}
+.upcoming-status-badge.priority {
+    background: #fef9c3;
+    color: #a16207;
+    border-color: #fde68a;
+}
+.upcoming-status-badge.late {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+    animation: lateBadgePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes lateBadgePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+    50%      { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+
+.upcoming-table tbody tr.upcoming-late {
+    background: #fff7f7;
+    border-left: 3px solid #ef4444;
+}
+.upcoming-table tbody tr.upcoming-late:hover { background: #fee2e2; }
+.upcoming-table tbody tr.upcoming-late .upcoming-title-cell {
+    color: #7f1d1d;
+    font-weight: 700;
+}
+
+.upcoming-table tbody tr.upcoming-today.upcoming-late {
+    background: #fef2f2;
+}
+
+/* ============================================================
+   RECENT IMPORTS TABLE
+   ============================================================ */
+.recent-imports-section {
+    margin-top: 8px;
+    border-top: 1.5px solid #e5e7eb;
+    padding-top: 20px;
+}
+
+.recent-imports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.recent-imports-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.01em;
+}
+.recent-imports-title i { font-size: 1rem; color: #6d28d9; }
+
+.recent-imports-clear {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s, transform 0.1s;
+}
+.recent-imports-clear:hover { background: #fecaca; }
+.recent-imports-clear:active { transform: scale(0.97); }
+.recent-imports-clear i { font-size: 0.7rem; }
+
+.recent-imports-table-wrap {
+    border: 1.5px solid #e5e7eb;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.recent-imports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.recent-imports-table thead {
+    background: #f9fafb;
+    border-bottom: 1.5px solid #e5e7eb;
+}
+
+.recent-imports-table th {
+    text-align: left;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #4b5563;
+    padding: 10px 14px;
+    white-space: nowrap;
+}
+
+.recent-imports-table td {
+    padding: 12px 14px;
+    vertical-align: middle;
+    color: #111827;
+    border-bottom: 1px solid #f3f4f6;
+    word-break: break-word;
+}
+.recent-imports-table tbody tr:last-child td { border-bottom: none; }
+.recent-imports-table tbody tr { transition: background 0.12s; }
+.recent-imports-table tbody tr:hover { background: #f9fafb; }
+
+.recent-imports-table .ri-col-file { width: 40%; }
+.recent-imports-table .ri-col-count { width: 120px; }
+.recent-imports-table .ri-col-date { width: auto; }
+
+.ri-file-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    word-break: break-word;
+}
+.ri-file-cell i {
+    color: #16a34a;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.ri-file-name {
+    font-weight: 600;
+    color: #111827;
+    font-size: 0.82rem;
+    word-break: break-word;
+}
+
+.ri-count-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #ede9fe;
+    color: #5b21b6;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+.ri-count-pill i { font-size: 0.65rem; }
+
+.ri-date-cell {
+    font-size: 0.78rem;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.recent-imports-empty {
+    text-align: center;
+    padding: 28px 16px;
+    color: #9ca3af;
+    font-size: 0.85rem;
+    border: 1.5px dashed #e5e7eb;
+    border-radius: 16px;
+    background: #fafafa;
+    display: none;
+}
+.recent-imports-empty i {
+    font-size: 1.8rem;
+    color: #d1d5db;
+    margin-bottom: 8px;
+    display: block;
+}
+.recent-imports-empty p { line-height: 1.5; }
 
 /* ===== SORT POPOVER ===== */
 .history-title-row,
@@ -1071,8 +1287,9 @@ body {
 }
 .date-preview i { font-size: 1.1rem; color: #6d28d9; flex-shrink: 0; }
 .date-preview span { font-size: 0.95rem; }
-
-/* ===== HISTORY ===== */
+/* ============================================================
+   HISTORY MODAL
+   ============================================================ */
 .history-modal { max-width: 640px; }
 
 .history-controls {
@@ -1218,7 +1435,9 @@ body {
 }
 .history-empty i { font-size: 1.8rem; color: #d1d5db; margin-bottom: 8px; display: block; }
 
-/* ===== SETTINGS ===== */
+/* ============================================================
+   SETTINGS MODAL
+   ============================================================ */
 .settings-modal { max-width: 480px; }
 .settings-menu { display: flex; flex-direction: column; gap: 10px; }
 
@@ -1259,7 +1478,9 @@ body {
 .settings-item-desc { font-size: 0.72rem; color: #6b7280; line-height: 1.35; }
 .settings-item-arrow { color: #d1d5db; font-size: 0.75rem; flex-shrink: 0; }
 
-/* ===== TRASH ===== */
+/* ============================================================
+   TRASH MODAL
+   ============================================================ */
 .trash-modal { max-width: 620px; }
 
 .trash-toolbar {
@@ -1377,7 +1598,9 @@ body {
 }
 .trash-footer .btn-danger { margin-right: auto; }
 
-/* ===== CONFIRM ===== */
+/* ============================================================
+   CONFIRM MODAL
+   ============================================================ */
 .confirm-modal { max-width: 420px; text-align: center; align-items: center; }
 
 .confirm-icon {
@@ -1416,7 +1639,9 @@ body {
 }
 .confirm-modal .modal-actions .btn { flex: 1; justify-content: center; min-width: 120px; }
 
-/* ===== VALIDATION ===== */
+/* ============================================================
+   VALIDATION MODAL
+   ============================================================ */
 .validation-modal { max-width: 440px; text-align: center; align-items: center; }
 
 .validation-modal h3 {
@@ -1832,6 +2057,62 @@ body {
     font-weight: 700;
 }
 
+/* ---- Countdown badge (Late / Left) ---- */
+.notif-countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    line-height: 1.2;
+    margin-top: 2px;
+    border: 1px solid transparent;
+}
+.notif-countdown i { font-size: 0.6rem; flex-shrink: 0; }
+
+.notif-countdown.is-late {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
+    animation: notifLatePulse 1.8s ease-in-out infinite;
+}
+@keyframes notifLatePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55), 0 0 0 0 rgba(239, 68, 68, 0.30); }
+    50%      { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0), 0 0 12px 2px rgba(239, 68, 68, 0.25); }
+}
+
+.notif-countdown.is-urgent {
+    background: #fef9c3;
+    color: #854d0e;
+    border-color: #fde047;
+}
+
+.notif-countdown.is-safe {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.notif-countdown.is-priority {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.notif-countdown .nc-label {
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.6rem;
+    opacity: 0.85;
+    letter-spacing: 0.5px;
+}
+
 /* ============================================================
    EXPORT PREVIEW MODAL
    ============================================================ */
@@ -2021,17 +2302,6 @@ body {
 .export-preview-table .ep-title { font-weight: 600; color: #111827; }
 .export-preview-table .ep-type { color: #6d28d9; font-weight: 500; }
 .export-preview-table .ep-desc { color: #6b7280; font-size: 0.75rem; }
-
-.export-preview-table th:nth-child(1),
-.export-preview-table th:nth-child(2),
-.export-preview-table th:nth-child(3),
-.export-preview-table td:nth-child(1),
-.export-preview-table td:nth-child(2),
-.export-preview-table td:nth-child(3) {
-    white-space: nowrap;
-    text-align: center;
-    width: 60px;
-}
 
 .export-preview-empty {
     text-align: center;
@@ -2310,6 +2580,20 @@ body {
     font-weight: 600;
 }
 
+.imp-late-pill {
+    display: inline-block;
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
 .import-preview-actions {
     display: flex;
     justify-content: flex-end;
@@ -2572,7 +2856,7 @@ body {
     background: transparent; color: #111827; font-weight: 600; padding: 0;
 }
 
-/* ===== LATE (today past-end, or past-day auto-marked) ===== */
+/* ===== LATE ===== */
 .schedule-item.status-late {
     background: #fef2f2;
     border: 1.5px solid #ef4444;
@@ -2739,7 +3023,6 @@ body {
     width: 100%;
 }
 .status-popup-option:hover { background: #f3f4f6; color: #111827; }
-
 .status-popup-option > i:first-child {
     font-size: 0.85rem;
     color: #9ca3af;
@@ -2758,7 +3041,6 @@ body {
     opacity: 0;
     flex-shrink: 0;
 }
-
 .status-popup-option.selected {
     background: #ede9fe;
     color: #4c1d95;
@@ -2766,7 +3048,6 @@ body {
 }
 .status-popup-option.selected .status-popup-check { opacity: 1; }
 .status-popup-option.selected > i:first-child { color: #6d28d9; }
-
 .status-popup-option.selected[data-pick="done"] {
     background: #f0fdf4; color: #15803d;
 }
@@ -2774,7 +3055,6 @@ body {
 .status-popup-option.selected[data-pick="done"] > i:first-child {
     color: #16a34a;
 }
-
 .status-popup-option.selected[data-pick="priority"] {
     background: #fefce8; color: #a16207;
 }
@@ -2895,9 +3175,7 @@ body {
     justify-content: center;
     min-width: 36px;
 }
-.ampm-btn + .ampm-btn {
-    border-left: 1.5px solid #e5e7eb;
-}
+.ampm-btn + .ampm-btn { border-left: 1.5px solid #e5e7eb; }
 .ampm-btn:hover { background: #f3f4f6; color: #4c1d95; }
 .ampm-btn.active { background: #ede9fe; color: #4c1d95; }
 
@@ -3043,10 +3321,7 @@ body {
     stroke-dashoffset: 240;
     animation: drawLine 1.6s ease-in-out infinite alternate;
 }
-.face-front {
-    stroke: #8b5cf6;
-    animation-delay: 0.2s;
-}
+.face-front { stroke: #8b5cf6; animation-delay: 0.2s; }
 .cube-edge {
     stroke: #a78bfa;
     stroke-width: 2;
@@ -3056,11 +3331,7 @@ body {
     animation: drawLine 1.6s ease-in-out infinite alternate;
     animation-delay: 0.4s;
 }
-.edge-diag {
-    stroke: #c4b5fd;
-    stroke-width: 1.4;
-    animation-delay: 0.6s;
-}
+.edge-diag { stroke: #c4b5fd; stroke-width: 1.4; animation-delay: 0.6s; }
 
 @keyframes drawLine {
     0%   { stroke-dashoffset: 240; opacity: 0.35; }
@@ -3079,21 +3350,19 @@ body {
     align-items: center;
     gap: 2px;
 }
-
 .loader-dots {
     display: inline-block;
     width: 20px;
     text-align: left;
     animation: dotsBlink 1.2s steps(4, end) infinite;
 }
-
 @keyframes dotsBlink {
     0%, 100% { opacity: 0.2; }
     50%      { opacity: 1; }
 }
 
 /* ============================================================
-   RESPONSIVE
+   RESPONSIVE — 900px
    ============================================================ */
 @media (max-width: 900px) {
     .header-logo { height: 38px; max-width: 130px; }
@@ -3114,10 +3383,15 @@ body {
     .upcoming-table th, .upcoming-table td { padding: 10px 10px; }
     .upcoming-table .col-date { width: 90px; }
     .upcoming-table .col-day { width: 70px; }
+    .upcoming-table .col-time { width: 100px; }
     .upcoming-table .col-type { width: 110px; }
+    .upcoming-table .col-status { width: 100px; }
     .upcoming-table .col-actions { width: 100px; }
 }
 
+/* ============================================================
+   RESPONSIVE — 600px
+   ============================================================ */
 @media (max-width: 600px) {
     body { padding: 8px; padding-bottom: 90px; align-items: flex-start; }
     .calendar-header { gap: 8px; margin-bottom: 14px; min-height: 38px; }
@@ -3151,9 +3425,11 @@ body {
     .upcoming-table td { padding: 0; border: none; margin-bottom: 8px; display: flex !important; align-items: flex-start; gap: 8px; font-size: 0.85rem; color: #111827; font-weight: 500; text-align: left; vertical-align: top; }
     .upcoming-table td:last-child { margin-bottom: 0; }
     .upcoming-table td::before { content: attr(data-label); flex-shrink: 0; width: 84px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; padding-top: 2px; line-height: 1.4; }
-    .upcoming-table td.col-date, .upcoming-table td.col-day, .upcoming-table td.col-title, .upcoming-table td.col-type, .upcoming-table td.col-desc { width: 100%; font-size: 0.85rem; }
+    .upcoming-table td.col-date, .upcoming-table td.col-day, .upcoming-table td.col-title, .upcoming-table td.col-time, .upcoming-table td.col-type, .upcoming-table td.col-status, .upcoming-table td.col-desc { width: 100%; font-size: 0.85rem; }
     .upcoming-table td.col-title { font-weight: 600; }
     .upcoming-table td.col-title .upcoming-title-cell { font-size: 0.88rem; }
+    .upcoming-time-cell { font-size: 0.82rem; }
+    .upcoming-status-badge { font-size: 0.62rem; padding: 3px 9px; }
     .upcoming-date-cell, .upcoming-day-cell { font-size: 0.85rem; white-space: normal; }
     .upcoming-today-badge { font-size: 0.58rem; padding: 1px 6px; margin-left: 6px; }
     .upcoming-desc-cell { font-size: 0.8rem; white-space: normal; word-break: break-word; }
@@ -3164,11 +3440,27 @@ body {
     .upcoming-actions .icon-btn { width: 32px; height: 32px; font-size: 0.75rem; border-radius: 9px; }
     .upcoming-empty { padding: 20px 14px; font-size: 0.78rem; }
     .upcoming-empty i { font-size: 1.5rem; }
+
+    /* Recent imports → cards */
+    .recent-imports-section { padding-top: 14px; margin-top: 4px; }
+    .recent-imports-header { margin-bottom: 10px; }
+    .recent-imports-title { font-size: 0.92rem; gap: 6px; }
+    .recent-imports-title i { font-size: 0.85rem; }
+    .recent-imports-table-wrap { border: none; border-radius: 0; overflow: visible; background: transparent; }
+    .recent-imports-table, .recent-imports-table thead, .recent-imports-table tbody, .recent-imports-table tr, .recent-imports-table td { display: block; width: 100%; }
+    .recent-imports-table thead { display: none; }
+    .recent-imports-table tbody tr { border: 1.5px solid #e5e7eb; border-radius: 14px; margin-bottom: 10px; padding: 12px 14px; background: #f9fafb; }
+    .recent-imports-table td { padding: 0; border: none; margin-bottom: 8px; display: flex !important; align-items: flex-start; gap: 8px; font-size: 0.85rem; }
+    .recent-imports-table td:last-child { margin-bottom: 0; }
+    .recent-imports-table td::before { content: attr(data-label); flex-shrink: 0; width: 84px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; padding-top: 2px; line-height: 1.4; }
+    .ri-date-cell { white-space: normal; }
+
     .floating-navbar { bottom: 14px; padding: 8px 12px; gap: 8px; border-radius: 50px; width: calc(100vw - 16px); max-width: 460px; justify-content: center; }
     .nav-left, .nav-center, .nav-right { display: contents; }
     .floating-navbar .btn-create, .floating-navbar .btn-import, .floating-navbar .btn-export, .floating-navbar .btn-history, .floating-navbar .btn-settings { padding: 10px; border-radius: 50%; width: 46px; height: 46px; justify-content: center; gap: 0; margin: 0; flex-shrink: 0; }
     .floating-navbar .btn-create span, .floating-navbar .btn-import span, .floating-navbar .btn-export span, .floating-navbar .btn-history span, .floating-navbar .btn-settings span { display: none; }
     .floating-navbar .btn-create i, .floating-navbar .btn-import i, .floating-navbar .btn-export i, .floating-navbar .btn-history i, .floating-navbar .btn-settings i { font-size: 1.05rem; }
+
     .modal-overlay { padding: 10px; align-items: flex-end; }
     .modal { padding: 18px; border-radius: 22px; max-height: 92vh; border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; }
     .modal h3 { font-size: 1.15rem; gap: 6px; }
@@ -3258,6 +3550,9 @@ body {
     .notif-group-header { font-size: 0.6rem; padding: 5px 7px; }
     .notif-group-label i { font-size: 0.6rem; }
     .notif-group-count { font-size: 0.6rem; padding: 1px 7px; }
+    .notif-countdown { font-size: 0.62rem; padding: 2px 8px; gap: 4px; }
+    .notif-countdown .nc-label { font-size: 0.55rem; }
+    .notif-countdown i { font-size: 0.55rem; }
     .export-modal { max-width: calc(100vw - 20px); }
     .export-filter-block { padding: 10px 12px; border-radius: 12px; }
     .export-filter-label { font-size: 0.68rem; }
@@ -3302,6 +3597,9 @@ body {
     .late-pill { font-size: 0.58rem; padding: 2px 7px; }
 }
 
+/* ============================================================
+   RESPONSIVE — 380px
+   ============================================================ */
 @media (max-width: 380px) {
     .header-logo { height: 26px; max-width: 80px; }
     .month-year-trigger { font-size: 0.9rem; padding: 3px 6px; }
