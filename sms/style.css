@@ -623,7 +623,6 @@ body {
 .field input, .field textarea {
     width: 100%;
     padding: 12px 16px;
-    border: 1.5px solid #e5e7eb;
     border-radius: 16px;
     font-size: 0.95rem;
     font-family: 'Roboto', sans-serif;
