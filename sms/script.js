@@ -251,7 +251,7 @@
 
     function normalizeStatus(s) {
         if (STATUS_OPTIONS.includes(s)) return s;
-        if (s === 'process') return 'upcoming';   // migrate old value
+        if (s === 'process') return 'upcoming';
         return 'upcoming';
     }
 
@@ -2975,7 +2975,6 @@
     function handleImportFile(file) {
         if (!file) return;
 
-        // Block re-importing the same file
         if (isDuplicateImport(file)) {
             importStatus.style.display = 'block';
             importStatus.className = 'import-status error';
@@ -3095,6 +3094,45 @@
                     try { localStorage.removeItem(IMPORT_HISTORY_KEY); } catch {}
                 }
             });
+        });
+    }
+
+    // ============================================================
+    // LOGO → 3D LOADING SCREEN → REFRESH
+    // ============================================================
+    const headerLogo = document.getElementById('headerLogo');
+    const loaderScreen = document.getElementById('loaderScreen');
+
+    function showLoaderAndReload() {
+        if (!loaderScreen) {
+            window.location.reload();
+            return;
+        }
+
+        if (loaderScreen.classList.contains('active')) return;
+
+        loaderScreen.classList.add('active');
+        loaderScreen.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+
+        setTimeout(() => {
+            loaderScreen.classList.remove('active');
+            loaderScreen.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+            setTimeout(() => window.location.reload(), 450);
+        }, 3000);
+    }
+
+    if (headerLogo) {
+        headerLogo.addEventListener('click', showLoaderAndReload);
+        headerLogo.setAttribute('tabindex', '0');
+        headerLogo.setAttribute('role', 'button');
+        headerLogo.setAttribute('aria-label', 'Refresh Skedo');
+        headerLogo.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                showLoaderAndReload();
+            }
         });
     }
 
