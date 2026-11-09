@@ -2817,6 +2817,126 @@ body {
     outline-offset: 2px;
 }
 
+/* ============================================================
+   3D LINE LOADING SCREEN
+   ============================================================ */
+.loader-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+
+.loader-screen.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.loader-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    transform: scale(0.92);
+    transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.loader-screen.active .loader-stage {
+    transform: scale(1);
+}
+
+/* ---- Cube ---- */
+.loader-cube {
+    width: 130px;
+    height: 130px;
+    overflow: visible;
+    animation: cubeSpin 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+    transform-origin: 50% 50%;
+    filter: drop-shadow(0 0 12px rgba(109, 40, 217, 0.35));
+}
+
+@keyframes cubeSpin {
+    0%   { transform: rotateX(0deg)   rotateY(0deg)   rotateZ(0deg); }
+    50%  { transform: rotateX(180deg) rotateY(180deg) rotateZ(0deg); }
+    100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(0deg); }
+}
+
+.cube-face {
+    stroke: #6d28d9;
+    stroke-width: 2;
+    fill: none;
+    stroke-linejoin: round;
+    stroke-dasharray: 240;
+    stroke-dashoffset: 240;
+    animation: drawLine 1.6s ease-in-out infinite alternate;
+}
+
+.face-front {
+    stroke: #8b5cf6;
+    animation-delay: 0.2s;
+}
+
+.cube-edge {
+    stroke: #a78bfa;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 60;
+    stroke-dashoffset: 60;
+    animation: drawLine 1.6s ease-in-out infinite alternate;
+    animation-delay: 0.4s;
+}
+
+.edge-diag {
+    stroke: #c4b5fd;
+    stroke-width: 1.4;
+    animation-delay: 0.6s;
+}
+
+@keyframes drawLine {
+    0%   { stroke-dashoffset: 240; opacity: 0.35; }
+    50%  { stroke-dashoffset: 0;   opacity: 1; }
+    100% { stroke-dashoffset: 0;   opacity: 1; }
+}
+
+/* ---- Caption ---- */
+.loader-caption {
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #4c1d95;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.loader-dots {
+    display: inline-block;
+    width: 20px;
+    text-align: left;
+    animation: dotsBlink 1.2s steps(4, end) infinite;
+}
+
+@keyframes dotsBlink {
+    0%, 100% { opacity: 0.2; }
+    50%      { opacity: 1; }
+}
+
+/* ---- Logo click affordance ---- */
+.header-logo {
+    cursor: pointer;
+    transition: transform 0.15s ease, filter 0.15s ease;
+}
+.header-logo:hover  { filter: drop-shadow(0 0 8px rgba(109, 40, 217, 0.4)); }
+.header-logo:active { transform: scale(0.95); }
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
     .header-logo { height: 38px; max-width: 130px; }
@@ -3011,6 +3131,8 @@ body {
     .day-schedule-card .card-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
     .status-popup { width: 160px !important; }
     .status-popup-option { font-size: 0.78rem; padding: 8px 10px; }
+    .loader-cube { width: 100px; height: 100px; }
+    .loader-caption { font-size: 0.8rem; }
 }
 
 @media (max-width: 380px) {
@@ -3040,4 +3162,6 @@ body {
     .floating-navbar .btn-create, .floating-navbar .btn-import, .floating-navbar .btn-export, .floating-navbar .btn-history, .floating-navbar .btn-settings { width: 40px; height: 40px; }
     .floating-navbar .btn-create i, .floating-navbar .btn-import i, .floating-navbar .btn-export i, .floating-navbar .btn-history i, .floating-navbar .btn-settings i { font-size: 0.95rem; }
     .notif-btn { width: 30px; height: 30px; font-size: 0.75rem; border-radius: 8px; }
+    .loader-cube { width: 80px; height: 80px; }
+    .loader-caption { font-size: 0.72rem; }
 }
