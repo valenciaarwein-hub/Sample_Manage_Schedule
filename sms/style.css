@@ -6,11 +6,11 @@ body {
     font-family: 'Roboto', sans-serif;
     background: linear-gradient(180deg, #faf5ff 0%, #f8fafc 100%);
     display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
     min-height: 100vh;
     padding: 16px;
-    padding-top: 84px;    /* room for floating top-right bell */
     padding-bottom: 100px;
     color: #1e1b4b;
     line-height: 1.5;
@@ -19,6 +19,72 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* ============================================================
+   TOP BAR — Logo left · Bell right
+   ============================================================ */
+.top-bar {
+    max-width: 1300px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 4px;
+    margin-bottom: 14px;
+}
+
+.top-bar-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    object-fit: contain;
+    flex-shrink: 0;
+    background: white;
+    padding: 4px;
+    box-shadow: 0 4px 12px -4px rgba(139, 92, 246, 0.25),
+                0 2px 6px -2px rgba(139, 92, 246, 0.15);
+    border: 1.5px solid #ede9fe;
+    transition: transform 0.15s ease;
+}
+
+.top-bar-logo:hover {
+    transform: scale(1.05);
+}
+
+.top-bar .notif-wrap {
+    margin-left: auto;
+}
+
+.top-bar .notif-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: #f5f3ff;
+    color: #5b21b6;
+    box-shadow: 0 4px 12px -4px rgba(139, 92, 246, 0.25),
+                0 2px 6px -2px rgba(139, 92, 246, 0.15);
+    border: 1.5px solid #ede9fe;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.05rem;
+    transition: all 0.2s;
+}
+
+.top-bar .notif-btn:hover {
+    background: #ede9fe;
+    transform: scale(0.96);
+}
+
+.top-bar .notif-btn.active {
+    background: #ede9fe;
+    color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+/* ===== APP CONTAINER ===== */
 .app-container {
     max-width: 1300px;
     width: 100%;
@@ -29,34 +95,7 @@ body {
     overflow: hidden;
 }
 
-/* ============================================================
-   BRAND LOGO (top-left) + HEADER
-   ============================================================ */
-.brand-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-    min-width: 0;
-}
-
-.brand-logo {
-    height: 52px;
-    width: auto;
-    max-width: 200px;
-    object-fit: contain;
-    flex-shrink: 0;
-    display: block;
-    transition: transform 0.15s ease;
-}
-
-.brand-logo:hover { transform: scale(1.03); }
-
-.brand-row .month-year {
-    display: flex;
-    align-items: center;
-}
-
+/* ===== HEADER ===== */
 .calendar-header {
     display: flex;
     justify-content: space-between;
@@ -1512,89 +1551,33 @@ body {
 }
 
 /* ============================================================
-   TOP-RIGHT FLOATING NOTIFICATION BELL
-   ============================================================ */
-.notif-topright {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1500;
-    display: inline-flex;
-    flex-direction: column;
-    align-items: flex-end;
-}
-
-.notif-topright .notif-btn {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: white;
-    color: #5b21b6;
-    box-shadow:
-        0 10px 25px -8px rgba(139, 92, 246, 0.35),
-        0 4px 12px -4px rgba(139, 92, 246, 0.18),
-        inset 0 0 0 1.5px #ede9fe;
-    font-size: 1.15rem;
-    position: relative;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.notif-topright .notif-btn:hover {
-    background: #f5f3ff;
-    transform: scale(1.06);
-    box-shadow:
-        0 12px 28px -8px rgba(139, 92, 246, 0.45),
-        0 6px 14px -4px rgba(139, 92, 246, 0.22),
-        inset 0 0 0 1.5px #ddd6fe;
-}
-
-.notif-topright .notif-btn.active {
-    background: #f5f3ff;
-    color: #7c3aed;
-    box-shadow:
-        0 12px 28px -8px rgba(139, 92, 246, 0.45),
-        0 0 0 3px rgba(139, 92, 246, 0.18);
-}
-
-.notif-topright .notif-panel {
-    top: calc(100% + 12px);
-    right: 0;
-    width: 380px;
-    max-width: calc(100vw - 40px);
-    max-height: calc(100vh - 100px);
-}
-
-.notif-topright .notif-badge {
-    top: -2px;
-    right: -2px;
-    min-width: 20px;
-    height: 20px;
-    font-size: 0.65rem;
-    border-width: 2.5px;
-}
-
-.notif-topright .notif-badge.pulse {
-    animation: notifPulseTopright 1.8s infinite;
-}
-
-@keyframes notifPulseTopright {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.65); }
-    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
-}
-
-/* ============================================================
-   NOTIFICATION PANEL BASE (shared)
+   NOTIFICATION BELL & PANEL
    ============================================================ */
 .notif-wrap {
     position: relative;
     display: inline-flex;
     flex-shrink: 0;
 }
+
+.notif-btn {
+    position: relative;
+    background: #f5f3ff;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #5b21b6;
+    font-size: 1.05rem;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.notif-btn:hover { background: #ede9fe; transform: scale(0.96); }
+.notif-btn.active { background: #ede9fe; color: #7c3aed; box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
 
 .notif-badge {
     position: absolute;
@@ -2867,12 +2850,16 @@ body {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
+    .top-bar { margin-bottom: 12px; }
+    .top-bar-logo,
+    .top-bar .notif-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+    }
+    .top-bar-logo { padding: 3px; }
+
     .app-container { padding: 18px 16px 24px; border-radius: 22px; }
-    .brand-logo { height: 42px; max-width: 160px; }
-    .brand-row { gap: 10px; }
-    .notif-topright { top: 14px; right: 14px; }
-    .notif-topright .notif-btn { width: 44px; height: 44px; font-size: 1.05rem; }
-    .notif-topright .notif-panel { width: calc(100vw - 28px); max-width: 360px; }
     .day-cell { min-height: 100px; padding: 6px 4px 8px 4px; border-radius: 14px; }
     .day-header { font-size: 0.78rem; margin-bottom: 4px; min-height: 20px; }
     .day-number { width: 20px; height: 20px; font-size: 0.75rem; border-radius: 8px; }
@@ -2894,28 +2881,17 @@ body {
 }
 
 @media (max-width: 600px) {
-    body { padding: 8px; padding-top: 68px; padding-bottom: 90px; align-items: flex-start; }
+    body { padding: 10px; padding-bottom: 90px; }
+    .top-bar { margin-bottom: 10px; padding: 0 2px; }
+    .top-bar-logo,
+    .top-bar .notif-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 11px;
+    }
+    .top-bar-logo { padding: 3px; }
+
     .app-container { padding: 14px 10px 20px; border-radius: 18px; }
-    .brand-logo { height: 34px; max-width: 120px; }
-    .brand-row { gap: 8px; }
-    .brand-row .month-year-trigger { font-size: 1rem; padding: 4px 8px; }
-    .notif-topright { top: 10px; right: 10px; }
-    .notif-topright .notif-btn {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
-        border-radius: 14px;
-    }
-    .notif-topright .notif-badge {
-        min-width: 18px;
-        height: 18px;
-        font-size: 0.6rem;
-    }
-    .notif-topright .notif-panel {
-        width: calc(100vw - 20px);
-        right: -2px;
-        top: calc(100% + 8px);
-    }
     .calendar-header { margin-bottom: 14px; gap: 8px; }
     .month-year-trigger { font-size: 1.05rem; padding: 4px 8px; gap: 6px; border-radius: 12px; }
     .month-year-trigger i { font-size: 0.65rem; }
@@ -3042,6 +3018,10 @@ body {
     .validation-list { padding: 10px 12px; border-radius: 12px; gap: 5px; }
     .validation-list li { font-size: 0.75rem; }
     .validation-modal .modal-actions .btn { min-width: 100px; }
+    .notif-btn { width: 34px; height: 34px; font-size: 0.85rem; border-radius: 10px; }
+    .notif-panel { width: calc(100vw - 24px); right: -8px; }
+    .notif-header { padding: 12px 14px; }
+    .notif-header h4 { font-size: 0.88rem; }
     .notif-item { padding: 12px 12px; gap: 10px; }
     .notif-title { font-size: 0.86rem; }
     .notif-sub { font-size: 0.74rem; gap: 5px; }
@@ -3082,9 +3062,15 @@ body {
 }
 
 @media (max-width: 380px) {
+    .top-bar-logo,
+    .top-bar .notif-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+    }
+    .top-bar-logo { padding: 2px; }
+
     .app-container { padding: 10px 6px 16px; border-radius: 14px; }
-    .brand-logo { height: 28px; max-width: 96px; }
-    .brand-row { gap: 6px; }
     .month-year-trigger { font-size: 0.9rem; padding: 3px 6px; }
     .nav-btn { width: 30px; height: 30px; font-size: 0.75rem; border-radius: 8px; }
     #todayBtn { height: 30px; font-size: 0.68rem; padding: 0 8px; }
@@ -3108,8 +3094,4 @@ body {
     .floating-navbar { padding: 6px 8px; gap: 5px; }
     .floating-navbar .btn-create, .floating-navbar .btn-import, .floating-navbar .btn-export, .floating-navbar .btn-history, .floating-navbar .btn-settings { width: 40px; height: 40px; }
     .floating-navbar .btn-create i, .floating-navbar .btn-import i, .floating-navbar .btn-export i, .floating-navbar .btn-history i, .floating-navbar .btn-settings i { font-size: 0.95rem; }
-    .notif-topright { top: 8px; right: 8px; }
-    .notif-topright .notif-btn { width: 36px; height: 36px; font-size: 0.9rem; border-radius: 12px; }
-    .notif-topright .notif-badge { min-width: 16px; height: 16px; font-size: 0.55rem; }
-    .notif-topright .notif-panel { width: calc(100vw - 16px); right: -2px; }
 }
