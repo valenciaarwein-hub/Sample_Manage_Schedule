@@ -172,78 +172,82 @@
 
 <!-- ============ CREATE/EDIT MODAL ============ -->
 <div class="modal-overlay" id="modalOverlay">
-    <div class="modal">
+    <div class="modal modal-scrollable">
         <h3 id="modalTitle"><i class="fas fa-calendar-plus"></i> New Schedule</h3>
         <div class="date-badge" id="modalDateBadge">April 15, 2025</div>
 
-        <input type="hidden" id="editingId" value="">
-        <input type="hidden" id="selectedDate" value="">
+        <div class="modal-scroll-body">
 
-        <div class="field">
-            <label>Title <span class="required-mark">*</span></label>
-            <input type="text" id="scheduleTitle" placeholder="e.g. Team meeting" maxlength="60" autocomplete="off">
-        </div>
+            <input type="hidden" id="editingId" value="">
+            <input type="hidden" id="selectedDate" value="">
 
-        <div class="field">
-            <label>Time <span style="font-weight:400; color:#6b7280;">(optional)</span></label>
-            <div class="time-row">
-                <div class="time-group">
-                    <span class="time-group-label">Start</span>
-                    <div class="time-picker" data-picker="start">
-                        <input type="text" class="time-input" id="startTimeInput"
-                               placeholder="00:00" maxlength="8" autocomplete="off"
-                               inputmode="numeric">
-                        <div class="time-ampm" role="group" aria-label="AM or PM">
-                            <button type="button" class="ampm-btn" data-ampm="AM">AM</button>
-                            <button type="button" class="ampm-btn" data-ampm="PM">PM</button>
+            <div class="field">
+                <label>Title <span class="required-mark">*</span></label>
+                <input type="text" id="scheduleTitle" placeholder="e.g. Team meeting" maxlength="60" autocomplete="off">
+            </div>
+
+            <div class="field">
+                <label>Time <span style="font-weight:400; color:#6b7280;">(optional)</span></label>
+                <div class="time-row">
+                    <div class="time-group">
+                        <span class="time-group-label">Start</span>
+                        <div class="time-picker" data-picker="start">
+                            <input type="text" class="time-input" id="startTimeInput"
+                                   placeholder="00:00" maxlength="5" autocomplete="off"
+                                   inputmode="numeric">
+                            <div class="time-ampm" role="group" aria-label="AM or PM">
+                                <button type="button" class="ampm-btn" data-ampm="AM">AM</button>
+                                <button type="button" class="ampm-btn" data-ampm="PM">PM</button>
+                            </div>
+                            <div class="time-dropdown" role="listbox" aria-label="Pick start time"></div>
                         </div>
-                        <div class="time-dropdown" role="listbox" aria-label="Pick start time"></div>
                     </div>
-                </div>
 
-                <span class="time-dash">–</span>
+                    <span class="time-dash">–</span>
 
-                <div class="time-group">
-                    <span class="time-group-label">End</span>
-                    <div class="time-picker" data-picker="end">
-                        <input type="text" class="time-input" id="endTimeInput"
-                               placeholder="00:00" maxlength="8" autocomplete="off"
-                               inputmode="numeric">
-                        <div class="time-ampm" role="group" aria-label="AM or PM">
-                            <button type="button" class="ampm-btn" data-ampm="AM">AM</button>
-                            <button type="button" class="ampm-btn" data-ampm="PM">PM</button>
+                    <div class="time-group">
+                        <span class="time-group-label">End</span>
+                        <div class="time-picker" data-picker="end">
+                            <input type="text" class="time-input" id="endTimeInput"
+                                   placeholder="00:00" maxlength="5" autocomplete="off"
+                                   inputmode="numeric">
+                            <div class="time-ampm" role="group" aria-label="AM or PM">
+                                <button type="button" class="ampm-btn" data-ampm="AM">AM</button>
+                                <button type="button" class="ampm-btn" data-ampm="PM">PM</button>
+                            </div>
+                            <div class="time-dropdown" role="listbox" aria-label="Pick end time"></div>
                         </div>
-                        <div class="time-dropdown" role="listbox" aria-label="Pick end time"></div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="field">
-            <label>Schedule type <span class="required-mark">*</span></label>
-            <div class="type-button-group" id="typeButtonGroup">
-                <button type="button" class="type-btn" data-type="Meeting">
-                    <i class="fas fa-users"></i> Meeting
-                </button>
-                <button type="button" class="type-btn" data-type="Seminar">
-                    <i class="fas fa-chalkboard-teacher"></i> Seminar
-                </button>
-                <button type="button" class="type-btn" data-type="Special Event">
-                    <i class="fas fa-star"></i> Special Event
-                </button>
-                <button type="button" class="type-btn" data-type="Other">
-                    <i class="fas fa-ellipsis-h"></i> Other
-                </button>
-                <input type="text" id="customTypeInput" class="custom-type-input"
-                       placeholder="Specify type..." maxlength="40" style="display:none;">
+            <div class="field">
+                <label>Schedule type <span class="required-mark">*</span></label>
+                <div class="type-button-group" id="typeButtonGroup">
+                    <button type="button" class="type-btn" data-type="Meeting">
+                        <i class="fas fa-users"></i> Meeting
+                    </button>
+                    <button type="button" class="type-btn" data-type="Seminar">
+                        <i class="fas fa-chalkboard-teacher"></i> Seminar
+                    </button>
+                    <button type="button" class="type-btn" data-type="Special Event">
+                        <i class="fas fa-star"></i> Special Event
+                    </button>
+                    <button type="button" class="type-btn" data-type="Other">
+                        <i class="fas fa-ellipsis-h"></i> Other
+                    </button>
+                    <input type="text" id="customTypeInput" class="custom-type-input"
+                           placeholder="Specify type..." maxlength="40" style="display:none;">
+                </div>
             </div>
-        </div>
 
-        <div class="field">
-            <label>Description <span class="required-mark">*</span> <span style="font-weight:400; color:#6b7280;">(max 200 characters)</span></label>
-            <textarea id="scheduleDescription" placeholder="Add details..." maxlength="200"></textarea>
-            <div class="char-counter"><span id="charCount">0</span> / 200</div>
-        </div>
+            <div class="field">
+                <label>Description <span class="required-mark">*</span> <span style="font-weight:400; color:#6b7280;">(max 200 characters)</span></label>
+                <textarea id="scheduleDescription" placeholder="Add details..." maxlength="200"></textarea>
+                <div class="char-counter"><span id="charCount">0</span> / 200</div>
+            </div>
+
+        </div><!-- /.modal-scroll-body -->
 
         <div class="modal-actions">
             <button class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
@@ -584,6 +588,7 @@
                             <code>Day</code>
                             <code>Year</code>
                             <code>Title</code>
+                            <code>Time</code>
                             <code>Type</code>
                             <code>Status</code>
                             <code>Description</code>
@@ -593,6 +598,7 @@
                     <li><i class="fas fa-check-circle"></i> <strong>Day</strong> — 1–31</li>
                     <li><i class="fas fa-check-circle"></i> <strong>Year</strong> — 4-digit, e.g. <code>2025</code></li>
                     <li><i class="fas fa-check-circle"></i> <strong>Title</strong> is required (max 60 characters)</li>
+                    <li><i class="fas fa-check-circle"></i> <strong>Time</strong> — optional, e.g. <code>01:00 PM – 03:00 PM</code></li>
                     <li><i class="fas fa-check-circle"></i> <strong>Type</strong> — any text (e.g. Meeting, Seminar, Special Event)</li>
                     <li><i class="fas fa-check-circle"></i> <strong>Status</strong> — <code>Upcoming</code>, <code>Done</code>, or <code>Priority</code> (defaults to Upcoming)</li>
                     <li><i class="fas fa-check-circle"></i> <strong>Description</strong> is required (max 200 characters)</li>
