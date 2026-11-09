@@ -139,6 +139,16 @@
             <i class="fas fa-file-excel"></i>
             <p>No imports yet.<br>Upload an Excel file to see it here.</p>
         </div>
+
+        <div class="recent-imports-pager" id="recentImportsPager" style="display:none;">
+            <button class="ri-pager-arrow" id="riPrevBtn" aria-label="Previous page">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="ri-pager-dots" id="riPagerDots"></div>
+            <button class="ri-pager-arrow" id="riNextBtn" aria-label="Next page">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
     </section>
 </div>
 
@@ -172,6 +182,10 @@
             <span>Settings</span>
         </button>
     </div>
+</div>
+
+<div class="app-footer" aria-hidden="true">
+    © 2026 · Arwein Valencia
 </div>
 
 <!-- ============ DAY LIST MODAL ============ -->
@@ -712,6 +726,7 @@
     </div>
 </div>
 
+<!-- ============ SUPABASE CLIENT BOOTSTRAP ============ -->
 <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
