@@ -94,7 +94,9 @@
                         <th class="col-date">Date</th>
                         <th class="col-day">Day</th>
                         <th class="col-title">Title</th>
+                        <th class="col-time">Time</th>
                         <th class="col-type">Type</th>
+                        <th class="col-status">Status</th>
                         <th class="col-desc">Description</th>
                         <th class="col-actions">Actions</th>
                     </tr>
@@ -106,6 +108,36 @@
         <div class="upcoming-empty" id="upcomingEmpty" style="display:none;">
             <i class="fas fa-mug-hot"></i>
             <p>No schedules in the next 7 days.<br>Enjoy the calm — or add something new!</p>
+        </div>
+    </section>
+
+    <section class="recent-imports-section" id="recentImportsSection">
+        <div class="recent-imports-header">
+            <h2 class="recent-imports-title">
+                <i class="fas fa-file-import"></i>
+                Recent Imports
+            </h2>
+            <button class="recent-imports-clear" id="clearRecentImportsBtn" title="Clear import history">
+                <i class="fas fa-trash-alt"></i> Clear
+            </button>
+        </div>
+
+        <div class="recent-imports-table-wrap">
+            <table class="recent-imports-table">
+                <thead>
+                    <tr>
+                        <th class="ri-col-file">File</th>
+                        <th class="ri-col-count">Schedules</th>
+                        <th class="ri-col-date">Imported At</th>
+                    </tr>
+                </thead>
+                <tbody id="recentImportsBody"></tbody>
+            </table>
+        </div>
+
+        <div class="recent-imports-empty" id="recentImportsEmpty">
+            <i class="fas fa-file-excel"></i>
+            <p>No imports yet.<br>Upload an Excel file to see it here.</p>
         </div>
     </section>
 </div>
@@ -591,6 +623,7 @@
                             <code>Time</code>
                             <code>Type</code>
                             <code>Status</code>
+                            <code>Late</code>
                             <code>Description</code>
                         </div>
                     </li>
@@ -599,6 +632,7 @@
                     <li><i class="fas fa-check-circle"></i> <strong>Year</strong> — 4-digit, e.g. <code>2025</code></li>
                     <li><i class="fas fa-check-circle"></i> <strong>Title</strong> is required (max 60 characters)</li>
                     <li><i class="fas fa-check-circle"></i> <strong>Time</strong> — optional, e.g. <code>01:00 PM – 03:00 PM</code></li>
+                    <li><i class="fas fa-check-circle"></i> <strong>Late</strong> — optional, <code>Yes</code> or <code>No</code> (defaults to No)</li>
                     <li><i class="fas fa-check-circle"></i> <strong>Type</strong> — any text (e.g. Meeting, Seminar, Special Event)</li>
                     <li><i class="fas fa-check-circle"></i> <strong>Status</strong> — <code>Upcoming</code>, <code>Done</code>, or <code>Priority</code> (defaults to Upcoming)</li>
                     <li><i class="fas fa-check-circle"></i> <strong>Description</strong> is required (max 200 characters)</li>
