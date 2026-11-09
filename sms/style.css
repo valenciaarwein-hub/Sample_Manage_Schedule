@@ -31,19 +31,21 @@ body {
 }
 
 /* ============================================================
-   TOP APP BAR (logo + bell) + DIVIDER
+   UNIFIED CALENDAR HEADER (logo left · month center · nav right)
    ============================================================ */
-.app-topbar {
-    display: flex;
+.calendar-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 0 0 12px 0;
-    min-height: 52px;
+    gap: 16px;
+    margin-bottom: 20px;
+    margin-top: 4px;
+    min-height: 44px;
 }
 
-.topbar-logo {
-    height: 65px;
+/* Logo — same height as nav buttons (44px) */
+.header-logo {
+    height: 44px;
     width: auto;
     max-width: 160px;
     object-fit: contain;
@@ -51,60 +53,21 @@ body {
     flex-shrink: 0;
     transition: transform 0.15s ease;
 }
+.header-logo:hover { transform: scale(1.03); }
 
-.topbar-logo:hover { transform: scale(1.03); }
-
-.topbar-icon-btn {
-    width: 65px;
-    height: 65px;
-    border-radius: 14px;
-    background: #f3f4f6;
-    border: none;
-    color: #4c1d95;
-    font-size: 1.1rem;
+/* Month/Year — centered */
+.month-year {
     display: flex;
-    align-items: center;
     justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-    position: relative;
-    margin: 0;
-}
-
-.topbar-icon-btn:hover { background: #e5e7eb; transform: scale(0.96); }
-.topbar-icon-btn.active { background: #ede9fe; color: #5b21b6; box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.18); }
-
-.topbar-divider {
-    height: 1.5px;
-    background: linear-gradient(
-        90deg,
-        rgba(109, 40, 217, 0) 0%,
-        rgba(109, 40, 217, 0.20) 20%,
-        rgba(109, 40, 217, 0.20) 80%,
-        rgba(109, 40, 217, 0) 100%
-    );
-    margin-bottom: 14px;
-}
-
-/* ===== HEADER ===== */
-.calendar-header {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    margin-top: 0;
-    flex-wrap: wrap;
-    gap: 12px;
+    min-width: 0;
 }
-
-.month-year { display: flex; align-items: center; gap: 8px; }
 
 .month-year-trigger {
     background: transparent;
     border: none;
     font-family: 'Roboto', sans-serif;
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     font-weight: 600;
     color: #111827;
     letter-spacing: -0.01em;
@@ -112,17 +75,21 @@ body {
     padding: 6px 12px;
     border-radius: 14px;
     transition: background 0.15s, color 0.15s;
-    display: flex;
-    align-items: center;
-    gap: 10px;
     white-space: nowrap;
+    text-align: center;
 }
 
 .month-year-trigger:hover { background: #f3f4f6; color: #6d28d9; }
-.month-year-trigger i { font-size: 0.9rem; color: #6d28d9; transition: color 0.15s; }
-.month-year-trigger:hover i { color: #6d28d9; }
 
-.nav-buttons { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+/* Right-aligned nav group (prev / next / today / bell) */
+.nav-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
 
 .nav-btn {
     background: #f3f4f6;
@@ -2852,10 +2819,11 @@ body {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
-    .app-topbar { padding-bottom: 10px; min-height: 44px; }
-    .topbar-logo { height: 38px; max-width: 130px; }
-    .topbar-icon-btn { width: 38px; height: 38px; font-size: 1rem; border-radius: 12px; }
-    .topbar-divider { margin-bottom: 12px; }
+    .header-logo { height: 38px; max-width: 130px; }
+    .calendar-header { gap: 12px; margin-bottom: 16px; }
+    .month-year-trigger { font-size: 1.2rem; }
+    .nav-btn { width: 38px; height: 38px; font-size: 0.95rem; border-radius: 12px; }
+    #todayBtn { padding: 0 12px; font-size: 0.8rem; }
     .app-container { padding: 16px 16px 24px; border-radius: 22px; }
     .day-cell { min-height: 100px; padding: 6px 4px 8px 4px; border-radius: 14px; }
     .day-header { font-size: 0.78rem; margin-bottom: 4px; min-height: 20px; }
@@ -2864,10 +2832,6 @@ body {
     .schedule-item i { font-size: 0.4rem; }
     .empty-hint { font-size: 0.6rem; }
     .calendar-grid { gap: 4px; }
-    .month-year-trigger { font-size: 1.3rem; padding: 4px 10px; }
-    .month-year-trigger i { font-size: 0.75rem; }
-    .nav-btn { width: 38px; height: 38px; font-size: 0.95rem; border-radius: 12px; }
-    #todayBtn { padding: 0 12px; font-size: 0.8rem; }
     .weekdays { font-size: 0.62rem; margin-bottom: 6px; }
     .upcoming-title { font-size: 1rem; }
     .upcoming-table th, .upcoming-table td { padding: 10px 10px; }
@@ -2879,17 +2843,13 @@ body {
 
 @media (max-width: 600px) {
     body { padding: 8px; padding-bottom: 90px; align-items: flex-start; }
-    .app-topbar { padding-bottom: 8px; min-height: 38px; }
-    .topbar-logo { height: 34px; max-width: 110px; }
-    .topbar-icon-btn { width: 34px; height: 34px; font-size: 0.9rem; border-radius: 10px; }
-    .topbar-divider { margin-bottom: 10px; }
-    .app-container { padding: 14px 10px 20px; border-radius: 18px; }
-    .calendar-header { margin-bottom: 14px; gap: 8px; }
-    .month-year-trigger { font-size: 1.05rem; padding: 4px 8px; gap: 6px; border-radius: 12px; }
-    .month-year-trigger i { font-size: 0.65rem; }
+    .calendar-header { gap: 8px; margin-bottom: 14px; min-height: 38px; }
+    .header-logo { height: 32px; max-width: 100px; }
+    .month-year-trigger { font-size: 1rem; padding: 4px 8px; border-radius: 10px; }
     .nav-buttons { gap: 4px; }
     .nav-btn { width: 34px; height: 34px; font-size: 0.85rem; border-radius: 10px; }
     #todayBtn { padding: 0 10px; font-size: 0.75rem; height: 34px; }
+    .app-container { padding: 14px 10px 20px; border-radius: 18px; }
     .weekdays { font-size: 0.55rem; letter-spacing: 0.3px; margin-bottom: 4px; padding: 0; }
     .calendar-grid { gap: 3px; margin-bottom: 12px; }
     .day-cell { min-height: 72px; padding: 4px 3px 6px 3px; border-radius: 10px; border-width: 1px; }
@@ -3054,14 +3014,11 @@ body {
 }
 
 @media (max-width: 380px) {
-    .app-topbar { padding-bottom: 6px; min-height: 32px; }
-    .topbar-logo { height: 28px; max-width: 92px; }
-    .topbar-icon-btn { width: 30px; height: 30px; font-size: 0.8rem; border-radius: 8px; }
-    .topbar-divider { margin-bottom: 8px; }
-    .app-container { padding: 10px 6px 16px; border-radius: 14px; }
+    .header-logo { height: 26px; max-width: 80px; }
     .month-year-trigger { font-size: 0.9rem; padding: 3px 6px; }
     .nav-btn { width: 30px; height: 30px; font-size: 0.75rem; border-radius: 8px; }
     #todayBtn { height: 30px; font-size: 0.68rem; padding: 0 8px; }
+    .app-container { padding: 10px 6px 16px; border-radius: 14px; }
     .weekdays { font-size: 0.48rem; }
     .day-cell { min-height: 62px; padding: 3px 2px 4px 2px; border-radius: 8px; }
     .day-number { width: 16px; height: 16px; font-size: 0.58rem; border-radius: 6px; }
