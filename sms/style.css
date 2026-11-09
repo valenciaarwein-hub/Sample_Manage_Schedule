@@ -2777,6 +2777,25 @@ body {
 }
 
 /* ============================================================
+   INPUT: BORDERLESS (opt-in)
+   Use .input-no-border on any input that should sit flush
+   inside a parent container that owns the border.
+   ============================================================ */
+.input-no-border {
+    border: none !important;
+    outline: none;
+    box-shadow: none;
+    background: transparent;
+}
+
+.input-no-border:focus,
+.input-no-border:focus-visible {
+    border: none !important;
+    outline: none;
+    box-shadow: none;
+}
+
+/* ============================================================
    TIME PICKER (start – end)
    ============================================================ */
 .time-row {
@@ -2829,7 +2848,7 @@ body {
 .time-input {
     flex: 1;
     min-width: 0;
-    border: none;
+    /* border handled by .input-no-border */
     background: transparent;
     padding: 10px 12px;
     font-size: 0.95rem;
