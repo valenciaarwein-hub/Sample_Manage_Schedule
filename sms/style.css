@@ -574,6 +574,76 @@ body {
 }
 .recent-imports-empty p { line-height: 1.5; }
 
+/* ---- Recent imports custom pagination ---- */
+.recent-imports-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+    user-select: none;
+}
+
+.ri-pager-arrow {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1.5px solid #e5e7eb;
+    background: #ffffff;
+    color: #5b21b6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s, color 0.15s;
+    flex-shrink: 0;
+}
+.ri-pager-arrow:hover:not(:disabled) {
+    background: #f3f4f6;
+    border-color: #c4b5fd;
+    color: #4c1d95;
+}
+.ri-pager-arrow:active:not(:disabled) { transform: scale(0.94); }
+.ri-pager-arrow:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    color: #d1d5db;
+    border-color: #f3f4f6;
+}
+
+.ri-pager-dots {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: #f9fafb;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 20px;
+    min-width: 32px;
+    justify-content: center;
+}
+
+.ri-pager-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: width 0.2s ease, background 0.15s ease, transform 0.1s;
+    flex-shrink: 0;
+}
+.ri-pager-dot:hover { background: #c4b5fd; }
+.ri-pager-dot:active { transform: scale(0.9); }
+
+.ri-pager-dot.active {
+    width: 18px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    border-radius: 4px;
+}
+
 /* ===== SORT POPOVER ===== */
 .history-title-row,
 .trash-title-row {
@@ -747,6 +817,24 @@ body {
 .floating-navbar .btn-history:hover,
 .floating-navbar .btn-settings:hover { background: #e5e7eb; }
 .floating-navbar .btn-settings:active { transform: scale(0.97); }
+
+/* ===== SUBTLE FOOTER ===== */
+.app-footer {
+    position: fixed;
+    bottom: 6px;
+    left: 10px;
+    z-index: 999;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.58rem;
+    font-weight: 400;
+    letter-spacing: 0.3px;
+    color: #cbd5e1;
+    opacity: 0.5;
+    pointer-events: none;
+    user-select: none;
+    transition: opacity 0.2s ease;
+}
+.app-footer:hover { opacity: 0.75; }
 
 /* ===== MODAL OVERLAY ===== */
 .modal-overlay {
@@ -1287,6 +1375,7 @@ body {
 }
 .date-preview i { font-size: 1.1rem; color: #6d28d9; flex-shrink: 0; }
 .date-preview span { font-size: 0.95rem; }
+
 /* ============================================================
    HISTORY MODAL
    ============================================================ */
@@ -3422,6 +3511,7 @@ body {
     .upcoming-table thead { display: none; }
     .upcoming-table tbody tr { border: 1.5px solid #e5e7eb; border-radius: 14px; margin-bottom: 10px; padding: 12px 14px; background: #f9fafb; position: relative; }
     .upcoming-table tbody tr.upcoming-today { background: #faf5ff; border-color: #ddd6fe; }
+    .upcoming-table tbody tr.upcoming-late { background: #fff7f7; border-color: #fecaca; }
     .upcoming-table td { padding: 0; border: none; margin-bottom: 8px; display: flex !important; align-items: flex-start; gap: 8px; font-size: 0.85rem; color: #111827; font-weight: 500; text-align: left; vertical-align: top; }
     .upcoming-table td:last-child { margin-bottom: 0; }
     .upcoming-table td::before { content: attr(data-label); flex-shrink: 0; width: 84px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; padding-top: 2px; line-height: 1.4; }
@@ -3454,12 +3544,18 @@ body {
     .recent-imports-table td:last-child { margin-bottom: 0; }
     .recent-imports-table td::before { content: attr(data-label); flex-shrink: 0; width: 84px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; padding-top: 2px; line-height: 1.4; }
     .ri-date-cell { white-space: normal; }
+    .recent-imports-pager { gap: 8px; margin-top: 10px; }
+    .ri-pager-arrow { width: 26px; height: 26px; font-size: 0.6rem; }
+    .ri-pager-dots { padding: 5px 10px; gap: 4px; }
+    .ri-pager-dot { width: 5px; height: 5px; }
+    .ri-pager-dot.active { width: 14px; }
 
     .floating-navbar { bottom: 14px; padding: 8px 12px; gap: 8px; border-radius: 50px; width: calc(100vw - 16px); max-width: 460px; justify-content: center; }
     .nav-left, .nav-center, .nav-right { display: contents; }
     .floating-navbar .btn-create, .floating-navbar .btn-import, .floating-navbar .btn-export, .floating-navbar .btn-history, .floating-navbar .btn-settings { padding: 10px; border-radius: 50%; width: 46px; height: 46px; justify-content: center; gap: 0; margin: 0; flex-shrink: 0; }
     .floating-navbar .btn-create span, .floating-navbar .btn-import span, .floating-navbar .btn-export span, .floating-navbar .btn-history span, .floating-navbar .btn-settings span { display: none; }
     .floating-navbar .btn-create i, .floating-navbar .btn-import i, .floating-navbar .btn-export i, .floating-navbar .btn-history i, .floating-navbar .btn-settings i { font-size: 1.05rem; }
+    .app-footer { font-size: 0.5rem; bottom: 4px; left: 8px; opacity: 0.4; }
 
     .modal-overlay { padding: 10px; align-items: flex-end; }
     .modal { padding: 18px; border-radius: 22px; max-height: 92vh; border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; }
@@ -3629,4 +3725,5 @@ body {
     .notif-btn { width: 30px; height: 30px; font-size: 0.75rem; border-radius: 8px; }
     .loader-cube { width: 80px; height: 80px; }
     .loader-caption { font-size: 0.72rem; }
+    .app-footer { font-size: 0.46rem; }
 }
