@@ -2818,7 +2818,7 @@ body {
     border-radius: 14px;
     background: #ffffff;
     transition: border-color 0.15s, box-shadow 0.15s;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .time-picker:focus-within {
@@ -2839,6 +2839,8 @@ body {
     outline: none;
     letter-spacing: 0.02em;
     cursor: text;
+    border-top-left-radius: 14px;
+    border-bottom-left-radius: 14px;
 }
 
 .time-input::placeholder {
@@ -2846,14 +2848,21 @@ body {
     font-weight: 500;
 }
 
+.time-input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
 .time-ampm {
     display: flex;
     flex-shrink: 0;
-    border-left: 1.5px solid #e5e7eb;
+    border-radius: 0 14px 14px 0;
+    overflow: hidden;
+    background: #f9fafb;
 }
 
 .ampm-btn {
-    background: #f9fafb;
+    background: transparent;
     border: none;
     padding: 0 10px;
     font-family: 'Roboto', sans-serif;
@@ -2868,12 +2877,12 @@ body {
     min-width: 36px;
 }
 
-.ampm-btn:first-child { border-right: 1.5px solid #e5e7eb; }
-.ampm-btn:hover { background: #f3f4f6; color: #4c1d95; }
-.ampm-btn.active {
-    background: #ede9fe;
-    color: #4c1d95;
+.ampm-btn + .ampm-btn {
+    border-left: 1.5px solid #e5e7eb;
 }
+
+.ampm-btn:hover { background: #f3f4f6; color: #4c1d95; }
+.ampm-btn.active { background: #ede9fe; color: #4c1d95; }
 
 .time-dropdown {
     position: absolute;
@@ -2925,6 +2934,41 @@ body {
 .time-picker.invalid {
     border-color: #fecaca;
     background: #fef2f2;
+}
+
+/* ============================================================
+   SCROLLABLE MODAL (scrollbar hidden)
+   ============================================================ */
+.modal.modal-scrollable {
+    overflow: hidden;
+    padding-bottom: 16px;
+}
+
+.modal-scroll-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+    margin-right: -4px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.modal-scroll-body::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+}
+
+.modal.modal-scrollable > .modal-actions {
+    flex-shrink: 0;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1.5px solid #e5e7eb;
+    background: #ffffff;
 }
 
 *:focus-visible {
