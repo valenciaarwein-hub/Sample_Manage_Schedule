@@ -67,11 +67,48 @@
 
     function isScheduleLateNow(dateKey, schedule, nowPH) {
         if (!nowPH) nowPH = getNowPH();
-        if (dateKey !== nowPH.dateKey) return false;
         if (normalizeStatus(schedule.status) === 'done') return false;
+
+        // Manual late (set when a past day was opened)
+        if (schedule.lateMarked) return true;
+
+        // Only "today" can be late by time
+        if (dateKey !== nowPH.dateKey) return false;
+
         const range = parseScheduleTimeRange(schedule.time);
         if (!range) return false;
         return nowPH.totalMinutes > range.endMin;
+    }
+
+    /**
+     * Called when the user opens a past day in the calendar.
+     * Marks all un-done schedules on that day as late (persisted).
+     */
+    function autoMarkPastDayAsLate(dateKey) {
+        const nowPH = getNowPH();
+        const list = schedules[dateKey] || [];
+        if (list.length === 0) return false;
+
+        // Only past days
+        if (dateKey >= nowPH.dateKey) return false;
+
+        let changed = false;
+        list.forEach(s => {
+            const st = normalizeStatus(s.status);
+            if (st === 'done') return;
+            if (st === 'priority') return; // priority stays
+            if (!s.lateMarked) {
+                s.lateMarked = true;
+                s.updatedAt = new Date().toISOString();
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            scheduleSave();
+            renderNotifications();
+        }
+        return changed;
     }
 
     // ============================================================
@@ -105,7 +142,8 @@
                     type: item.type || '',
                     status: normalizeStatus(item.status),
                     createdAt: item.created_at,
-                    time: item.time || ''
+                    time: item.time || '',
+                    lateMarked: !!item.late_marked
                 });
             });
 
@@ -125,7 +163,8 @@
                 dateKey: item.date_key,
                 createdAt: item.created_at,
                 deletedAt: item.deleted_at,
-                time: item.time || ''
+                time: item.time || '',
+                lateMarked: !!item.late_marked
             }));
 
             isLoaded = true;
@@ -170,6 +209,7 @@
                         type: s.type || '',
                         status: normalizeStatus(s.status),
                         time: s.time || null,
+                        late_marked: s.lateMarked || false,
                         created_at: s.createdAt || new Date().toISOString(),
                         updated_at: s.updatedAt || null,
                         deleted_at: null
@@ -185,6 +225,7 @@
                     type: t.type || '',
                     status: normalizeStatus(t.status),
                     time: t.time || null,
+                    late_marked: t.lateMarked || false,
                     created_at: t.createdAt || new Date().toISOString(),
                     updated_at: null,
                     deleted_at: t.deletedAt || new Date().toISOString()
@@ -645,26 +686,35 @@
             renderDropdown();
         });
 
-        // Dropdown auto-fill: pick hour → fill input, close, focus
+        // ---- DROPDOWN AUTO-FILL (fixed) ----
         dropdown.querySelectorAll('.time-option').forEach(btn => {
+            // Prevent input blur from firing before we commit our click
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+            });
+
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 state.hh = btn.dataset.hour;
                 if (!state.mm) state.mm = '00';
 
                 pickerEl.classList.remove('invalid');
+
+                // Explicitly write the visible text
                 input.value = `${state.hh}:${state.mm}`;
 
                 writeStateToDataset();
                 syncAmpmUI();
                 renderDropdown();
-                dropdown.classList.remove('open');
-                input.focus();
 
-                // Select the hour digits so user can type minutes right away
-                if (input.setSelectionRange) {
-                    try { input.setSelectionRange(0, 2); } catch (_) {}
-                }
+                // Close on next frame so focus race can't reopen
+                requestAnimationFrame(() => {
+                    dropdown.classList.remove('open');
+                    input.focus();
+                    if (input.setSelectionRange) {
+                        try { input.setSelectionRange(0, 2); } catch (_) {}
+                    }
+                });
             });
         });
 
@@ -820,35 +870,44 @@
             return;
         }
 
-        let html = '';
+        // Group into three buckets: late, urgent, upcoming
+        const groups = { late: [], urgent: [], upcoming: [] };
+
         items.forEach(it => {
-            const itemClasses = ['notif-item', it.itemClass, it.unread ? 'unread' : ''].filter(Boolean).join(' ');
-            const dateObj = getDateFromKey(it.dateKey);
-            const dateLabel = dateObj.toLocaleDateString('en-US', {
-                month: 'long', day: '2-digit', year: 'numeric'
-            });
+            if (it.status === 'overdue' || it.status === 'late') {
+                groups.late.push(it);
+            } else if (it.status === 'priority' || it.status === 'urgent') {
+                groups.urgent.push(it);
+            } else {
+                groups.upcoming.push(it);
+            }
+        });
 
-            const typeBadgeHtml = it.type
-                ? `<span class="notif-type-badge-wrap">${renderTypeBadge(it.type)}</span>`
-                : `<span class="notif-type-badge-wrap"><span class="type-badge" style="background:#f1f5f9; color:#94a3b8; border-color:#e2e8f0;"><i class="fas fa-tag"></i> No type</span></span>`;
+        const groupsMeta = [
+            { key: 'late',     cls: 'late',     label: 'Late / Overdue',   icon: 'fa-exclamation-circle', dot: 'red' },
+            { key: 'urgent',   cls: 'urgent',   label: 'Urgent / Priority', icon: 'fa-bolt',               dot: 'yellow' },
+            { key: 'upcoming', cls: 'upcoming', label: 'Upcoming',          icon: 'fa-clock',              dot: 'green' }
+        ];
 
-            const statusPill = it.scheduleStatus === 'priority'
-                ? `<span class="notif-status-pill priority"><i class="fas fa-star"></i> Priority</span>`
-                : '';
+        let html = '';
+        groupsMeta.forEach(meta => {
+            const group = groups[meta.key];
+            if (group.length === 0) return;
 
             html += `
-                <button class="${itemClasses}" data-notif-id="${it.id}" data-notif-date="${it.dateKey}">
-                    <span class="notif-dot ${it.dotClass}" title="${it.status}"></span>
-                    <span class="notif-body">
-                        <span class="notif-title">${escapeHtml(it.title)} ${statusPill}</span>
-                        <span class="notif-sub">
-                            ${typeBadgeHtml}
-                            <span class="notif-date">${escapeHtml(dateLabel)}</span>
+                <div class="notif-group notif-group-${meta.cls}">
+                    <div class="notif-group-header">
+                        <span class="notif-group-dot ${meta.dot}"></span>
+                        <span class="notif-group-label">
+                            <i class="fas ${meta.icon}"></i> ${meta.label}
                         </span>
-                    </span>
-                </button>
+                        <span class="notif-group-count">${group.length}</span>
+                    </div>
             `;
+            group.forEach(it => { html += renderNotifItemHTML(it); });
+            html += `</div>`;
         });
+
         notifList.innerHTML = html;
 
         notifList.querySelectorAll('[data-notif-id]').forEach(btn => {
@@ -860,6 +919,35 @@
                 if (dateKey && id) openViewModal(dateKey, id);
             });
         });
+    }
+
+    function renderNotifItemHTML(it) {
+        const itemClasses = ['notif-item', it.itemClass, it.unread ? 'unread' : ''].filter(Boolean).join(' ');
+        const dateObj = getDateFromKey(it.dateKey);
+        const dateLabel = dateObj.toLocaleDateString('en-US', {
+            month: 'long', day: '2-digit', year: 'numeric'
+        });
+
+        const typeBadgeHtml = it.type
+            ? `<span class="notif-type-badge-wrap">${renderTypeBadge(it.type)}</span>`
+            : `<span class="notif-type-badge-wrap"><span class="type-badge" style="background:#f1f5f9; color:#94a3b8; border-color:#e2e8f0;"><i class="fas fa-tag"></i> No type</span></span>`;
+
+        const statusPill = it.scheduleStatus === 'priority'
+            ? `<span class="notif-status-pill priority"><i class="fas fa-star"></i> Priority</span>`
+            : '';
+
+        return `
+            <button class="${itemClasses}" data-notif-id="${it.id}" data-notif-date="${it.dateKey}">
+                <span class="notif-dot ${it.dotClass}" title="${it.status}"></span>
+                <span class="notif-body">
+                    <span class="notif-title">${escapeHtml(it.title)} ${statusPill}</span>
+                    <span class="notif-sub">
+                        ${typeBadgeHtml}
+                        <span class="notif-date">${escapeHtml(dateLabel)}</span>
+                    </span>
+                </span>
+            </button>
+        `;
     }
 
     function markNotificationSeen(id) {
@@ -1279,7 +1367,13 @@
         dayListDateBadge.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
         });
+
+        // Auto-mark un-done schedules on a past day as Late
+        autoMarkPastDayAsLate(dateKey);
+
         renderDayScheduleList();
+        renderCalendar();
+        renderNotifications();
         dayListOverlay.classList.add('active');
     }
 
@@ -1404,6 +1498,8 @@
         if (normalizeStatus(item.status) === normalized) return;
 
         item.status = normalized;
+        // Clear manual late flag when marking as done
+        if (normalized === 'done') item.lateMarked = false;
         item.updatedAt = new Date().toISOString();
 
         scheduleSave();
@@ -3696,9 +3792,6 @@
         }
     });
 
-    // ============================================================
-    // REAL-TIME "DUE / LATE" TICKER
-    // ============================================================
     let lateTicker = null;
     let lastLateSnapshot = '';
 
@@ -3732,9 +3825,6 @@
         lateTicker = setInterval(tickLate, 1000);
     }
 
-    // ============================================================
-    // BOOT
-    // ============================================================
     function boot() {
         renderCalendar();
         renderNotifications();
