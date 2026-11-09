@@ -3,50 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Schedule Manager · Calendar</title>
+    <meta name="theme-color" content="#8b5cf6">
+    <title>Skedo · Schedule Manager</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="icon" type="image/png" href="img/SKEDO.png">
     <link rel="stylesheet" href="sms/style.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
+<!-- ============ TOP-RIGHT FLOATING NOTIFICATION BELL ============ -->
+<div class="notif-wrap notif-topright">
+    <button class="nav-btn notif-btn" id="notifBtn" aria-label="Notifications" title="Notifications">
+        <i class="fas fa-bell"></i>
+        <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+    </button>
+
+    <div class="notif-panel" id="notifPanel" role="dialog" aria-label="Notifications">
+        <div class="notif-header">
+            <h4><i class="fas fa-bell"></i> Notifications</h4>
+            <button class="notif-close" id="notifCloseBtn" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="notif-list" id="notifList"></div>
+        <div class="notif-footer">
+            <button class="notif-mark-read" id="notifMarkReadBtn">
+                <i class="fas fa-check-double"></i> Mark all as read
+            </button>
+        </div>
+    </div>
+</div>
+
 <div class="app-container">
     <div class="calendar-header">
-        <div class="month-year">
-            <button class="month-year-trigger" id="monthYearTrigger" title="Click to pick a date">
-                <span id="monthYearText">April 2025</span>
-                <i class="fas fa-chevron-down"></i>
-            </button>
+        <div class="brand-row">
+            <img src="img/SKEDO.png" alt="Skedo logo" class="brand-logo">
+            <div class="month-year">
+                <button class="month-year-trigger" id="monthYearTrigger" title="Click to pick a date">
+                    <span id="monthYearText">April 2025</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
         </div>
         <div class="nav-buttons">
             <button class="nav-btn" id="prevMonthBtn" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
             <button class="nav-btn" id="nextMonthBtn" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
             <button class="nav-btn" id="todayBtn" aria-label="Today">Today</button>
-
-            <div class="notif-wrap">
-                <button class="nav-btn notif-btn" id="notifBtn" aria-label="Notifications" title="Notifications">
-                    <i class="fas fa-bell"></i>
-                    <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
-                </button>
-
-                <div class="notif-panel" id="notifPanel" role="dialog" aria-label="Notifications">
-                    <div class="notif-header">
-                        <h4><i class="fas fa-bell"></i> Notifications</h4>
-                        <button class="notif-close" id="notifCloseBtn" aria-label="Close">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="notif-list" id="notifList"></div>
-                    <div class="notif-footer">
-                        <button class="notif-mark-read" id="notifMarkReadBtn">
-                            <i class="fas fa-check-double"></i> Mark all as read
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -59,7 +65,7 @@
     <section class="upcoming-section" id="upcomingSection">
         <div class="upcoming-header">
             <h2 class="upcoming-title">
-                <i class="fas fa-calendar-week" style="color:#3b82f6;"></i>
+                <i class="fas fa-calendar-week" style="color:#8b5cf6;"></i>
                 Upcoming 7 Days
             </h2>
             <span class="upcoming-range" id="upcomingRange">—</span>
@@ -123,7 +129,7 @@
 <!-- ============ DAY LIST MODAL ============ -->
 <div class="modal-overlay" id="dayListOverlay">
     <div class="modal">
-        <h3><i class="fas fa-list-ul" style="color:#3b82f6;"></i> Schedules</h3>
+        <h3><i class="fas fa-list-ul" style="color:#8b5cf6;"></i> Schedules</h3>
         <div class="date-badge" id="dayListDateBadge">April 15, 2025</div>
 
         <div class="day-list-toolbar" id="dayListToolbar" style="display:none;">
@@ -151,7 +157,7 @@
 <!-- ============ CREATE/EDIT MODAL ============ -->
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
-        <h3 id="modalTitle"><i class="fas fa-calendar-plus" style="color:#3b82f6;"></i> New Schedule</h3>
+        <h3 id="modalTitle"><i class="fas fa-calendar-plus" style="color:#8b5cf6;"></i> New Schedule</h3>
         <div class="date-badge" id="modalDateBadge">April 15, 2025</div>
 
         <input type="hidden" id="editingId" value="">
@@ -183,7 +189,7 @@
         </div>
 
         <div class="field">
-            <label>Description <span class="required-mark">*</span> <span style="font-weight:400; color:#64748b;">(max 200 characters)</span></label>
+            <label>Description <span class="required-mark">*</span> <span style="font-weight:400; color:#71717a;">(max 200 characters)</span></label>
             <textarea id="scheduleDescription" placeholder="Add details..." maxlength="200"></textarea>
             <div class="char-counter"><span id="charCount">0</span> / 200</div>
         </div>
@@ -198,7 +204,7 @@
 <!-- ============ REVIEW MODAL ============ -->
 <div class="modal-overlay" id="reviewOverlay">
     <div class="modal review-modal">
-        <h3><i class="fas fa-clipboard-check" style="color:#3b82f6;"></i> <span id="reviewTitleText">Review Changes</span></h3>
+        <h3><i class="fas fa-clipboard-check" style="color:#8b5cf6;"></i> <span id="reviewTitleText">Review Changes</span></h3>
         <p class="review-subtitle" id="reviewSubtitle">Please review the changes below before saving.</p>
         <div class="review-body" id="reviewBody"></div>
         <div class="review-actions">
@@ -215,7 +221,7 @@
 <!-- ============ VIEW MODAL ============ -->
 <div class="modal-overlay" id="viewOverlay">
     <div class="modal">
-        <h3 id="viewModalTitle"><i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details</h3>
+        <h3 id="viewModalTitle"><i class="fas fa-eye" style="color:#8b5cf6;"></i> Schedule Details</h3>
         <div class="detail-view">
             <div class="detail-label">Title</div>
             <div class="detail-value" id="viewTitle">—</div>
@@ -248,8 +254,8 @@
 <!-- ============ DATE PICKER MODAL ============ -->
 <div class="modal-overlay" id="datePickerOverlay">
     <div class="modal">
-        <h3><i class="fas fa-calendar-alt" style="color:#3b82f6;"></i> Jump to Date</h3>
-        <p style="color:#64748b; font-size:0.82rem; margin-bottom: 16px;">Pick a year, month, and day to jump to that date.</p>
+        <h3><i class="fas fa-calendar-alt" style="color:#8b5cf6;"></i> Jump to Date</h3>
+        <p style="color:#71717a; font-size:0.82rem; margin-bottom: 16px;">Pick a year, month, and day to jump to that date.</p>
         <div class="date-picker-row">
             <div class="date-picker-field">
                 <label for="pickYear">Year</label>
@@ -279,7 +285,7 @@
 <div class="modal-overlay" id="historyOverlay">
     <div class="modal history-modal">
         <div class="history-title-row">
-            <h3><i class="fas fa-history" style="color:#3b82f6;"></i> Schedule History</h3>
+            <h3><i class="fas fa-history" style="color:#8b5cf6;"></i> Schedule History</h3>
             <div class="sort-wrap">
                 <button class="sort-icon-btn" id="historySortBtn" title="Sort history" aria-haspopup="true" aria-expanded="false">
                     <i class="fas fa-sort-amount-down"></i>
@@ -303,7 +309,7 @@
                 </div>
             </div>
         </div>
-        <p style="color:#64748b; font-size:0.82rem; margin-bottom: 12px;">All your saved schedules across every year, month, and date.</p>
+        <p style="color:#71717a; font-size:0.82rem; margin-bottom: 12px;">All your saved schedules across every year, month, and date.</p>
         <div class="history-controls">
             <div class="history-search-wrap">
                 <i class="fas fa-search"></i>
@@ -346,8 +352,8 @@
 <!-- ============ SETTINGS MODAL ============ -->
 <div class="modal-overlay" id="settingsOverlay">
     <div class="modal settings-modal">
-        <h3><i class="fas fa-cog" style="color:#3b82f6;"></i> Settings</h3>
-        <p style="color:#64748b; font-size:0.82rem; margin-bottom: 16px;">Manage your account and deleted schedules.</p>
+        <h3><i class="fas fa-cog" style="color:#8b5cf6;"></i> Settings</h3>
+        <p style="color:#71717a; font-size:0.82rem; margin-bottom: 16px;">Manage your account and deleted schedules.</p>
         <div class="settings-menu">
             <button class="settings-item" id="openTrashBtn">
                 <div class="settings-item-icon trash"><i class="fas fa-trash-alt"></i></div>
@@ -384,7 +390,7 @@
 <div class="modal-overlay" id="trashOverlay">
     <div class="modal trash-modal">
         <div class="trash-title-row">
-            <h3><i class="fas fa-trash-alt" style="color:#3b82f6;"></i> Recycle Bin</h3>
+            <h3><i class="fas fa-trash-alt" style="color:#8b5cf6;"></i> Recycle Bin</h3>
             <div class="sort-wrap">
                 <button class="sort-icon-btn" id="trashSortBtn" title="Sort recycle bin" aria-haspopup="true" aria-expanded="false">
                     <i class="fas fa-sort-amount-down"></i>
@@ -408,7 +414,7 @@
                 </div>
             </div>
         </div>
-        <p style="color:#64748b; font-size:0.82rem; margin-bottom: 12px;">Deleted schedules are kept here until you recover or permanently delete them.</p>
+        <p style="color:#71717a; font-size:0.82rem; margin-bottom: 12px;">Deleted schedules are kept here until you recover or permanently delete them.</p>
         <div class="trash-toolbar">
             <label class="trash-select-all">
                 <input type="checkbox" id="trashSelectAll">
@@ -509,7 +515,7 @@
 <!-- ============ IMPORT MODAL ============ -->
 <div class="modal-overlay" id="importOverlay">
     <div class="modal import-modal">
-        <h3><i class="fas fa-file-import" style="color:#3b82f6;"></i> Import Schedules</h3>
+        <h3><i class="fas fa-file-import" style="color:#8b5cf6;"></i> Import Schedules</h3>
         <p class="import-subtitle">Upload an Excel file (.xlsx) with your schedules. The file must match the template exactly.</p>
 
         <div class="import-scroll-body">
