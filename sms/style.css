@@ -41,7 +41,7 @@ body {
 }
 
 .topbar-logo {
-    height: 44px;
+    height: 55px;
     width: auto;
     max-width: 160px;
     object-fit: contain;
@@ -53,8 +53,8 @@ body {
 .topbar-logo:hover { transform: scale(1.03); }
 
 .topbar-icon-btn {
-    width: 44px;
-    height: 44px;
+    width: 55px;
+    height: 55px;
     border-radius: 14px;
     background: #ede9fe;
     border: none;
