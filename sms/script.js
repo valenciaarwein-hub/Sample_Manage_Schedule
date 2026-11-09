@@ -440,46 +440,6 @@
     // ============================================================
     const HOURS = ['01','02','03','04','05','06','07','08','09','10','11','12'];
 
-    function parseTimeInput(raw) {
-        if (!raw) return null;
-        let s = String(raw).trim().toUpperCase().replace(/\./g, '');
-        if (!s) return null;
-
-        let ampm = null;
-        const ampmMatch = s.match(/\s*(AM|PM)\s*$/);
-        if (ampmMatch) {
-            ampm = ampmMatch[1];
-            s = s.slice(0, ampmMatch.index).trim();
-        }
-
-        const m = s.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
-        if (!m) return null;
-
-        let hour = parseInt(m[1], 10);
-        let minute = m[2] !== undefined ? parseInt(m[2], 10) : 0;
-
-        if (isNaN(hour) || isNaN(minute)) return null;
-        if (minute < 0 || minute > 59) return null;
-
-        let autoAmpm = null;
-        if (hour > 12 && hour <= 23) {
-            autoAmpm = hour >= 12 ? 'PM' : 'AM';
-            hour = hour % 12;
-            if (hour === 0) hour = 12;
-        } else if (hour === 0) {
-            hour = 12;
-            autoAmpm = 'AM';
-        } else if (hour < 1 || hour > 12) {
-            return null;
-        }
-
-        return {
-            hh: String(hour).padStart(2, '0'),
-            mm: String(minute).padStart(2, '0'),
-            ampm: ampm || autoAmpm || null
-        };
-    }
-
     function initTimePicker(pickerEl) {
         const input = pickerEl.querySelector('.time-input');
         const ampmBtns = pickerEl.querySelectorAll('.ampm-btn');
@@ -499,79 +459,112 @@
             });
         }
 
-        function syncInputDisplay() {
-            if (state.hh) {
-                input.value = `${state.hh}:${state.mm || '00'}`;
-            } else {
-                input.value = '';
-            }
-        }
-
         function syncAmpmUI() {
             ampmBtns.forEach(b => b.classList.toggle('active', b.dataset.ampm === state.ampm));
         }
 
-        function commitParsed(parsed) {
-            if (!parsed) return false;
-            state.hh = parsed.hh;
-            state.mm = parsed.mm;
-            if (parsed.ampm) state.ampm = parsed.ampm;
-            pickerEl.classList.remove('invalid');
-            syncInputDisplay();
-            syncAmpmUI();
-            renderDropdown();
+        function writeStateToDataset() {
             pickerEl.dataset.hh = state.hh;
             pickerEl.dataset.mm = state.mm;
             pickerEl.dataset.ampm = state.ampm;
-            return true;
+        }
+
+        function sanitizeTyping(raw) {
+            let s = String(raw).replace(/[^\d:]/g, '');
+            const firstColon = s.indexOf(':');
+            if (firstColon !== -1) {
+                s = s.slice(0, firstColon + 1) + s.slice(firstColon + 1).replace(/:/g, '');
+            }
+            const parts = s.split(':');
+            let hh = (parts[0] || '').slice(0, 2);
+            let mm = parts.length > 1 ? (parts[1] || '').slice(0, 2) : '';
+            return parts.length > 1 ? `${hh}:${mm}` : hh;
+        }
+
+        function normalizeOnBlur() {
+            const raw = input.value.trim();
+            if (!raw) {
+                state.hh = '';
+                state.mm = '00';
+                pickerEl.classList.remove('invalid');
+                writeStateToDataset();
+                syncAmpmUI();
+                renderDropdown();
+                return;
+            }
+
+            const parts = raw.split(':');
+            let hhStr = parts[0] || '';
+            let mmStr = parts.length > 1 ? parts[1] : '';
+
+            if (hhStr === '') {
+                pickerEl.classList.add('invalid');
+                return;
+            }
+
+            let hh = parseInt(hhStr, 10);
+            if (isNaN(hh)) {
+                pickerEl.classList.add('invalid');
+                return;
+            }
+
+            if (hh > 12 && hh <= 23) {
+                // Treat as 24-hour and convert
+                const a = hh >= 12 ? 'PM' : 'AM';
+                let h12 = hh % 12;
+                if (h12 === 0) h12 = 12;
+                hh = h12;
+                state.ampm = a;
+            } else if (hh === 0) {
+                hh = 12;
+                state.ampm = 'AM';
+            } else if (hh < 1 || hh > 12) {
+                pickerEl.classList.add('invalid');
+                return;
+            }
+
+            let mm = mmStr === '' ? 0 : parseInt(mmStr, 10);
+            if (isNaN(mm) || mm < 0 || mm > 59) {
+                pickerEl.classList.add('invalid');
+                return;
+            }
+
+            state.hh = String(hh).padStart(2, '0');
+            state.mm = String(mm).padStart(2, '0');
+            pickerEl.classList.remove('invalid');
+
+            input.value = `${state.hh}:${state.mm}`;
+            writeStateToDataset();
+            syncAmpmUI();
+            renderDropdown();
         }
 
         input.addEventListener('input', () => {
-            const raw = input.value;
-            const parsed = parseTimeInput(raw);
-            if (parsed) {
-                state.hh = parsed.hh;
-                state.mm = parsed.mm;
-                if (parsed.ampm) state.ampm = parsed.ampm;
-                const formatted = `${parsed.hh}:${parsed.mm}`;
-                if (formatted !== input.value) {
-                    input.value = formatted;
-                }
-                pickerEl.classList.remove('invalid');
-                syncAmpmUI();
-                renderDropdown();
-                pickerEl.dataset.hh = state.hh;
-                pickerEl.dataset.mm = state.mm;
-                pickerEl.dataset.ampm = state.ampm;
-            } else {
-                pickerEl.classList.remove('invalid');
-                pickerEl.dataset.hh = '';
-                pickerEl.dataset.mm = '';
+            const sanitized = sanitizeTyping(input.value);
+            if (sanitized !== input.value) {
+                input.value = sanitized;
             }
+            pickerEl.classList.remove('invalid');
         });
 
         input.addEventListener('blur', () => {
-            const parsed = parseTimeInput(input.value);
-            if (parsed) {
-                commitParsed(parsed);
-            } else if (input.value.trim() === '') {
-                state.hh = ''; state.mm = '00';
-                pickerEl.dataset.hh = '';
-                pickerEl.dataset.mm = '';
-                pickerEl.classList.remove('invalid');
-                syncAmpmUI();
-                renderDropdown();
-            } else {
-                pickerEl.classList.add('invalid');
-            }
+            normalizeOnBlur();
             dropdown.classList.remove('open');
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                normalizeOnBlur();
+                input.blur();
+            }
         });
 
         ampmBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 state.ampm = btn.dataset.ampm;
-                pickerEl.dataset.ampm = state.ampm;
+                writeStateToDataset();
                 syncAmpmUI();
                 input.focus();
             });
@@ -593,11 +586,10 @@
                 state.hh = btn.dataset.hour;
                 if (!state.mm) state.mm = '00';
                 pickerEl.classList.remove('invalid');
-                syncInputDisplay();
+                input.value = `${state.hh}:${state.mm}`;
+                writeStateToDataset();
+                syncAmpmUI();
                 renderDropdown();
-                pickerEl.dataset.hh = state.hh;
-                pickerEl.dataset.mm = state.mm;
-                pickerEl.dataset.ampm = state.ampm;
                 dropdown.classList.remove('open');
                 input.focus();
             });
@@ -615,9 +607,7 @@
                 state = { hh: '', mm: '00', ampm: 'AM' };
                 input.value = '';
                 pickerEl.classList.remove('invalid');
-                pickerEl.dataset.hh = '';
-                pickerEl.dataset.mm = '';
-                pickerEl.dataset.ampm = 'AM';
+                writeStateToDataset();
                 syncAmpmUI();
                 renderDropdown();
                 dropdown.classList.remove('open');
@@ -626,13 +616,11 @@
                 state.hh = hh || '';
                 state.mm = mm || '00';
                 state.ampm = ampm || 'AM';
-                syncInputDisplay();
+                input.value = state.hh ? `${state.hh}:${state.mm}` : '';
                 syncAmpmUI();
                 renderDropdown();
                 pickerEl.classList.remove('invalid');
-                pickerEl.dataset.hh = state.hh;
-                pickerEl.dataset.mm = state.mm;
-                pickerEl.dataset.ampm = state.ampm;
+                writeStateToDataset();
             },
             getValue() {
                 if (!state.hh) return '';
@@ -3093,7 +3081,6 @@
             return { rows, errors: ['The header row does not match the template.', ...headerErrors] };
         }
 
-        const hasTimeColumn = header[4] === 'Time' || header.includes('Time');
         const timeColumnIndex = header.indexOf('Time');
 
         for (let i = 1; i < grid.length; i++) {
