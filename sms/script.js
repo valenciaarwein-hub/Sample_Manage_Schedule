@@ -2,9 +2,6 @@
 (function() {
     'use strict';
 
-    // ============================================================
-    // STATE
-    // ============================================================
     let schedules = {};
     let trash = [];
     let isLoaded = false;
@@ -14,9 +11,6 @@
     const TYPE_OPTIONS = ['Meeting', 'Seminar', 'Special Event', 'Other'];
     const STATUS_OPTIONS = ['upcoming', 'done', 'priority'];
 
-    // ============================================================
-    // SUPABASE HELPERS
-    // ============================================================
     function getSupabase() {
         if (!window.supabaseClient) {
             throw new Error('Supabase client not initialized. Check your credentials in index.html.');
@@ -44,7 +38,8 @@
                     description: item.description || '',
                     type: item.type || '',
                     status: normalizeStatus(item.status),
-                    createdAt: item.created_at
+                    createdAt: item.created_at,
+                    time: item.time || ''
                 });
             });
 
@@ -63,7 +58,8 @@
                 status: normalizeStatus(item.status),
                 dateKey: item.date_key,
                 createdAt: item.created_at,
-                deletedAt: item.deleted_at
+                deletedAt: item.deleted_at,
+                time: item.time || ''
             }));
 
             isLoaded = true;
@@ -107,6 +103,7 @@
                         description: s.description || '',
                         type: s.type || '',
                         status: normalizeStatus(s.status),
+                        time: s.time || null,
                         created_at: s.createdAt || new Date().toISOString(),
                         updated_at: s.updatedAt || null,
                         deleted_at: null
@@ -121,6 +118,7 @@
                     description: t.description || '',
                     type: t.type || '',
                     status: normalizeStatus(t.status),
+                    time: t.time || null,
                     created_at: t.createdAt || new Date().toISOString(),
                     updated_at: null,
                     deleted_at: t.deletedAt || new Date().toISOString()
@@ -170,9 +168,6 @@
         }
     }
 
-    // ============================================================
-    // HELPERS
-    // ============================================================
     function uid() {
         return 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
     }
@@ -230,9 +225,6 @@
         return `<span class="type-badge"><i class="fas ${getTypeIcon(type)}"></i> ${escapeHtml(type)}</span>`;
     }
 
-    // ============================================================
-    // STATUS HELPERS
-    // ============================================================
     function getStatusIcon(status) {
         switch (status) {
             case 'done': return 'fa-check-circle';
@@ -268,9 +260,6 @@
         return 'upcoming';
     }
 
-    // ============================================================
-    // SORT HELPERS
-    // ============================================================
     function cmpIso(a, b) {
         const aT = a || '';
         const bT = b || '';
@@ -312,9 +301,6 @@
         });
     }
 
-    // ============================================================
-    // STATE VARIABLES (UI)
-    // ============================================================
     let currentDate = new Date();
     currentDate.setDate(1);
     let currentYear = currentDate.getFullYear();
@@ -335,9 +321,6 @@
 
     let viewContext = { kind: 'schedule', trashId: null };
 
-    // ============================================================
-    // DOM ELEMENTS
-    // ============================================================
     const monthYearText = document.getElementById('monthYearText');
     const monthYearTrigger = document.getElementById('monthYearTrigger');
     const calendarGrid = document.getElementById('calendarGrid');
@@ -386,6 +369,7 @@
     const viewModalTitle = document.getElementById('viewModalTitle');
     const viewTitle = document.getElementById('viewTitle');
     const viewType = document.getElementById('viewType');
+    const viewTime = document.getElementById('viewTime');
     const viewDescription = document.getElementById('viewDescription');
     const viewDate = document.getElementById('viewDate');
     const viewStatusRow = document.getElementById('viewStatusRow');
@@ -450,6 +434,242 @@
     const notifList = document.getElementById('notifList');
     const notifCloseBtn = document.getElementById('notifCloseBtn');
     const notifMarkReadBtn = document.getElementById('notifMarkReadBtn');
+
+    // ============================================================
+    // TIME PICKER (start – end)
+    // ============================================================
+    const HOURS = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+
+    function parseTimeInput(raw) {
+        if (!raw) return null;
+        let s = String(raw).trim().toUpperCase().replace(/\./g, '');
+        if (!s) return null;
+
+        let ampm = null;
+        const ampmMatch = s.match(/\s*(AM|PM)\s*$/);
+        if (ampmMatch) {
+            ampm = ampmMatch[1];
+            s = s.slice(0, ampmMatch.index).trim();
+        }
+
+        const m = s.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+        if (!m) return null;
+
+        let hour = parseInt(m[1], 10);
+        let minute = m[2] !== undefined ? parseInt(m[2], 10) : 0;
+
+        if (isNaN(hour) || isNaN(minute)) return null;
+        if (minute < 0 || minute > 59) return null;
+
+        let autoAmpm = null;
+        if (hour > 12 && hour <= 23) {
+            autoAmpm = hour >= 12 ? 'PM' : 'AM';
+            hour = hour % 12;
+            if (hour === 0) hour = 12;
+        } else if (hour === 0) {
+            hour = 12;
+            autoAmpm = 'AM';
+        } else if (hour < 1 || hour > 12) {
+            return null;
+        }
+
+        return {
+            hh: String(hour).padStart(2, '0'),
+            mm: String(minute).padStart(2, '0'),
+            ampm: ampm || autoAmpm || null
+        };
+    }
+
+    function initTimePicker(pickerEl) {
+        const input = pickerEl.querySelector('.time-input');
+        const ampmBtns = pickerEl.querySelectorAll('.ampm-btn');
+        const dropdown = pickerEl.querySelector('.time-dropdown');
+
+        let state = { hh: '', mm: '00', ampm: 'AM' };
+
+        dropdown.innerHTML = HOURS.map(h =>
+            `<button type="button" class="time-option" data-hour="${h}">
+                <span>${h}:00</span>
+            </button>`
+        ).join('');
+
+        function renderDropdown() {
+            dropdown.querySelectorAll('.time-option').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.hour === state.hh);
+            });
+        }
+
+        function syncInputDisplay() {
+            if (state.hh) {
+                input.value = `${state.hh}:${state.mm || '00'}`;
+            } else {
+                input.value = '';
+            }
+        }
+
+        function syncAmpmUI() {
+            ampmBtns.forEach(b => b.classList.toggle('active', b.dataset.ampm === state.ampm));
+        }
+
+        function commitParsed(parsed) {
+            if (!parsed) return false;
+            state.hh = parsed.hh;
+            state.mm = parsed.mm;
+            if (parsed.ampm) state.ampm = parsed.ampm;
+            pickerEl.classList.remove('invalid');
+            syncInputDisplay();
+            syncAmpmUI();
+            renderDropdown();
+            pickerEl.dataset.hh = state.hh;
+            pickerEl.dataset.mm = state.mm;
+            pickerEl.dataset.ampm = state.ampm;
+            return true;
+        }
+
+        input.addEventListener('input', () => {
+            const raw = input.value;
+            const parsed = parseTimeInput(raw);
+            if (parsed) {
+                state.hh = parsed.hh;
+                state.mm = parsed.mm;
+                if (parsed.ampm) state.ampm = parsed.ampm;
+                const formatted = `${parsed.hh}:${parsed.mm}`;
+                if (formatted !== input.value) {
+                    input.value = formatted;
+                }
+                pickerEl.classList.remove('invalid');
+                syncAmpmUI();
+                renderDropdown();
+                pickerEl.dataset.hh = state.hh;
+                pickerEl.dataset.mm = state.mm;
+                pickerEl.dataset.ampm = state.ampm;
+            } else {
+                pickerEl.classList.remove('invalid');
+                pickerEl.dataset.hh = '';
+                pickerEl.dataset.mm = '';
+            }
+        });
+
+        input.addEventListener('blur', () => {
+            const parsed = parseTimeInput(input.value);
+            if (parsed) {
+                commitParsed(parsed);
+            } else if (input.value.trim() === '') {
+                state.hh = ''; state.mm = '00';
+                pickerEl.dataset.hh = '';
+                pickerEl.dataset.mm = '';
+                pickerEl.classList.remove('invalid');
+                syncAmpmUI();
+                renderDropdown();
+            } else {
+                pickerEl.classList.add('invalid');
+            }
+            dropdown.classList.remove('open');
+        });
+
+        ampmBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.ampm = btn.dataset.ampm;
+                pickerEl.dataset.ampm = state.ampm;
+                syncAmpmUI();
+                input.focus();
+            });
+        });
+
+        input.addEventListener('focus', () => {
+            renderDropdown();
+            dropdown.classList.add('open');
+        });
+        input.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.add('open');
+            renderDropdown();
+        });
+
+        dropdown.querySelectorAll('.time-option').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.hh = btn.dataset.hour;
+                if (!state.mm) state.mm = '00';
+                pickerEl.classList.remove('invalid');
+                syncInputDisplay();
+                renderDropdown();
+                pickerEl.dataset.hh = state.hh;
+                pickerEl.dataset.mm = state.mm;
+                pickerEl.dataset.ampm = state.ampm;
+                dropdown.classList.remove('open');
+                input.focus();
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!pickerEl.contains(e.target)) dropdown.classList.remove('open');
+        });
+
+        syncAmpmUI();
+        renderDropdown();
+
+        return {
+            reset() {
+                state = { hh: '', mm: '00', ampm: 'AM' };
+                input.value = '';
+                pickerEl.classList.remove('invalid');
+                pickerEl.dataset.hh = '';
+                pickerEl.dataset.mm = '';
+                pickerEl.dataset.ampm = 'AM';
+                syncAmpmUI();
+                renderDropdown();
+                dropdown.classList.remove('open');
+            },
+            setValue(hh, mm, ampm) {
+                state.hh = hh || '';
+                state.mm = mm || '00';
+                state.ampm = ampm || 'AM';
+                syncInputDisplay();
+                syncAmpmUI();
+                renderDropdown();
+                pickerEl.classList.remove('invalid');
+                pickerEl.dataset.hh = state.hh;
+                pickerEl.dataset.mm = state.mm;
+                pickerEl.dataset.ampm = state.ampm;
+            },
+            getValue() {
+                if (!state.hh) return '';
+                return `${state.hh}:${state.mm} ${state.ampm}`;
+            },
+            hasValue() { return !!state.hh; }
+        };
+    }
+
+    const startPickerEl = document.querySelector('[data-picker="start"]');
+    const endPickerEl = document.querySelector('[data-picker="end"]');
+    const startPicker = startPickerEl ? initTimePicker(startPickerEl) : null;
+    const endPicker = endPickerEl ? initTimePicker(endPickerEl) : null;
+
+    function getTimeRange() {
+        if (!startPicker || !endPicker) return '';
+        const s = startPicker.getValue();
+        const e = endPicker.getValue();
+        if (!s && !e) return '';
+        if (s && e) return `${s} – ${e}`;
+        return s || e;
+    }
+
+    function parseSavedTimeRange(timeStr) {
+        if (!timeStr) return { start: null, end: null };
+        const parts = timeStr.split('–').map(p => p.trim());
+        const start = parts[0] || null;
+        const end = parts[1] || null;
+        return { start, end };
+    }
+
+    function splitTimeString(timeStr) {
+        if (!timeStr) return null;
+        const m = timeStr.match(/^(\d{2}):(\d{2})\s*(AM|PM)$/i);
+        if (!m) return null;
+        return { hh: m[1], mm: m[2], ampm: m[3].toUpperCase() };
+    }
 
     // ============================================================
     // NOTIFICATION SYSTEM
@@ -623,9 +843,6 @@
         if (e.key === 'Escape' && notifPanel.classList.contains('open')) closeNotifPanel();
     });
 
-    // ============================================================
-    // CONFIRM MODAL
-    // ============================================================
     let pendingConfirmAction = null;
 
     function openConfirmModal(opts) {
@@ -675,9 +892,6 @@
         if (e.target === confirmOverlay) closeConfirmModal();
     });
 
-    // ============================================================
-    // VALIDATION MODAL
-    // ============================================================
     function openValidationModal(missingFields) {
         validationMessage.textContent = 'Please complete the required fields below before saving.';
         validationList.innerHTML = missingFields.map(f =>
@@ -696,9 +910,6 @@
         if (e.target === validationOverlay) closeValidationModal();
     });
 
-    // ============================================================
-    // FORM: TYPE BUTTONS
-    // ============================================================
     function resetTypeButtons(selectedType) {
         const btns = typeButtonGroup.querySelectorAll('.type-btn');
         const knownTypes = TYPE_OPTIONS;
@@ -780,9 +991,6 @@
         return formType.base || '';
     }
 
-    // ============================================================
-    // UPCOMING 7 DAYS TABLE
-    // ============================================================
     function renderUpcomingTable() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -873,9 +1081,6 @@
         });
     }
 
-    // ============================================================
-    // RENDER CALENDAR
-    // ============================================================
     function renderCalendar() {
         monthYearText.textContent = `${monthNames[currentMonth]} ${currentYear}`;
 
@@ -931,10 +1136,12 @@
                                     : st === 'priority' ? ' status-priority'
                                     : ' status-upcoming-status status-' + urgency;
 
+                    const timeLabel = s.time ? ` · ${s.time.split('–')[0].trim()}` : '';
+
                     schedulesHtml += `
                         <div class="schedule-item${itemClass}" data-date="${dateKey}" data-id="${s.id}" title="${escapeHtml(s.title)} — ${escapeHtml(s.description || '')}">
                             <i class="fas ${statusIcon} schedule-status-icon ${st}"></i>
-                            <span class="schedule-title-highlight">${escapeHtml(shortTitle)}</span>
+                            <span class="schedule-title-highlight">${escapeHtml(shortTitle)}${timeLabel ? `<span style="font-weight:400; opacity:0.75;">${escapeHtml(timeLabel)}</span>` : ''}</span>
                         </div>
                     `;
                 });
@@ -966,6 +1173,9 @@
         calendarGrid.innerHTML = gridHtml;
 
         document.querySelectorAll('.schedule-item').forEach(item => {
+            const parentCell = item.closest('.day-cell');
+            if (!parentCell || parentCell.dataset.isCurrentMonth !== 'true') return;
+
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const dateKey = item.dataset.date;
@@ -974,6 +1184,14 @@
         });
 
         document.querySelectorAll('.day-cell').forEach(cell => {
+            const isCurrentMonth = cell.dataset.isCurrentMonth === 'true';
+
+            if (!isCurrentMonth) {
+                cell.setAttribute('aria-disabled', 'true');
+                cell.removeAttribute('tabindex');
+                return;
+            }
+
             cell.addEventListener('click', () => {
                 const dateKey = cell.dataset.dateKey;
                 if (dateKey) openDayListModal(dateKey);
@@ -983,9 +1201,6 @@
         renderUpcomingTable();
     }
 
-    // ============================================================
-    // DAY LIST MODAL
-    // ============================================================
     function openDayListModal(dateKey) {
         activeDayListDateKey = dateKey;
         dayListSelection.clear();
@@ -1024,9 +1239,6 @@
         }
     }
 
-    // ============================================================
-    // STATUS POPUP
-    // ============================================================
     let openStatusPopup = null;
 
     function closeStatusPopup() {
@@ -1099,9 +1311,6 @@
     window.addEventListener('scroll', closeStatusPopup, { passive: true });
     window.addEventListener('resize', closeStatusPopup);
 
-    // ============================================================
-    // CHANGE STATUS
-    // ============================================================
     function setScheduleStatus(dateKey, id, newStatus) {
         const list = schedules[dateKey] || [];
         const item = list.find(s => s.id === id);
@@ -1165,6 +1374,10 @@
                                   : st === 'priority' ? ' status-priority'
                                   : '';
 
+            const timeHtml = s.time
+                ? `<div class="card-desc" style="color:#6d28d9; font-weight:600; font-size:0.72rem;"><i class="fas fa-clock" style="font-size:0.62rem;"></i> ${escapeHtml(s.time)}</div>`
+                : '';
+
             html += `
                 <div class="day-schedule-card${cardStatusClass}">
                     <input type="checkbox" class="day-checkbox" data-day-id="${s.id}" ${isChecked ? 'checked' : ''}>
@@ -1174,6 +1387,7 @@
                             <span class="schedule-title-highlight">${escapeHtml(s.title)}</span>
                         </div>
                         <div class="card-desc">${escapeHtml(desc)}</div>
+                        ${timeHtml}
                         ${s.type ? renderTypeBadge(s.type) : ''}
                     </div>
                     <div class="card-actions">
@@ -1230,9 +1444,6 @@
         updateDayListBulkUI();
     }
 
-    // ============================================================
-    // DELETE
-    // ============================================================
     function deleteScheduleFromList(dateKey, id) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === id);
         if (!schedule) return;
@@ -1300,9 +1511,6 @@
         });
     }
 
-    // ============================================================
-    // VIEW MODAL
-    // ============================================================
     function openViewModal(dateKey, scheduleId, fromHistory = false) {
         const schedule = (schedules[dateKey] || []).find(s => s.id === scheduleId);
         if (!schedule) return;
@@ -1319,6 +1527,7 @@
 
         viewTitle.textContent = schedule.title;
         viewType.innerHTML = schedule.type ? renderTypeBadge(schedule.type) : '<span style="color:#94a3b8;">—</span>';
+        viewTime.textContent = schedule.time || '—';
         viewDescription.textContent = schedule.description || 'No description provided.';
         viewDate.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -1343,6 +1552,7 @@
 
         viewTitle.textContent = item.title;
         viewType.innerHTML = item.type ? renderTypeBadge(item.type) : '<span style="color:#94a3b8;">—</span>';
+        viewTime.textContent = item.time || '—';
         viewDescription.textContent = item.description || 'No description provided.';
 
         const dateObj = getDateFromKey(item.dateKey || formatDateKey(new Date()));
@@ -1378,9 +1588,6 @@
         }
     }
 
-    // ============================================================
-    // FORM MODAL
-    // ============================================================
     function openCreateFormModal(dateKey) {
         reopenHistoryAfterEdit = false;
         editingScheduleId = null;
@@ -1396,6 +1603,8 @@
 
         scheduleTitle.value = '';
         scheduleDescription.value = '';
+        if (startPicker) startPicker.reset();
+        if (endPicker) endPicker.reset();
         resetTypeButtons(null);
         updateCharCounter();
 
@@ -1425,6 +1634,17 @@
         resetTypeButtons(schedule.type || null);
         updateCharCounter();
 
+        if (startPicker) startPicker.reset();
+        if (endPicker) endPicker.reset();
+
+        if (schedule.time) {
+            const parts = parseSavedTimeRange(schedule.time);
+            const s = splitTimeString(parts.start);
+            const e = splitTimeString(parts.end);
+            if (s && startPicker) startPicker.setValue(s.hh, s.mm, s.ampm);
+            if (e && endPicker)   endPicker.setValue(e.hh, e.mm, e.ampm);
+        }
+
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
         modalOverlay.classList.add('active');
         scheduleTitle.focus();
@@ -1446,9 +1666,6 @@
         }
     }
 
-    // ============================================================
-    // VALIDATION & SAVE FLOW
-    // ============================================================
     function collectValidationErrors() {
         const errors = [];
         const titleVal = scheduleTitle.value.trim();
@@ -1488,6 +1705,9 @@
         const title = scheduleTitle.value.trim();
         const description = scheduleDescription.value.trim().slice(0, 200);
         const resolvedType = getResolvedType().trim();
+        const startVal = startPicker ? startPicker.getValue() : '';
+        const endVal   = endPicker   ? endPicker.getValue()   : '';
+        const timeRange = (startVal && endVal) ? `${startVal} – ${endVal}` : (startVal || endVal || '');
         const dateKey = selectedDateKey;
         if (!dateKey) return;
 
@@ -1499,8 +1719,9 @@
             const sameTitle = original.title === title;
             const sameDesc = (original.description || '') === description;
             const sameType = (original.type || '') === resolvedType;
+            const sameTime = (original.time || '') === timeRange;
 
-            if (sameTitle && sameDesc && sameType) {
+            if (sameTitle && sameDesc && sameType && sameTime) {
                 closeFormModal();
                 return;
             }
@@ -1513,12 +1734,14 @@
                     title: original.title,
                     description: original.description || '',
                     type: original.type || '',
+                    time: original.time || '',
                     status: normalizeStatus(original.status)
                 },
                 newData: {
                     title,
                     description,
                     type: resolvedType,
+                    time: timeRange,
                     status: normalizeStatus(original.status)
                 }
             };
@@ -1532,6 +1755,7 @@
                     title,
                     description,
                     type: resolvedType,
+                    time: timeRange,
                     status: 'upcoming'
                 }
             };
@@ -1561,6 +1785,12 @@
                 <div class="review-field">
                     <div class="review-value">${escapeHtml(dateLabel)}</div>
                 </div>
+                ${newData.time ? `
+                    <div class="review-field">
+                        <div class="review-field-name">Time</div>
+                        <div class="review-value">${escapeHtml(newData.time)}</div>
+                    </div>
+                ` : ''}
             </div>
         `;
 
@@ -1568,6 +1798,7 @@
             const titleChanged = oldData.title !== newData.title;
             const descChanged = (oldData.description || '') !== (newData.description || '');
             const typeChanged = (oldData.type || '') !== (newData.type || '');
+            const timeChanged = (oldData.time || '') !== (newData.time || '');
 
             html += `
                 <div class="review-block">
@@ -1575,6 +1806,10 @@
                     <div class="review-field">
                         <div class="review-field-name">Title${titleChanged ? ' — edited' : ''}</div>
                         <div class="review-value ${titleChanged ? 'old' : 'same'}">${escapeHtml(oldData.title)}</div>
+                    </div>
+                    <div class="review-field">
+                        <div class="review-field-name">Time${timeChanged ? ' — edited' : ''}</div>
+                        <div class="review-value ${timeChanged ? 'old' : 'same'} ${oldData.time ? '' : 'empty'}">${oldData.time ? escapeHtml(oldData.time) : 'No time'}</div>
                     </div>
                     <div class="review-field">
                         <div class="review-field-name">Type${typeChanged ? ' — edited' : ''}</div>
@@ -1595,6 +1830,10 @@
                         <div class="review-value ${titleChanged ? 'new' : 'same'}">${escapeHtml(newData.title)}</div>
                     </div>
                     <div class="review-field">
+                        <div class="review-field-name">Time${timeChanged ? ' — changed' : ' — unchanged'}</div>
+                        <div class="review-value ${timeChanged ? 'new' : 'same'} ${newData.time ? '' : 'empty'}">${newData.time ? escapeHtml(newData.time) : 'No time'}</div>
+                    </div>
+                    <div class="review-field">
                         <div class="review-field-name">Type${typeChanged ? ' — changed' : ' — unchanged'}</div>
                         <div class="review-value ${typeChanged ? 'new' : 'same'} ${newData.type ? '' : 'empty'}">${newData.type ? escapeHtml(newData.type) : 'No type'}</div>
                     </div>
@@ -1612,6 +1851,12 @@
                         <div class="review-field-name">Title</div>
                         <div class="review-value new">${escapeHtml(newData.title)}</div>
                     </div>
+                    ${newData.time ? `
+                        <div class="review-field">
+                            <div class="review-field-name">Time</div>
+                            <div class="review-value new">${escapeHtml(newData.time)}</div>
+                        </div>
+                    ` : ''}
                     <div class="review-field">
                         <div class="review-field-name">Type</div>
                         <div class="review-value new">${escapeHtml(newData.type)}</div>
@@ -1656,6 +1901,16 @@
         resetTypeButtons(pendingSave.newData.type);
         updateCharCounter();
 
+        if (startPicker) startPicker.reset();
+        if (endPicker) endPicker.reset();
+        if (pendingSave.newData.time) {
+            const parts = parseSavedTimeRange(pendingSave.newData.time);
+            const s = splitTimeString(parts.start);
+            const e = splitTimeString(parts.end);
+            if (s && startPicker) startPicker.setValue(s.hh, s.mm, s.ampm);
+            if (e && endPicker)   endPicker.setValue(e.hh, e.mm, e.ampm);
+        }
+
         modalOverlay.classList.add('active');
         scheduleTitle.focus();
     }
@@ -1672,6 +1927,7 @@
                 item.title = newData.title;
                 item.description = newData.description;
                 item.type = newData.type;
+                item.time = newData.time || '';
                 item.status = normalizeStatus(newData.status);
                 item.updatedAt = new Date().toISOString();
             }
@@ -1682,6 +1938,7 @@
                 title: newData.title,
                 description: newData.description,
                 type: newData.type,
+                time: newData.time || '',
                 status: normalizeStatus(newData.status),
                 createdAt: new Date().toISOString()
             });
@@ -1713,9 +1970,6 @@
         if (shouldReopenHistory) openHistoryModal();
     }
 
-    // ============================================================
-    // DATE PICKER
-    // ============================================================
     function populateDatePicker() {
         const now = new Date();
         const baseYear = now.getFullYear();
@@ -1793,9 +2047,6 @@
         closeDatePickerModal();
     }
 
-    // ============================================================
-    // HISTORY MODAL
-    // ============================================================
     function getAllSchedulesFlat() {
         const flat = [];
         Object.keys(schedules).forEach(dateKey => {
@@ -1918,6 +2169,7 @@
                         <div class="hs-title"><i class="fas ${stIcon} schedule-status-icon ${st}" style="margin-right:6px;"></i><span class="schedule-title-highlight ${st}">${escapeHtml(s.title)}</span></div>
                         ${s.type ? renderTypeBadge(s.type) : ''}
                         ${statusPill}
+                        ${s.time ? `<div class="hs-desc" style="color:#6d28d9; font-weight:600;"><i class="fas fa-clock" style="font-size:0.6rem;"></i> ${escapeHtml(s.time)}</div>` : ''}
                         ${s.description ? `<div class="hs-desc">${escapeHtml(s.description)}</div>` : ''}
                         <div class="hs-desc" style="font-size:0.65rem; color:#94a3b8; margin-top:2px;">
                             <i class="fas fa-calendar-day" style="font-size:0.6rem;"></i> ${escapeHtml(dateLabel)}
@@ -1967,9 +2219,6 @@
         closeSortPopovers();
     }
 
-    // ============================================================
-    // CLEAR ALL
-    // ============================================================
     function clearAllHistory() {
         const all = getAllSchedulesFlat();
         if (all.length === 0) return;
@@ -1999,9 +2248,6 @@
         });
     }
 
-    // ============================================================
-    // SETTINGS & TRASH
-    // ============================================================
     function openSettingsModal() { settingsOverlay.classList.add('active'); }
     function closeSettingsModal() { settingsOverlay.classList.remove('active'); }
 
@@ -2072,6 +2318,7 @@
                     <div class="ti-body">
                         <div class="ti-title">${escapeHtml(t.title)}</div>
                         ${t.type ? renderTypeBadge(t.type) : ''}
+                        ${t.time ? `<div class="ti-desc" style="color:#6d28d9; font-weight:600;"><i class="fas fa-clock" style="font-size:0.6rem;"></i> ${escapeHtml(t.time)}</div>` : ''}
                         ${t.description ? `<div class="ti-desc">${escapeHtml(t.description)}</div>` : ''}
                         <div class="ti-meta">
                             <span><i class="fas fa-calendar-day"></i> ${dateLabel}</span>
@@ -2206,9 +2453,6 @@
         });
     }
 
-    // ============================================================
-    // SORT POPOVERS
-    // ============================================================
     function closeSortPopovers() {
         [historySortPopover, trashSortPopover].forEach(p => p.classList.remove('open'));
         [historySortBtn, trashSortBtn].forEach(b => {
@@ -2253,9 +2497,6 @@
         });
     }
 
-    // ============================================================
-    // EXPORT
-    // ============================================================
     const MONTH_NAMES_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const EXPORT_START_YEAR = 2025;
 
@@ -2300,7 +2541,8 @@
                     title: s.title,
                     type: s.type || '',
                     status: normalizeStatus(s.status),
-                    description: s.description || ''
+                    description: s.description || '',
+                    time: s.time || ''
                 });
             });
         });
@@ -2385,6 +2627,7 @@
                         <th>Day</th>
                         <th>Year</th>
                         <th>Title</th>
+                        <th>Time</th>
                         <th>Type</th>
                         <th>Status</th>
                         <th>Description</th>
@@ -2402,6 +2645,7 @@
                     <td class="ep-date">${dateObj.getDate()}</td>
                     <td class="ep-date">${dateObj.getFullYear()}</td>
                     <td class="ep-title">${escapeHtml(r.title)}</td>
+                    <td class="ep-date">${r.time ? escapeHtml(r.time) : '<span style="color:#cbd5e1;">—</span>'}</td>
                     <td class="ep-type">${r.type ? escapeHtml(r.type) : '<span style="color:#94a3b8;">—</span>'}</td>
                     <td class="ep-type">${escapeHtml(getStatusLabel(r.status))}</td>
                     <td class="ep-desc">${r.description ? escapeHtml(r.description) : '<span style="color:#cbd5e1;">No description</span>'}</td>
@@ -2435,7 +2679,7 @@
         if (rows.length === 0) return;
 
         const sheetData = [
-            ['Month', 'Day', 'Year', 'Title', 'Type', 'Status', 'Description']
+            ['Month', 'Day', 'Year', 'Title', 'Time', 'Type', 'Status', 'Description']
         ];
         rows.forEach(r => {
             const dateObj = getDateFromKey(r.dateKey);
@@ -2444,6 +2688,7 @@
                 dateObj.getDate(),
                 dateObj.getFullYear(),
                 r.title,
+                r.time,
                 r.type,
                 getStatusLabel(r.status),
                 r.description
@@ -2453,7 +2698,7 @@
         const ws = XLSX.utils.aoa_to_sheet(sheetData);
         ws['!cols'] = [
             { wch: 8 }, { wch: 6 }, { wch: 8 },
-            { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 55 }
+            { wch: 30 }, { wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 55 }
         ];
 
         const wb = XLSX.utils.book_new();
@@ -2491,9 +2736,6 @@
         renderExportPreview();
     });
 
-    // ============================================================
-    // IMPORT
-    // ============================================================
     const importOverlay = document.getElementById('importOverlay');
     const importStatus = document.getElementById('importStatus');
     const importFileName = document.getElementById('importFileName');
@@ -2518,9 +2760,6 @@
     const IMPORT_MAX_TITLE_LEN = 60;
     const IMPORT_MAX_DESC_LEN = 200;
 
-    // ============================================================
-    // IMPORT FILE SIGNATURE STORE (prevents duplicate imports)
-    // ============================================================
     const IMPORT_HISTORY_KEY = 'schedule_import_history_v1';
 
     function loadImportHistory() {
@@ -2595,6 +2834,7 @@
                 title: r.title,
                 description: r.description,
                 type: r.type,
+                time: r.time || '',
                 status: normalizeStatus(r.status),
                 createdAt: now
             });
@@ -2681,17 +2921,17 @@
         }
 
         const templateData = [
-            ['Month', 'Day', 'Year', 'Title', 'Type', 'Status', 'Description'],
-            [12, 8, 2025, 'Team Meeting', 'Meeting', 'Upcoming', 'Weekly sync with the team'],
-            [12, 15, 2025, 'Year-end Seminar', 'Seminar', 'Priority', 'Annual review and planning'],
-            [1, 10, 2026, 'New Year Event', 'Special Event', 'Upcoming', 'Company kickoff celebration'],
-            [1, 20, 2026, 'Project Done', 'Meeting', 'Done', 'Quarterly wrap-up']
+            ['Month', 'Day', 'Year', 'Title', 'Time', 'Type', 'Status', 'Description'],
+            [12, 8, 2025, 'Team Meeting', '09:00 AM – 10:00 AM', 'Meeting', 'Upcoming', 'Weekly sync with the team'],
+            [12, 15, 2025, 'Year-end Seminar', '01:00 PM – 03:00 PM', 'Seminar', 'Priority', 'Annual review and planning'],
+            [1, 10, 2026, 'New Year Event', '06:00 PM – 09:00 PM', 'Special Event', 'Upcoming', 'Company kickoff celebration'],
+            [1, 20, 2026, 'Project Done', '10:00 AM – 11:00 AM', 'Meeting', 'Done', 'Quarterly wrap-up']
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(templateData);
         ws['!cols'] = [
             { wch: 8 }, { wch: 6 }, { wch: 8 },
-            { wch: 28 }, { wch: 16 }, { wch: 12 }, { wch: 50 }
+            { wch: 28 }, { wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 50 }
         ];
 
         const wb = XLSX.utils.book_new();
@@ -2750,12 +2990,13 @@
         const typeStr = row.type != null ? String(row.type).trim() : '';
         const statusStr = row.status != null ? String(row.status).trim() : '';
         const descStr = row.description != null ? String(row.description).trim() : '';
+        const timeStr = row.time != null ? String(row.time).trim() : '';
 
         if (
             (row.month == null || String(row.month).trim() === '') &&
             (row.day == null || String(row.day).trim() === '') &&
             (row.year == null || String(row.year).trim() === '') &&
-            !titleStr && !typeStr && !statusStr && !descStr
+            !titleStr && !typeStr && !statusStr && !descStr && !timeStr
         ) {
             return { skip: true, errors: [] };
         }
@@ -2819,7 +3060,8 @@
                 title: titleStr,
                 type: typeStr,
                 status: normalizeStatusLabel(statusStr),
-                description: descStr
+                description: descStr,
+                time: timeStr
             }
         };
     }
@@ -2851,19 +3093,37 @@
             return { rows, errors: ['The header row does not match the template.', ...headerErrors] };
         }
 
+        const hasTimeColumn = header[4] === 'Time' || header.includes('Time');
+        const timeColumnIndex = header.indexOf('Time');
+
         for (let i = 1; i < grid.length; i++) {
             const raw = grid[i] || [];
             const rowNumber = i + 1;
 
-            const row = {
-                month: raw[0],
-                day: raw[1],
-                year: raw[2],
-                title: raw[3],
-                type: raw[4],
-                status: raw[5],
-                description: raw[6]
-            };
+            let row;
+            if (timeColumnIndex === -1) {
+                row = {
+                    month: raw[0],
+                    day: raw[1],
+                    year: raw[2],
+                    title: raw[3],
+                    type: raw[4],
+                    status: raw[5],
+                    description: raw[6],
+                    time: ''
+                };
+            } else {
+                row = {
+                    month: raw[0],
+                    day: raw[1],
+                    year: raw[2],
+                    title: raw[3],
+                    time: raw[timeColumnIndex],
+                    type: raw[header.indexOf('Type')],
+                    status: raw[header.indexOf('Status')],
+                    description: raw[header.indexOf('Description')]
+                };
+            }
 
             const result = validateImportRow(row, rowNumber);
             if (result.skip) continue;
@@ -3078,9 +3338,6 @@
         if (e.target === importOverlay) closeImportModal();
     });
 
-    // ============================================================
-    // CLEAR IMPORT HISTORY (from Settings)
-    // ============================================================
     const clearImportHistoryBtn = document.getElementById('clearImportHistoryBtn');
     if (clearImportHistoryBtn) {
         clearImportHistoryBtn.addEventListener('click', () => {
@@ -3097,9 +3354,6 @@
         });
     }
 
-    // ============================================================
-    // LOGO → 3D LOADING SCREEN → REFRESH
-    // ============================================================
     const headerLogo = document.getElementById('headerLogo');
     const loaderScreen = document.getElementById('loaderScreen');
 
@@ -3136,9 +3390,6 @@
         });
     }
 
-    // ============================================================
-    // EVENT LISTENERS
-    // ============================================================
     prevMonthBtn.addEventListener('click', () => {
         currentMonth--;
         if (currentMonth < 0) { currentMonth = 11; currentYear--; }
@@ -3357,9 +3608,6 @@
         }
     });
 
-    // ============================================================
-    // BOOT
-    // ============================================================
     function boot() {
         renderCalendar();
         renderNotifications();
