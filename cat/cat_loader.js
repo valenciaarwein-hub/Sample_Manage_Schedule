@@ -1,7 +1,7 @@
 /* ============================================================
    cat_loader.js — Option B: SVG head-on cat loader
    Fetches cat_loader.html, injects it, exposes window.CatLoader.
-   No Three.js dependency.
+   No Three.js dependency — zero CDN fetches, zero WebGL.
    ============================================================ */
 (function () {
     'use strict';
@@ -13,13 +13,16 @@
     let _loading = false;
     let _hideTimer = null;
 
+    // ------------------------------------------------------------
+    // Fetch + inject the HTML fragment
+    // ------------------------------------------------------------
     async function _inject() {
         if (_loaded || _loading) return;
         _loading = true;
 
         const host = document.getElementById(HOST_ID);
         if (!host) {
-            console.warn('[CatLoader] #' + HOST_ID + ' not found.');
+            console.warn('[CatLoader] #' + HOST_ID + ' not found in the page.');
             _loading = false;
             return;
         }
@@ -36,6 +39,9 @@
         }
     }
 
+    // ------------------------------------------------------------
+    // Show / hide / showAndReload
+    // ------------------------------------------------------------
     function show() {
         const screen = document.getElementById('loaderScreen');
         if (!screen) return;
@@ -71,6 +77,9 @@
         }, wait);
     }
 
+    // ------------------------------------------------------------
+    // Boot
+    // ------------------------------------------------------------
     const ready = _inject();
 
     window.CatLoader = {
