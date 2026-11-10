@@ -10,7 +10,7 @@
     'use strict';
 
     const HOST_ID = 'catLoaderHost';
-    const FRAGMENT_URL = 'cat_loader.html';
+    const FRAGMENT_URL = 'cat/cat_loader.html';
 
     let _loaded = false;
     let _loading = false;
