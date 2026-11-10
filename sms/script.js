@@ -4975,29 +4975,35 @@
     }
 
     // ============================================================
-    // LOGO → 3D LOADER → REFRESH
+    // LOGO → CAT LOADER → REFRESH
     // ============================================================
+    /* PATCH (Cat Loader): the loader markup/styles/JS are now external
+       (cat/cat_loader.html, cat/cat_loader.css, cat/cat_loader.js).
+       Delegate to window.CatLoader if available; otherwise fall back
+       to a plain reload so the logo click never does nothing. */
     const headerLogo = document.getElementById('headerLogo');
-    const loaderScreen = document.getElementById('loaderScreen');
 
     function showLoaderAndReload() {
-        if (!loaderScreen) {
-            window.location.reload();
+        if (window.CatLoader) {
+            // Prefer the external loader — it manages the 3s delay + reload.
+            window.CatLoader.showAndReload(3000);
             return;
         }
-
-        if (loaderScreen.classList.contains('active')) return;
-
-        loaderScreen.classList.add('active');
-        loaderScreen.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-
-        setTimeout(() => {
-            loaderScreen.classList.remove('active');
-            loaderScreen.setAttribute('aria-hidden', 'true');
-            document.body.style.overflow = '';
-            setTimeout(() => window.location.reload(), 450);
-        }, 3000);
+        // CatLoader.js hasn't loaded yet (or was removed). Wait for it,
+        // then delegate. If that never resolves, reload after a beat.
+        if (window.CatLoader === undefined) {
+            // Give cat_loader.js a chance to inject first
+            setTimeout(() => {
+                if (window.CatLoader) {
+                    window.CatLoader.showAndReload(3000);
+                } else {
+                    window.location.reload();
+                }
+            }, 50);
+            return;
+        }
+        // Last resort
+        window.location.reload();
     }
 
     if (headerLogo) {
