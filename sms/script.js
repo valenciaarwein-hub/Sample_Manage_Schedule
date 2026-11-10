@@ -1047,7 +1047,8 @@
             });
         });
 
-        const currentKind = notifSort.kind;
+        // ── Sort: pinned status first, then Asc/Desc within each group ──
+        const currentKind = notifSort.kind;      // 'upcoming' | 'priority' | 'overdue'
         const isAscending = notifSort.order === 'asc';
 
         function groupRank(status) {
@@ -1080,17 +1081,15 @@
             buckets[key].sort(isAscending ? cmpAscWithin : cmpDescWithin);
         });
 
-        const groupOrder = ['upcoming', 'priority', 'overdue'].sort((a, b) => groupRank(a) - groupRank(b));
+        const groupOrder = ['upcoming', 'priority', 'overdue']
+            .sort((a, b) => groupRank(a) - groupRank(b));
 
         const flat = [];
-        groupOrder.forEach(gk => {
-            buckets[gk].forEach(it => flat.push(it));
-        });
+        groupOrder.forEach(gk => buckets[gk].forEach(it => flat.push(it)));
 
-        const groups = groupOrder.map(gk => ({
-            key: gk,
-            items: buckets[gk]
-        })).filter(g => g.items.length > 0);
+        const groups = groupOrder
+            .map(gk => ({ key: gk, items: buckets[gk] }))
+            .filter(g => g.items.length > 0);
 
         return { flat, groups };
     }
@@ -1204,7 +1203,9 @@
     function syncNotifSortPopover() {
         if (!notifSortPopover) return;
         notifSortPopover.querySelectorAll('[data-notif-status]').forEach(el => {
-            el.classList.toggle('selected', el.dataset.notifStatus === notifSort.kind);
+            // data-notif-status="late" maps to internal 'overdue'
+            const mapped = el.dataset.notifStatus === 'late' ? 'overdue' : el.dataset.notifStatus;
+            el.classList.toggle('selected', mapped === notifSort.kind);
         });
         notifSortPopover.querySelectorAll('[data-notif-order]').forEach(el => {
             el.classList.toggle('selected', el.dataset.notifOrder === notifSort.order);
@@ -1270,6 +1271,7 @@
         if (e.key === 'Escape' && notifPanel.classList.contains('open')) closeNotifPanel();
     });
 
+    // ── Sort popover wiring (STATUS SORT) ──
     if (notifSortBtn && notifSortPopover) {
         notifSortBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1283,11 +1285,14 @@
         notifSortPopover.querySelectorAll('[data-notif-status]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                notifSort.kind = btn.dataset.notifStatus;
+                // Map "late" (UI label) → "overdue" (internal key)
+                const raw = btn.dataset.notifStatus;
+                notifSort.kind = (raw === 'late') ? 'overdue' : raw;
                 syncNotifSortPopover();
                 renderNotifications();
             });
         });
+
         notifSortPopover.querySelectorAll('[data-notif-order]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2952,7 +2957,6 @@
         closeReviewModal();
         modalOverlay.classList.remove('active');
 
-        // Log the create / edit
         if (mode === 'edit' && id) {
             logHistory({
                 action: 'edited',
@@ -3125,7 +3129,6 @@
             );
         }
 
-        // Stats
         totalSchedulesCount.textContent = allLogs.length;
         totalDaysCount.textContent = new Set(allLogs.map(e => e.dateKey).filter(Boolean)).size;
         totalMonthsCount.textContent = new Set(
@@ -3147,7 +3150,6 @@
             return;
         }
 
-        // Pagination
         const totalPages = Math.ceil(filtered.length / HISTORY_LOG_PAGE_SIZE);
         if (historyLogPage >= totalPages) historyLogPage = totalPages - 1;
         if (historyLogPage < 0) historyLogPage = 0;
