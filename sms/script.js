@@ -1536,6 +1536,20 @@
                 const st = normalizeStatus(s.status);
                 const isLate = isScheduleLateNow(dateKey, s, nowPH);
                 const timeRange = parseScheduleTimeRange(s.time);
+                const diffFromToday = daysUntil(dateKey);
+
+                /* PATCH (Upcoming 7 Days — Add Priority Status):
+                   Compute the effective status the same way the calendar
+                   and day list do — Late → Done → Priority (manual or auto)
+                   → Upcoming. This makes auto-priority (0–3 days ahead,
+                   not late, not done) show as a Priority badge here too. */
+                const autoPriority = !isLate && st !== 'done' && diffFromToday >= 0 && diffFromToday <= 3;
+
+                const effectiveStatus = isLate ? 'late'
+                                     : st === 'done' ? 'done'
+                                     : (st === 'priority' || autoPriority) ? 'priority'
+                                     : 'upcoming';
+
                 rows.push({
                     dateKey,
                     dateObj: d,
@@ -1544,7 +1558,8 @@
                     description: s.description || '',
                     type: s.type || '',
                     time: s.time || '',
-                    status: st,
+                    status: st,                // raw stored status
+                    effectiveStatus,           // displayed status
                     isLate,
                     startMinutes: timeRange ? timeRange.startMin : Number.MAX_SAFE_INTEGER
                 });
@@ -1578,12 +1593,14 @@
                 ? `<span class="upcoming-time-cell">${escapeHtml(r.time)}</span>`
                 : `<span class="upcoming-desc-cell empty">—</span>`;
 
+            /* PATCH: badge selection now branches on effectiveStatus,
+               so auto-priority rows render as Priority too. */
             let statusBadge;
-            if (r.isLate) {
+            if (r.effectiveStatus === 'late') {
                 statusBadge = `<span class="upcoming-status-badge late"><i class="fas fa-exclamation-circle"></i> Late</span>`;
-            } else if (r.status === 'done') {
+            } else if (r.effectiveStatus === 'done') {
                 statusBadge = `<span class="upcoming-status-badge done"><i class="fas fa-check-circle"></i> Done</span>`;
-            } else if (r.status === 'priority') {
+            } else if (r.effectiveStatus === 'priority') {
                 statusBadge = `<span class="upcoming-status-badge priority"><i class="fas fa-star"></i> Priority</span>`;
             } else {
                 statusBadge = `<span class="upcoming-status-badge upcoming"><i class="fas fa-calendar-check"></i> Upcoming</span>`;
