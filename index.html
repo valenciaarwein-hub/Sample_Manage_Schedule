@@ -15,19 +15,33 @@
 </head>
 <body>
 
-<!-- ============ 3D LINE LOADING SCREEN ============ -->
+<!-- ============ CAT LINE LOADING SCREEN ============ -->
 <div class="loader-screen" id="loaderScreen" aria-hidden="true">
     <div class="loader-stage">
-        <svg class="loader-cube" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <polygon class="cube-face face-back"  points="30,30 90,30 90,90 30,90" />
-            <polygon class="cube-face face-front" points="45,45 105,45 105,105 45,105" />
-            <line class="cube-edge" x1="30" y1="30" x2="45" y2="45" />
-            <line class="cube-edge" x1="90" y1="30" x2="105" y2="45" />
-            <line class="cube-edge" x1="90" y1="90" x2="105" y2="105" />
-            <line class="cube-edge" x1="30" y1="90" x2="45" y2="105" />
-            <line class="cube-edge edge-diag" x1="30" y1="30" x2="90" y2="90" />
-            <line class="cube-edge edge-diag" x1="90" y1="30" x2="30" y2="90" />
-        </svg>
+        <div class="cat-orbit">
+            <svg class="loader-cat" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Ears -->
+                <path class="cat-line" d="M40 40 L34 22 L50 32" />
+                <path class="cat-line" d="M80 40 L86 22 L70 32" />
+                <!-- Head outline -->
+                <path class="cat-line" d="M30 46 Q30 90 60 96 Q90 90 90 46 Q78 34 60 34 Q42 34 30 46 Z" />
+                <!-- Eyes -->
+                <path class="cat-line cat-eye" d="M46 58 Q48 54 50 58" />
+                <path class="cat-line cat-eye" d="M70 58 Q72 54 74 58" />
+                <!-- Nose -->
+                <path class="cat-line" d="M58 68 L62 68 L60 71 Z" />
+                <!-- Whiskers -->
+                <path class="cat-line cat-whisker" d="M40 68 L20 64" />
+                <path class="cat-line cat-whisker" d="M40 72 L20 74" />
+                <path class="cat-line cat-whisker" d="M80 68 L100 64" />
+                <path class="cat-line cat-whisker" d="M80 72 L100 74" />
+                <!-- Mouth -->
+                <path class="cat-line" d="M60 71 Q56 76 52 74" />
+                <path class="cat-line" d="M60 71 Q64 76 68 74" />
+                <!-- Tail curling around the orbit -->
+                <path class="cat-line cat-tail" d="M95 100 Q115 100 115 80 Q115 62 100 62" />
+            </svg>
+        </div>
         <div class="loader-caption">Loading<span class="loader-dots">...</span></div>
     </div>
 </div>
