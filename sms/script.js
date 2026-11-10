@@ -1,4 +1,3 @@
-// sms/script.js
 (function() {
     'use strict';
 
@@ -69,10 +68,8 @@
         if (!nowPH) nowPH = getNowPH();
         if (normalizeStatus(schedule.status) === 'done') return false;
 
-        // Manual late (set when a past day was opened)
         if (schedule.lateMarked) return true;
 
-        // Only "today" can be late by time
         if (dateKey !== nowPH.dateKey) return false;
 
         const range = parseScheduleTimeRange(schedule.time);
@@ -183,7 +180,7 @@
     }
 
     // ============================================================
-    // RECENT IMPORT HISTORY (with max cap + page state)
+    // RECENT IMPORT HISTORY
     // ============================================================
     const RECENT_IMPORTS_KEY = 'skedo_recent_imports_v1';
     const RECENT_IMPORTS_MAX = 10;
@@ -800,7 +797,6 @@
             renderDropdown();
         });
 
-        // DROPDOWN AUTO-FILL — mousedown preventDefault + rAF close
         dropdown.querySelectorAll('.time-option').forEach(btn => {
             btn.addEventListener('mousedown', (e) => {
                 e.preventDefault();
@@ -1267,7 +1263,7 @@
     }
 
     // ============================================================
-    // UPCOMING 7 DAYS TABLE
+    // UPCOMING 7 DAYS TABLE  ← Updated: description clamp class
     // ============================================================
     function renderUpcomingTable() {
         const today = new Date();
@@ -1372,7 +1368,7 @@
                     </td>
                     <td class="col-desc" data-label="Description">
                         ${r.description
-                            ? `<span class="upcoming-desc-cell">${escapeHtml(r.description)}</span>`
+                            ? `<span class="upcoming-desc-cell upcoming-desc-clamp" title="${escapeHtml(r.description)}">${escapeHtml(r.description)}</span>`
                             : `<span class="upcoming-desc-cell empty">No description</span>`}
                     </td>
                     <td class="col-actions">
@@ -1404,7 +1400,7 @@
     }
 
     // ============================================================
-    // RECENT IMPORTS RENDERER (with pagination)
+    // RECENT IMPORTS RENDERER
     // ============================================================
     function renderRecentImports() {
         const body = document.getElementById('recentImportsBody');
@@ -1757,9 +1753,7 @@
         lastLateSnapshot = buildLateSnapshot();
         lateTicker = setInterval(tickLate, 1000);
     }
-
-    /* === CONTINUE WITH PART 2 === */
-     // ============================================================
+    // ============================================================
     // DAY LIST MODAL
     // ============================================================
     function openDayListModal(dateKey) {
@@ -3971,7 +3965,7 @@
     });
 
     // ============================================================
-    // CLEAR IMPORT HISTORY (Settings)
+    // CLEAR IMPORT HISTORY
     // ============================================================
     const clearImportHistoryBtn = document.getElementById('clearImportHistoryBtn');
     if (clearImportHistoryBtn) {
