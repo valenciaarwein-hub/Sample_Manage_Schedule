@@ -4984,27 +4984,27 @@
     const headerLogo = document.getElementById('headerLogo');
 
     function showLoaderAndReload() {
-        if (window.CatLoader) {
-            // Prefer the external loader — it manages the 3s delay + reload.
-            window.CatLoader.showAndReload(3000);
-            return;
-        }
-        // CatLoader.js hasn't loaded yet (or was removed). Wait for it,
-        // then delegate. If that never resolves, reload after a beat.
-        if (window.CatLoader === undefined) {
-            // Give cat_loader.js a chance to inject first
-            setTimeout(() => {
-                if (window.CatLoader) {
-                    window.CatLoader.showAndReload(3000);
-                } else {
-                    window.location.reload();
-                }
-            }, 50);
-            return;
-        }
-        // Last resort
-        window.location.reload();
+    if (window.CatLoader) {
+        // Prefer the external loader — it manages the 5s delay + reload.
+        window.CatLoader.showAndReload(5000);
+        return;
     }
+    // CatLoader.js hasn't loaded yet (or was removed). Wait for it,
+    // then delegate. If that never resolves, reload after a beat.
+    if (window.CatLoader === undefined) {
+        // Give cat_loader.js a chance to inject first
+        setTimeout(() => {
+            if (window.CatLoader) {
+                window.CatLoader.showAndReload(5000);
+            } else {
+                window.location.reload();
+            }
+        }, 50);
+        return;
+    }
+    // Last resort
+    window.location.reload();
+}
 
     if (headerLogo) {
         headerLogo.addEventListener('click', showLoaderAndReload);
