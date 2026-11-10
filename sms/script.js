@@ -947,18 +947,51 @@
                     isPriority: status === 'priority',
                     status,
                     edgeClass,
-                    unread: !notifSeenIds.has(s.id)
+                    unread: !notifSeenIds.has(s.id),
+                    time: s.time || '',
+                    createdAt: s.createdAt || ''
                 });
             });
         });
 
-        const statusRank = { upcoming: 0, priority: 1, overdue: 2 };
-        const order = notifSort.order === 'asc' ? 1 : -1;
+        // ---------------------------------------------------------
+        // SORT ORDER
+        // notifSort.kind  → which status group is pinned to the top
+        //                   ('upcoming' | 'priority' | 'overdue')
+        // notifSort.order → how items sort *inside* each group:
+        //                   'asc'  = soonest date/time first
+        //                   'desc' = oldest createdAt first
+        // ---------------------------------------------------------
+
+        const currentKind = notifSort.kind;
+        const isAscending = notifSort.order === 'asc';
+
+        // Rank: the selected kind = 0 (top), the others keep a stable
+        // order so the list is still deterministic.
+        function groupRank(status) {
+            if (status === currentKind) return 0;
+            const fallback = { upcoming: 1, priority: 2, overdue: 3 };
+            return fallback[status] || 9;
+        }
+
+        function cmpAscWithin(a, b) {
+            if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
+            const aRange = parseScheduleTimeRange(a.time);
+            const bRange = parseScheduleTimeRange(b.time);
+            const aStart = aRange ? aRange.startMin : Number.MAX_SAFE_INTEGER;
+            const bStart = bRange ? bRange.startMin : Number.MAX_SAFE_INTEGER;
+            if (aStart !== bStart) return aStart - bStart;
+            return (a.createdAt || '').localeCompare(b.createdAt || '');
+        }
+
+        function cmpDescWithin(a, b) {
+            return (a.createdAt || '').localeCompare(b.createdAt || '');
+        }
 
         items.sort((a, b) => {
-            const r = (statusRank[a.status] - statusRank[b.status]) * order;
-            if (r !== 0) return r;
-            return a.diff - b.diff;
+            const gr = groupRank(a.status) - groupRank(b.status);
+            if (gr !== 0) return gr;
+            return isAscending ? cmpAscWithin(a, b) : cmpDescWithin(a, b);
         });
 
         return items;
@@ -1907,13 +1940,9 @@
         if (!sched) return false;
         const nowPH = getNowPH();
 
-        // Any date strictly before today → past → Done allowed
         if (dateKey < nowPH.dateKey) return true;
-
-        // Any date strictly after today → future → Done NOT allowed
         if (dateKey > nowPH.dateKey) return false;
 
-        // Same day: Done allowed once the end time has already passed
         const range = parseScheduleTimeRange(sched.time);
         if (!range) return false;
         return nowPH.totalMinutes > range.endMin;
@@ -1963,7 +1992,6 @@
             </button>
         `;
 
-        // If this popup is opened from the View modal, mount it inside the modal.
         const modalEl = anchorEl.closest ? anchorEl.closest('.modal') : null;
         const fromViewModal = modalEl && viewOverlay.contains(modalEl);
 
@@ -2007,7 +2035,6 @@
             return;
         }
 
-        // Otherwise: original behavior — body-level popup positioned near the anchor
         document.body.appendChild(popup);
         openStatusPopup = popup;
 
@@ -2077,7 +2104,6 @@
         const normalized = normalizeStatus(newStatus);
         if (normalizeStatus(item.status) === normalized) return;
 
-        // Block "Done" unless the schedule is already in the past
         if (normalized === 'done' && !isDoneAllowed(dateKey, item)) {
             openConfirmModal({
                 title: 'Cannot mark as Done',
