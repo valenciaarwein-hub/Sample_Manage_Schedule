@@ -212,7 +212,7 @@
 </div>
 
 <div class="app-footer" aria-hidden="true">
-    © 2026 · Arwein Valencia
+    Copyright 2026 • ARWEIN VALENCIA HAHA
 </div>
 
 <!-- ============ DAY LIST MODAL ============ -->
@@ -429,7 +429,7 @@
                         <span>Title</span><i class="fas fa-check"></i>
                     </button>
                     <button class="sort-option" data-sort-kind="date-created" role="menuitemradio">
-                        <span>Date created</span><i class="fas fa-check"></i>
+                        <span>Date</span><i class="fas fa-check"></i>
                     </button>
                     <div class="sort-popover-divider"></div>
                     <div class="sort-popover-label">Order</div>
@@ -442,7 +442,7 @@
                 </div>
             </div>
         </div>
-        <p style="color:#6b7280; font-size:0.82rem; margin-bottom: 12px;">All your saved schedules across every year, month, and date.</p>
+        <p style="color:#6b7280; font-size:0.82rem; margin-bottom: 12px;">Every add, edit, status change, and delete across all your devices.</p>
         <div class="history-controls">
             <div class="history-search-wrap">
                 <i class="fas fa-search"></i>
@@ -468,14 +468,25 @@
             </select>
         </div>
         <div class="history-stats" id="historyStats">
-            <span><i class="fas fa-calendar-check"></i> <span id="totalSchedulesCount">0</span> schedules</span>
+            <span><i class="fas fa-calendar-check"></i> <span id="totalSchedulesCount">0</span> entries</span>
             <span><i class="fas fa-calendar-day"></i> <span id="totalDaysCount">0</span> days</span>
             <span><i class="fas fa-calendar-alt"></i> <span id="totalMonthsCount">0</span> months</span>
         </div>
         <div class="history-list" id="historyList"></div>
+
+        <div class="history-pager" id="historyPager" style="display:none;">
+            <button class="history-pager-arrow" id="historyPrevBtn" aria-label="Previous page">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="history-pager-dots" id="historyPagerDots"></div>
+            <button class="history-pager-arrow" id="historyNextBtn" aria-label="Next page">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+
         <div class="modal-actions" style="margin-top: 16px;">
             <button class="btn btn-danger" id="clearAllHistoryBtn" style="margin-right: auto; display: none;">
-                <i class="fas fa-trash-alt"></i> Clear All
+                <i class="fas fa-trash-alt"></i> Clear All History
             </button>
             <button class="btn btn-secondary" id="closeHistoryBtn">Close</button>
         </div>
@@ -486,8 +497,16 @@
 <div class="modal-overlay" id="settingsOverlay">
     <div class="modal settings-modal">
         <h3><i class="fas fa-cog"></i> Settings</h3>
-        <p style="color:#6b7280; font-size:0.82rem; margin-bottom: 16px;">Manage your account and deleted schedules.</p>
+        <p style="color:#6b7280; font-size:0.82rem; margin-bottom: 16px;">Manage your account, schedules, and deleted items.</p>
         <div class="settings-menu">
+            <button class="settings-item" id="openBulkDeleteBtn">
+                <div class="settings-item-icon bulk-delete"><i class="fas fa-calendar-times"></i></div>
+                <div class="settings-item-body">
+                    <div class="settings-item-title">Delete Schedules</div>
+                    <div class="settings-item-desc">Browse schedules by year and month, then move them to the Recycle Bin</div>
+                </div>
+                <i class="fas fa-chevron-right settings-item-arrow"></i>
+            </button>
             <button class="settings-item" id="openTrashBtn">
                 <div class="settings-item-icon trash"><i class="fas fa-trash-alt"></i></div>
                 <div class="settings-item-body">
@@ -751,6 +770,52 @@
             <button class="btn btn-secondary" id="importSuccessCloseBtn">Close</button>
             <button class="btn btn-primary" id="importSuccessViewBtn">
                 <i class="fas fa-calendar-alt"></i> View on Calendar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ BULK DELETE SCHEDULES MODAL ============ -->
+<div class="modal-overlay" id="bulkDeleteOverlay">
+    <div class="modal bulk-delete-modal">
+        <div class="bulk-delete-title-row">
+            <h3><i class="fas fa-calendar-times"></i> Delete Schedules</h3>
+            <div class="bulk-delete-toolbar-inline">
+                <button class="btn btn-secondary btn-sm" id="bulkDeleteExpandAllBtn" title="Expand all">
+                    <i class="fas fa-plus-square"></i> Expand
+                </button>
+                <button class="btn btn-secondary btn-sm" id="bulkDeleteCollapseAllBtn" title="Collapse all">
+                    <i class="fas fa-minus-square"></i> Collapse
+                </button>
+            </div>
+        </div>
+        <p class="bulk-delete-subtitle">
+            Select the schedules you want to remove. Expand a year or month to choose individual items.
+            Everything you select here goes to the <strong>Recycle Bin</strong> — you can
+            recover it or delete it permanently from there.
+        </p>
+
+        <div class="bulk-delete-search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" id="bulkDeleteSearch" placeholder="Search by title or description…">
+        </div>
+
+        <div class="bulk-delete-summary" id="bulkDeleteSummary">
+            <span><i class="fas fa-check-square"></i> <span id="bulkDeleteSelectedCount">0</span> selected</span>
+            <span><i class="fas fa-list"></i> <span id="bulkDeleteTotalCount">0</span> total</span>
+        </div>
+
+        <div class="bulk-delete-tree" id="bulkDeleteTree"></div>
+
+        <div class="bulk-delete-empty" id="bulkDeleteEmpty" style="display:none;">
+            <i class="fas fa-mug-hot"></i>
+            <p>No schedules yet.<br>Create one to see it here.</p>
+        </div>
+
+        <div class="modal-actions bulk-delete-actions">
+            <button class="btn btn-secondary" id="bulkDeleteCancelBtn">Close</button>
+            <button class="btn btn-danger" id="bulkDeleteMoveToBinBtn" disabled>
+                <i class="fas fa-trash-alt"></i> Move Selected to Recycle Bin
             </button>
         </div>
     </div>
