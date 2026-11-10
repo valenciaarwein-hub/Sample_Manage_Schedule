@@ -651,6 +651,14 @@ body {
 #recoverFromViewBtn { background: #16a34a; color: white; }
 #recoverFromViewBtn:hover { background: #15803d; }
 
+#changeStatusFromViewBtn {
+    background: #ede9fe;
+    color: #4c1d95;
+    font-weight: 600;
+}
+#changeStatusFromViewBtn:hover { background: #ddd6fe; }
+#changeStatusFromViewBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
 /* ===== DATE PICKER ===== */
 .date-picker-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; }
 .date-picker-field label {
@@ -1026,6 +1034,17 @@ body {
 .notif-item .type-badge i { font-size: 0.66rem; }
 
 .notif-date { font-weight: 700; color: #111827; white-space: nowrap; }
+
+.notif-date-row {
+    display: flex;
+    align-items: center;
+    margin-top: 2px;
+}
+.notif-date-row .notif-date {
+    font-size: 0.74rem;
+    color: #6b7280;
+    font-weight: 500;
+}
 
 /* ============ UNIFORM STATUS PILL (right edge) ============ */
 .notif-status-pill {
@@ -1902,6 +1921,7 @@ body {
     .ampm-btn { padding: 0 8px; font-size: 0.68rem; min-width: 32px; }
     .time-option { font-size: 0.8rem; padding: 7px 10px; }
     .late-pill { font-size: 0.58rem; padding: 2px 7px; }
+    #changeStatusFromViewBtn { width: 100%; justify-content: center; margin-right: 0 !important; }
 }
 
 /* ===== RESPONSIVE — 380 ===== */
