@@ -1,3 +1,4 @@
+// sms/script.js — PART 1 of 2
 (function() {
     'use strict';
 
@@ -1007,7 +1008,7 @@
     }
 
     // ============================================================
-    // NOTIF ITEM — title + status pill on right row, type → date → countdown below
+    // NOTIF ITEM — title + status pill on right, type → date → countdown
     // ============================================================
     function renderNotifItemHTML(it) {
         const itemClasses = ['notif-item', it.edgeClass, it.unread ? 'unread' : ''].filter(Boolean).join(' ');
@@ -1871,13 +1872,17 @@
     }
 
     // ============================================================
-    // STATUS POPUP (locked inside 3-day window unless late/done)
+    // STATUS POPUP — locked inside 3-day window, Done only if past
     // ============================================================
     let openStatusPopup = null;
 
     function closeStatusPopup(reopenView) {
         if (openStatusPopup && openStatusPopup.parentNode) {
-            openStatusPopup.parentNode.removeChild(openStatusPopup);
+            const wrap = openStatusPopup.parentNode;
+            wrap.removeChild(openStatusPopup);
+            if (wrap.classList && wrap.classList.contains('view-status-popup-wrap') && wrap.parentNode) {
+                wrap.parentNode.removeChild(wrap);
+            }
         }
         openStatusPopup = null;
 
@@ -1898,6 +1903,22 @@
         return diff >= 0 && diff <= 3;
     }
 
+    function isDoneAllowed(dateKey, sched) {
+        if (!sched) return false;
+        const nowPH = getNowPH();
+
+        // Any date strictly before today → past → Done allowed
+        if (dateKey < nowPH.dateKey) return true;
+
+        // Any date strictly after today → future → Done NOT allowed
+        if (dateKey > nowPH.dateKey) return false;
+
+        // Same day: Done allowed once the end time has already passed
+        const range = parseScheduleTimeRange(sched.time);
+        if (!range) return false;
+        return nowPH.totalMinutes > range.endMin;
+    }
+
     function openStatusPicker(anchorEl, dateKey, id, currentStatus) {
         const sched = (schedules[dateKey] || []).find(s => s.id === id);
         if (!sched) return;
@@ -1916,6 +1937,8 @@
 
         closeStatusPopup();
 
+        const doneAllowed = isDoneAllowed(dateKey, sched);
+
         const popup = document.createElement('div');
         popup.className = 'status-popup';
         popup.innerHTML = `
@@ -1924,9 +1947,13 @@
                 <span>Upcoming</span>
                 <i class="fas fa-check status-popup-check"></i>
             </button>
-            <button type="button" class="status-popup-option ${currentStatus === 'done' ? 'selected' : ''}" data-pick="done">
+            <button type="button"
+                    class="status-popup-option ${currentStatus === 'done' ? 'selected' : ''} ${doneAllowed ? '' : 'disabled'}"
+                    data-pick="done"
+                    ${doneAllowed ? '' : 'disabled'}
+                    title="${doneAllowed ? '' : 'Done can only be set once this schedule is in the past'}">
                 <i class="fas fa-check-circle"></i>
-                <span>Done</span>
+                <span>Done${doneAllowed ? '' : ' (locked)'}</span>
                 <i class="fas fa-check status-popup-check"></i>
             </button>
             <button type="button" class="status-popup-option ${currentStatus === 'priority' ? 'selected' : ''}" data-pick="priority">
@@ -1936,6 +1963,51 @@
             </button>
         `;
 
+        // If this popup is opened from the View modal, mount it inside the modal.
+        const modalEl = anchorEl.closest ? anchorEl.closest('.modal') : null;
+        const fromViewModal = modalEl && viewOverlay.contains(modalEl);
+
+        if (fromViewModal) {
+            modalEl.style.position = 'relative';
+            const wrap = document.createElement('div');
+            wrap.className = 'view-status-popup-wrap';
+            wrap.appendChild(popup);
+            modalEl.appendChild(wrap);
+            openStatusPopup = popup;
+
+            const modalRect = modalEl.getBoundingClientRect();
+            const btnRect = anchorEl.getBoundingClientRect();
+            const popupWidth = 200;
+            const popupHeight = popup.offsetHeight || 150;
+
+            let top = btnRect.bottom - modalRect.top + 6;
+            if (top + popupHeight > modalRect.height - 8) {
+                top = btnRect.top - modalRect.top - popupHeight - 6;
+            }
+            let left = btnRect.left - modalRect.left + (btnRect.width / 2) - (popupWidth / 2);
+            if (left < 8) left = 8;
+            if (left + popupWidth > modalRect.width - 8) {
+                left = modalRect.width - popupWidth - 8;
+            }
+
+            popup.style.top = top + 'px';
+            popup.style.left = left + 'px';
+            popup.style.width = popupWidth + 'px';
+
+            popup.querySelectorAll('[data-pick]').forEach(btn => {
+                if (btn.disabled) return;
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const chosen = btn.dataset.pick;
+                    closeStatusPopup();
+                    setScheduleStatus(dateKey, id, chosen);
+                });
+            });
+
+            return;
+        }
+
+        // Otherwise: original behavior — body-level popup positioned near the anchor
         document.body.appendChild(popup);
         openStatusPopup = popup;
 
@@ -1956,6 +2028,7 @@
         popup.style.width = popupWidth + 'px';
 
         popup.querySelectorAll('[data-pick]').forEach(btn => {
+            if (btn.disabled) return;
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const chosen = btn.dataset.pick;
@@ -1966,9 +2039,17 @@
     }
 
     document.addEventListener('click', (e) => {
-        if (openStatusPopup && !e.target.closest('.status-popup') && !e.target.closest('[data-status-trigger]') && !e.target.closest('#changeStatusFromViewBtn')) {
-            closeStatusPopup(true);
+        if (!openStatusPopup) return;
+        if (e.target.closest('.status-popup')) return;
+        if (e.target.closest('[data-status-trigger]')) return;
+        if (e.target.closest('#changeStatusFromViewBtn')) return;
+
+        if (viewOverlay.classList.contains('active') && viewOverlay.contains(e.target)) {
+            if (e.target === viewOverlay) closeStatusPopup(true);
+            return;
         }
+
+        closeStatusPopup(true);
     });
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && openStatusPopup) closeStatusPopup(true);
@@ -1996,6 +2077,19 @@
         const normalized = normalizeStatus(newStatus);
         if (normalizeStatus(item.status) === normalized) return;
 
+        // Block "Done" unless the schedule is already in the past
+        if (normalized === 'done' && !isDoneAllowed(dateKey, item)) {
+            openConfirmModal({
+                title: 'Cannot mark as Done',
+                message: 'A schedule can only be marked as Done after its date and time have already passed.',
+                okText: 'OK',
+                iconClass: 'warning',
+                showCancel: false,
+                onConfirm: () => {}
+            });
+            return;
+        }
+
         item.status = normalized;
         if (normalized === 'done') item.lateMarked = false;
         item.updatedAt = new Date().toISOString();
@@ -2006,7 +2100,6 @@
         renderDayScheduleList();
         if (historyOverlay.classList.contains('active')) renderHistory();
 
-        // If the picker was opened from the View modal, reopen it with fresh data
         if (viewContext.kind === 'schedule' && viewContext.dateKey === dateKey && viewContext.id === id) {
             openViewModal(dateKey, id, reopenHistoryAfterEdit);
         }
@@ -2218,6 +2311,7 @@
 
         const dateObj = getDateFromKey(dateKey);
 
+        closeStatusPopup();
         viewContext = { kind: 'schedule', trashId: null, dateKey, id: scheduleId };
         viewOverlay.classList.remove('trash-context');
         viewTrashDetails.style.display = 'none';
@@ -2284,6 +2378,7 @@
     }
 
     function closeViewModal() {
+        closeStatusPopup();
         viewOverlay.classList.remove('active');
         viewOverlay.classList.remove('trash-context');
         viewTrashDetails.style.display = 'none';
@@ -4297,21 +4392,14 @@
     });
 
     if (changeStatusFromViewBtn) {
-        changeStatusFromViewBtn.addEventListener('click', () => {
+        changeStatusFromViewBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (viewContext.kind !== 'schedule' || !viewContext.dateKey || !viewContext.id) return;
             const sched = (schedules[viewContext.dateKey] || []).find(s => s.id === viewContext.id);
             if (!sched) return;
 
-            const anchorDateKey = viewContext.dateKey;
-            const anchorId = viewContext.id;
             const currentStatus = normalizeStatus(sched.status);
-
-            viewOverlay.classList.remove('active');
-            viewOverlay.classList.remove('trash-context');
-
-            requestAnimationFrame(() => {
-                openStatusPicker(changeStatusFromViewBtn, anchorDateKey, anchorId, currentStatus);
-            });
+            openStatusPicker(changeStatusFromViewBtn, viewContext.dateKey, viewContext.id, currentStatus);
         });
     }
 
