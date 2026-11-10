@@ -11,40 +11,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="sms/style.css">
+    <!-- PATCH: external cat loader styles -->
+    <link rel="stylesheet" href="cat/cat_loader.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
-<!-- ============ CAT LINE LOADING SCREEN ============ -->
-<div class="loader-screen" id="loaderScreen" aria-hidden="true">
-    <div class="loader-stage">
-        <div class="cat-orbit">
-            <svg class="loader-cat" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <!-- Ears -->
-                <path class="cat-line" d="M40 40 L34 22 L50 32" />
-                <path class="cat-line" d="M80 40 L86 22 L70 32" />
-                <!-- Head outline -->
-                <path class="cat-line" d="M30 46 Q30 90 60 96 Q90 90 90 46 Q78 34 60 34 Q42 34 30 46 Z" />
-                <!-- Eyes -->
-                <path class="cat-line cat-eye" d="M46 58 Q48 54 50 58" />
-                <path class="cat-line cat-eye" d="M70 58 Q72 54 74 58" />
-                <!-- Nose -->
-                <path class="cat-line" d="M58 68 L62 68 L60 71 Z" />
-                <!-- Whiskers -->
-                <path class="cat-line cat-whisker" d="M40 68 L20 64" />
-                <path class="cat-line cat-whisker" d="M40 72 L20 74" />
-                <path class="cat-line cat-whisker" d="M80 68 L100 64" />
-                <path class="cat-line cat-whisker" d="M80 72 L100 74" />
-                <!-- Mouth -->
-                <path class="cat-line" d="M60 71 Q56 76 52 74" />
-                <path class="cat-line" d="M60 71 Q64 76 68 74" />
-                <!-- Tail curling around the orbit -->
-                <path class="cat-line cat-tail" d="M95 100 Q115 100 115 80 Q115 62 100 62" />
-            </svg>
-        </div>
-        <div class="loader-caption">Loading<span class="loader-dots">...</span></div>
-    </div>
-</div>
+<!-- ============ CAT LOADER HOST ============ -->
+<!-- PATCH: the loader markup is now injected at runtime from cat/cat_loader.html
+     by cat/cat_loader.js. Nothing else in this file changed. -->
+<div id="catLoaderHost"></div>
 
 <div class="app-container">
 
@@ -846,6 +822,9 @@
     window.supabaseReady = true;
     window.dispatchEvent(new Event('supabase-ready'));
 </script>
+
+<!-- PATCH: external cat loader logic — fetches cat/cat_loader.html, injects into #catLoaderHost, exposes window.CatLoader -->
+<script src="cat/cat_loader.js"></script>
 
 <script src="sms/script.js"></script>
 </body>
