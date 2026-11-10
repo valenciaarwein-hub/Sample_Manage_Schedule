@@ -78,6 +78,31 @@
         return nowPH.totalMinutes > range.endMin;
     }
 
+    function maybeMarkLate(dateKey, schedule) {
+        if (!schedule) return false;
+        const nowPH = getNowPH();
+
+        if (dateKey >= nowPH.dateKey) return false;
+
+        const st = normalizeStatus(schedule.status);
+        if (st === 'done' || st === 'priority') return false;
+        if (schedule.lateMarked) return false;
+
+        schedule.lateMarked = true;
+        schedule.updatedAt = new Date().toISOString();
+        return true;
+    }
+
+    function sweepLateOnAllPastSchedules() {
+        let changed = false;
+        Object.keys(schedules).forEach(dateKey => {
+            (schedules[dateKey] || []).forEach(s => {
+                if (maybeMarkLate(dateKey, s)) changed = true;
+            });
+        });
+        return changed;
+    }
+
     function autoMarkPastDayAsLate(dateKey) {
         const nowPH = getNowPH();
         const list = schedules[dateKey] || [];
@@ -86,14 +111,7 @@
 
         let changed = false;
         list.forEach(s => {
-            const st = normalizeStatus(s.status);
-            if (st === 'done') return;
-            if (st === 'priority') return;
-            if (!s.lateMarked) {
-                s.lateMarked = true;
-                s.updatedAt = new Date().toISOString();
-                changed = true;
-            }
+            if (maybeMarkLate(dateKey, s)) changed = true;
         });
 
         if (changed) {
@@ -116,7 +134,7 @@
     }
 
     // ============================================================
-    // NOTIFICATION COUNTDOWN — Left / Late, priority-or-3-day = yellow
+    // NOTIFICATION COUNTDOWN — Left / Late
     // ============================================================
     function getNotifCountdownHTML(dateKey, s) {
         const nowPH = getNowPH();
@@ -184,7 +202,7 @@
     }
 
     // ============================================================
-    // RECENT IMPORT HISTORY (localStorage — separate from audit log)
+    // RECENT IMPORT HISTORY
     // ============================================================
     const RECENT_IMPORTS_KEY = 'skedo_recent_imports_v1';
     const RECENT_IMPORTS_MAX = 10;
@@ -505,7 +523,7 @@
         const base = sort.kind === 'title' ? 'fa-sort-alpha' : 'fa-sort-amount';
         const dir = sort.order === 'asc' ? 'up' : 'down';
         icon.className = `fas ${base}-${dir}`;
-        btn.title = `Sort: ${sort.kind === 'title' ? 'Title' : 'Date created'} (${sort.order === 'asc' ? 'Ascending' : 'Descending'})`;
+        btn.title = `Sort: ${sort.kind === 'title' ? 'Title' : 'Date'} (${sort.order === 'asc' ? 'Ascending' : 'Descending'})`;
     }
 
     function syncSortPopover(popover, sort) {
@@ -518,23 +536,35 @@
     }
 
     // ============================================================
-    // SCHEDULE HISTORY LOG — Supabase-backed audit trail
+    // SCHEDULE HISTORY LOG — Supabase-backed
     // ============================================================
     const HISTORY_LOG_PAGE_SIZE = 10;
     const HISTORY_LOG_MAX = 500;
     let historyLogPage = 0;
     let historyLogCache = [];
     let historyLogLoading = false;
+    let historyLogTotalCount = 0;
 
     async function fetchHistoryLog() {
         try {
             const supabase = getSupabase();
+
+            const { count, error: countError } = await supabase
+                .from('schedule_history')
+                .select('id', { count: 'exact', head: true });
+            if (countError) throw countError;
+            historyLogTotalCount = count || 0;
+
+            const from = historyLogPage * HISTORY_LOG_PAGE_SIZE;
+            const to = from + HISTORY_LOG_PAGE_SIZE - 1;
+
             const { data, error } = await supabase
                 .from('schedule_history')
                 .select('id, action, title, date_key, notes, schedule_id, created_at')
                 .order('created_at', { ascending: false })
-                .limit(HISTORY_LOG_MAX);
+                .range(from, to);
             if (error) throw error;
+
             historyLogCache = (data || []).map(row => ({
                 id: row.id,
                 action: row.action,
@@ -586,22 +616,23 @@
             if (error) throw error;
 
             if (data) {
-                const row = {
-                    id: data.id,
-                    action: data.action,
-                    title: data.title || '',
-                    dateKey: data.date_key || '',
-                    notes: data.notes || '',
-                    scheduleId: data.schedule_id || '',
-                    at: data.created_at
-                };
-                historyLogCache.unshift(row);
-                if (historyLogCache.length > HISTORY_LOG_MAX) {
-                    historyLogCache = historyLogCache.slice(0, HISTORY_LOG_MAX);
-                }
                 historyLogPage = 0;
                 if (historyOverlay && historyOverlay.classList.contains('active')) {
+                    await fetchHistoryLog();
                     renderHistory();
+                } else {
+                    historyLogCache.unshift({
+                        id: data.id,
+                        action: data.action,
+                        title: data.title || '',
+                        dateKey: data.date_key || '',
+                        notes: data.notes || '',
+                        scheduleId: data.schedule_id || '',
+                        at: data.created_at
+                    });
+                    if (historyLogCache.length > HISTORY_LOG_MAX) {
+                        historyLogCache = historyLogCache.slice(0, HISTORY_LOG_MAX);
+                    }
                 }
             }
         } catch (err) {
@@ -632,6 +663,10 @@
     let notifSort = { kind: 'upcoming', order: 'asc' };
 
     let viewContext = { kind: 'schedule', trashId: null, dateKey: null, id: null };
+
+    let bulkDeleteSelection = new Set();
+    let bulkDeleteExpandedYears = new Set();
+    let bulkDeleteExpandedMonths = new Set();
 
     // ============================================================
     // DOM
@@ -721,6 +756,18 @@
     const settingsOverlay = document.getElementById('settingsOverlay');
     const openTrashBtn = document.getElementById('openTrashBtn');
     const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const openBulkDeleteBtn = document.getElementById('openBulkDeleteBtn');
+
+    const bulkDeleteOverlay = document.getElementById('bulkDeleteOverlay');
+    const bulkDeleteTree = document.getElementById('bulkDeleteTree');
+    const bulkDeleteEmpty = document.getElementById('bulkDeleteEmpty');
+    const bulkDeleteSearch = document.getElementById('bulkDeleteSearch');
+    const bulkDeleteSelectedCount = document.getElementById('bulkDeleteSelectedCount');
+    const bulkDeleteTotalCount = document.getElementById('bulkDeleteTotalCount');
+    const bulkDeleteCancelBtn = document.getElementById('bulkDeleteCancelBtn');
+    const bulkDeleteMoveToBinBtn = document.getElementById('bulkDeleteMoveToBinBtn');
+    const bulkDeleteExpandAllBtn = document.getElementById('bulkDeleteExpandAllBtn');
+    const bulkDeleteCollapseAllBtn = document.getElementById('bulkDeleteCollapseAllBtn');
 
     const trashOverlay = document.getElementById('trashOverlay');
     const trashSortBtn = document.getElementById('trashSortBtn');
@@ -1004,7 +1051,6 @@
 
     let notifSeenIds = new Set(loadJson(NOTIF_SEEN_KEY, []));
 
-    // ── Grouped build + pinned-status sort ──
     function buildNotificationItems() {
         const items = [];
         const nowPH = getNowPH();
@@ -1047,8 +1093,8 @@
             });
         });
 
-        // ── Sort: pinned status first, then Asc/Desc within each group ──
-        const currentKind = notifSort.kind;      // 'upcoming' | 'priority' | 'overdue'
+        // Sort: pinned status first, then Asc/Desc within each group
+        const currentKind = notifSort.kind;
         const isAscending = notifSort.order === 'asc';
 
         function groupRank(status) {
@@ -1108,7 +1154,6 @@
         }
 
         notifMarkReadBtn.disabled = unreadCount === 0;
-
         syncNotifSortPopover();
 
         if (flat.length === 0) {
@@ -1203,7 +1248,6 @@
     function syncNotifSortPopover() {
         if (!notifSortPopover) return;
         notifSortPopover.querySelectorAll('[data-notif-status]').forEach(el => {
-            // data-notif-status="late" maps to internal 'overdue'
             const mapped = el.dataset.notifStatus === 'late' ? 'overdue' : el.dataset.notifStatus;
             el.classList.toggle('selected', mapped === notifSort.kind);
         });
@@ -1271,7 +1315,6 @@
         if (e.key === 'Escape' && notifPanel.classList.contains('open')) closeNotifPanel();
     });
 
-    // ── Sort popover wiring (STATUS SORT) ──
     if (notifSortBtn && notifSortPopover) {
         notifSortBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1285,7 +1328,6 @@
         notifSortPopover.querySelectorAll('[data-notif-status]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                // Map "late" (UI label) → "overdue" (internal key)
                 const raw = btn.dataset.notifStatus;
                 notifSort.kind = (raw === 'late') ? 'overdue' : raw;
                 syncNotifSortPopover();
@@ -1849,7 +1891,7 @@
     }
 
     // ============================================================
-    // LIVE COUNTDOWN TICKER — flips Left → Late
+    // LIVE COUNTDOWN TICKER
     // ============================================================
     let countdownTicker = null;
 
@@ -2026,7 +2068,7 @@
     }
 
     // ============================================================
-    // STATUS POPUP — in-modal for View, body-level otherwise
+    // STATUS POPUP
     // ============================================================
     let openStatusPopup = null;
 
@@ -2088,6 +2130,8 @@
         closeStatusPopup();
 
         const doneAllowed = isDoneAllowed(dateKey, sched);
+        const isLateNow = isScheduleLateNow(dateKey, sched, getNowPH());
+        const priorityAllowed = !isLateNow;
 
         const popup = document.createElement('div');
         popup.className = 'status-popup';
@@ -2106,9 +2150,13 @@
                 <span>Done${doneAllowed ? '' : ' (locked)'}</span>
                 <i class="fas fa-check status-popup-check"></i>
             </button>
-            <button type="button" class="status-popup-option ${currentStatus === 'priority' ? 'selected' : ''}" data-pick="priority">
+            <button type="button"
+                    class="status-popup-option ${currentStatus === 'priority' ? 'selected' : ''} ${priorityAllowed ? '' : 'disabled'}"
+                    data-pick="priority"
+                    ${priorityAllowed ? '' : 'disabled'}
+                    title="${priorityAllowed ? '' : 'Priority is not available for schedules marked as Late'}">
                 <i class="fas fa-star"></i>
-                <span>Priority</span>
+                <span>Priority${priorityAllowed ? '' : ' (locked)'}</span>
                 <i class="fas fa-check status-popup-check"></i>
             </button>
         `;
@@ -2223,6 +2271,19 @@
         }
 
         const normalized = normalizeStatus(newStatus);
+
+        if (normalized === 'priority' && isScheduleLateNow(dateKey, item, getNowPH())) {
+            openConfirmModal({
+                title: 'Cannot set as Priority',
+                message: 'This schedule is already late. Priority is reserved for schedules that are still upcoming (0–3 days ahead).',
+                okText: 'OK',
+                iconClass: 'warning',
+                showCancel: false,
+                onConfirm: () => {}
+            });
+            return;
+        }
+
         if (normalizeStatus(item.status) === normalized) return;
 
         if (normalized === 'done' && !isDoneAllowed(dateKey, item)) {
@@ -2936,7 +2997,7 @@
             }
         } else {
             if (!schedules[dateKey]) schedules[dateKey] = [];
-            schedules[dateKey].push({
+            const newSched = {
                 id: uid(),
                 title: newData.title,
                 description: newData.description,
@@ -2944,7 +3005,9 @@
                 time: newData.time || '',
                 status: normalizeStatus(newData.status),
                 createdAt: new Date().toISOString()
-            });
+            };
+            maybeMarkLate(dateKey, newSched);
+            schedules[dateKey].push(newSched);
         }
 
         scheduleSave();
@@ -3075,6 +3138,46 @@
     // ============================================================
     // HISTORY (audit log via Supabase)
     // ============================================================
+    function sortHistoryEntries(list, sort) {
+        const arr = [...list];
+        const kind = (sort && sort.kind) || 'date-created';
+        const order = (sort && sort.order) === 'asc' ? 1 : -1;
+
+        function entryTimestampMs(entry) {
+            if (entry.dateKey) {
+                const base = getDateFromKey(entry.dateKey);
+                const t = parseScheduleTimeRange(entry.time || '');
+                if (t) {
+                    base.setHours(Math.floor(t.startMin / 60), t.startMin % 60, 0, 0);
+                }
+                return base.getTime();
+            }
+            const at = new Date(entry.at || 0).getTime();
+            return isNaN(at) ? 0 : at;
+        }
+
+        arr.sort((a, b) => {
+            if (kind === 'title') {
+                const cmp = (a.title || '').localeCompare(
+                    b.title || '',
+                    undefined,
+                    { sensitivity: 'base', numeric: true }
+                );
+                return cmp * order;
+            }
+
+            const aT = entryTimestampMs(a);
+            const bT = entryTimestampMs(b);
+            if (aT !== bT) return (aT - bT) * order;
+
+            const aC = new Date(a.at || 0).getTime() || 0;
+            const bC = new Date(b.at || 0).getTime() || 0;
+            return (aC - bC) * order;
+        });
+
+        return arr;
+    }
+
     function populateHistoryYearFilter() {
         const years = new Set();
         years.add(new Date().getFullYear());
@@ -3106,13 +3209,11 @@
     function renderHistory() {
         populateHistoryYearFilter();
 
-        const allLogs = historyLogCache;
-
         const query = historySearch.value.trim().toLowerCase();
         const yearFilter = historyYearFilter.value;
         const monthFilter = historyMonthFilter.value;
 
-        let filtered = allLogs;
+        let filtered = historyLogCache;
 
         if (yearFilter !== 'all') {
             filtered = filtered.filter(e => (e.dateKey || '').startsWith(yearFilter + '-'));
@@ -3129,10 +3230,14 @@
             );
         }
 
-        totalSchedulesCount.textContent = allLogs.length;
-        totalDaysCount.textContent = new Set(allLogs.map(e => e.dateKey).filter(Boolean)).size;
+        filtered = sortHistoryEntries(filtered, historySort);
+        updateSortIcon(historySortBtn, historySort);
+        syncSortPopover(historySortPopover, historySort);
+
+        totalSchedulesCount.textContent = historyLogTotalCount;
+        totalDaysCount.textContent = new Set(filtered.map(e => e.dateKey).filter(Boolean)).size;
         totalMonthsCount.textContent = new Set(
-            allLogs.map(e => (e.dateKey || '').slice(0, 7)).filter(Boolean)
+            filtered.map(e => (e.dateKey || '').slice(0, 7)).filter(Boolean)
         ).size;
 
         if (filtered.length === 0) {
@@ -3145,17 +3250,10 @@
                     </span>
                 </div>
             `;
-            clearAllHistoryBtn.style.display = allLogs.length > 0 ? 'inline-flex' : 'none';
+            clearAllHistoryBtn.style.display = historyLogTotalCount > 0 ? 'inline-flex' : 'none';
             renderHistoryPager(0);
             return;
         }
-
-        const totalPages = Math.ceil(filtered.length / HISTORY_LOG_PAGE_SIZE);
-        if (historyLogPage >= totalPages) historyLogPage = totalPages - 1;
-        if (historyLogPage < 0) historyLogPage = 0;
-
-        const start = historyLogPage * HISTORY_LOG_PAGE_SIZE;
-        const slice = filtered.slice(start, start + HISTORY_LOG_PAGE_SIZE);
 
         const ACTION_META = {
             added:     { label: 'Added',     icon: 'fa-plus-circle',  cls: 'action-added' },
@@ -3167,7 +3265,7 @@
         };
 
         let html = '';
-        slice.forEach(e => {
+        filtered.forEach(e => {
             const meta = ACTION_META[e.action] || { label: e.action, icon: 'fa-info-circle', cls: 'action-status' };
             const dateObj = e.dateKey ? getDateFromKey(e.dateKey) : null;
             const dateLabel = dateObj
@@ -3196,7 +3294,9 @@
         });
 
         historyList.innerHTML = html;
-        clearAllHistoryBtn.style.display = allLogs.length > 0 ? 'inline-flex' : 'none';
+        clearAllHistoryBtn.style.display = historyLogTotalCount > 0 ? 'inline-flex' : 'none';
+
+        const totalPages = Math.ceil(historyLogTotalCount / HISTORY_LOG_PAGE_SIZE);
         renderHistoryPager(totalPages);
     }
 
@@ -3215,34 +3315,67 @@
         prev.disabled = historyLogPage === 0;
         next.disabled = historyLogPage === totalPages - 1;
 
+        const MAX_DOTS = 5;
+        const current = historyLogPage;
+        let start = Math.max(0, current - Math.floor(MAX_DOTS / 2));
+        let end = Math.min(totalPages - 1, start + MAX_DOTS - 1);
+        start = Math.max(0, end - MAX_DOTS + 1);
+
+        const pages = [];
+        for (let i = start; i <= end; i++) pages.push(i);
+
         let dotsHtml = '';
-        for (let i = 0; i < totalPages; i++) {
-            dotsHtml += `<button type="button" class="history-pager-dot${i === historyLogPage ? ' active' : ''}" data-page="${i}" aria-label="Page ${i + 1}"></button>`;
-        }
+        pages.forEach((i, idx) => {
+            const isFirst = idx === 0;
+            const isLast = idx === pages.length - 1;
+            const gapBefore = isFirst && i > 0;
+            const gapAfter = isLast && i < totalPages - 1;
+
+            if (gapBefore) {
+                dotsHtml += `<span class="history-pager-gap">…</span>`;
+            }
+            dotsHtml += `<button type="button" class="history-pager-dot${i === current ? ' active' : ''}" data-page="${i}" aria-label="Page ${i + 1}"></button>`;
+            if (gapAfter) {
+                dotsHtml += `<span class="history-pager-gap">…</span>`;
+            }
+        });
+
         dots.innerHTML = dotsHtml;
+
         dots.querySelectorAll('.history-pager-dot').forEach(dot => {
             dot.addEventListener('click', () => {
-                historyLogPage = parseInt(dot.dataset.page, 10) || 0;
-                renderHistory();
+                const page = parseInt(dot.dataset.page, 10) || 0;
+                if (page === historyLogPage) return;
+                historyLogPage = page;
+                historyLogLoading = false;
+                fetchHistoryLog().then(() => renderHistory());
             });
         });
 
         prev.onclick = () => {
-            if (historyLogPage > 0) { historyLogPage--; renderHistory(); }
+            if (historyLogPage > 0) {
+                historyLogPage--;
+                historyLogLoading = false;
+                fetchHistoryLog().then(() => renderHistory());
+            }
         };
         next.onclick = () => {
-            if (historyLogPage < totalPages - 1) { historyLogPage++; renderHistory(); }
+            if (historyLogPage < totalPages - 1) {
+                historyLogPage++;
+                historyLogLoading = false;
+                fetchHistoryLog().then(() => renderHistory());
+            }
         };
     }
 
     function openHistoryModal() {
         historySearch.value = '';
-        const now = new Date();
         historyYearFilter.value = 'all';
         historyMonthFilter.value = 'all';
 
         historyOverlay.classList.add('active');
         historyLogPage = 0;
+        historyLogLoading = false;
 
         historyList.innerHTML = `<div class="history-empty">
             <i class="fas fa-spinner fa-spin"></i>
@@ -3265,7 +3398,7 @@
 
         openConfirmModal({
             title: 'Clear Schedule History?',
-            message: `${allLogs.length} history entr${allLogs.length === 1 ? 'y' : 'ies'} will be removed from all devices. Your schedules will NOT be deleted.`,
+            message: `${historyLogTotalCount} history entr${historyLogTotalCount === 1 ? 'y' : 'ies'} will be removed from all devices. Your schedules will NOT be deleted.`,
             okText: 'Clear History',
             iconClass: 'warning',
             onConfirm: async () => {
@@ -3278,12 +3411,327 @@
                     if (error) throw error;
 
                     historyLogCache = [];
+                    historyLogTotalCount = 0;
                     historyLogPage = 0;
                     renderHistory();
                 } catch (err) {
                     console.error('Clear history error:', err);
                     alert('Could not clear history: ' + err.message);
                 }
+            }
+        });
+    }
+
+    // ============================================================
+    // BULK DELETE (grouped by Year / Month) — Recycle Bin only
+    // ============================================================
+    function bulkDeleteOpen() {
+        bulkDeleteSelection.clear();
+        bulkDeleteExpandedYears.clear();
+        bulkDeleteExpandedMonths.clear();
+        bulkDeleteSearch.value = '';
+        bulkDeleteOverlay.classList.add('active');
+        renderBulkDeleteTree();
+    }
+
+    function bulkDeleteClose() {
+        bulkDeleteOverlay.classList.remove('active');
+        bulkDeleteSelection.clear();
+        bulkDeleteExpandedYears.clear();
+        bulkDeleteExpandedMonths.clear();
+    }
+
+    function buildBulkDeleteTree(filterQuery) {
+        const q = (filterQuery || '').trim().toLowerCase();
+        const groups = {};
+
+        Object.keys(schedules).forEach(dateKey => {
+            const list = schedules[dateKey] || [];
+            if (list.length === 0) return;
+            const [yearStr, monthStr] = dateKey.split('-');
+            const year = parseInt(yearStr, 10);
+            const month = parseInt(monthStr, 10);
+
+            list.forEach(s => {
+                if (q) {
+                    const haystack = (s.title + ' ' + (s.description || '')).toLowerCase();
+                    if (!haystack.includes(q)) return;
+                }
+                if (!groups[year]) groups[year] = {};
+                if (!groups[year][month]) groups[year][month] = [];
+                groups[year][month].push({
+                    id: s.id,
+                    title: s.title,
+                    description: s.description || '',
+                    dateKey,
+                    time: s.time || '',
+                    status: normalizeStatus(s.status),
+                    type: s.type || '',
+                    lateMarked: !!s.lateMarked
+                });
+            });
+        });
+
+        Object.keys(groups).forEach(year => {
+            Object.keys(groups[year]).forEach(month => {
+                groups[year][month].sort((a, b) => {
+                    if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
+                    const ra = parseScheduleTimeRange(a.time);
+                    const rb = parseScheduleTimeRange(b.time);
+                    const sa = ra ? ra.startMin : Number.MAX_SAFE_INTEGER;
+                    const sb = rb ? rb.startMin : Number.MAX_SAFE_INTEGER;
+                    return sa - sb;
+                });
+            });
+        });
+
+        return groups;
+    }
+
+    function countSchedulesInMonth(groups, year, month) {
+        return (groups[year] && groups[year][month]) ? groups[year][month].length : 0;
+    }
+    function countSchedulesInYear(groups, year) {
+        if (!groups[year]) return 0;
+        return Object.values(groups[year]).reduce((a, b) => a + b.length, 0);
+    }
+    function countSelectedInMonth(groups, year, month) {
+        if (!groups[year] || !groups[year][month]) return 0;
+        return groups[year][month].reduce((acc, s) => acc + (bulkDeleteSelection.has(s.id) ? 1 : 0), 0);
+    }
+    function countSelectedInYear(groups, year) {
+        if (!groups[year]) return 0;
+        let n = 0;
+        Object.keys(groups[year]).forEach(m => {
+            groups[year][m].forEach(s => { if (bulkDeleteSelection.has(s.id)) n++; });
+        });
+        return n;
+    }
+
+    function renderBulkDeleteTree() {
+        const groups = buildBulkDeleteTree(bulkDeleteSearch.value);
+        const years = Object.keys(groups).map(y => parseInt(y, 10)).sort((a, b) => b - a);
+
+        let total = 0;
+        years.forEach(y => { total += countSchedulesInYear(groups, y); });
+
+        bulkDeleteSelectedCount.textContent = String(bulkDeleteSelection.size);
+        bulkDeleteTotalCount.textContent = String(total);
+        if (bulkDeleteMoveToBinBtn) {
+            bulkDeleteMoveToBinBtn.disabled = bulkDeleteSelection.size === 0;
+        }
+
+        const validIds = new Set();
+        years.forEach(y => Object.keys(groups[y]).forEach(m => groups[y][m].forEach(s => validIds.add(s.id))));
+        Array.from(bulkDeleteSelection).forEach(id => {
+            if (!validIds.has(id)) bulkDeleteSelection.delete(id);
+        });
+
+        if (total === 0) {
+            bulkDeleteTree.innerHTML = '';
+            bulkDeleteEmpty.style.display = 'block';
+            return;
+        }
+        bulkDeleteEmpty.style.display = 'none';
+
+        const monthNamesFull = monthNames;
+        let html = '';
+
+        years.forEach(year => {
+            const yearTotal = countSchedulesInYear(groups, year);
+            const yearSelected = countSelectedInYear(groups, year);
+            const yearAllSelected = yearSelected === yearTotal && yearTotal > 0;
+            const yearOpen = bulkDeleteExpandedYears.has(year);
+
+            html += `
+                <div class="bulk-delete-year ${yearOpen ? 'open' : ''}" data-year="${year}">
+                    <div class="bulk-delete-year-header">
+                        <input type="checkbox" class="bulk-delete-year-checkbox"
+                               data-year-checkbox="${year}"
+                               ${yearAllSelected ? 'checked' : ''}>
+                        <button type="button" class="bulk-delete-toggle-year" data-year-toggle="${year}">
+                            <i class="fas fa-chevron-${yearOpen ? 'down' : 'right'}"></i>
+                            <span class="bulk-delete-year-label">${year}</span>
+                            <span class="bulk-delete-count">${yearTotal} schedule${yearTotal === 1 ? '' : 's'}</span>
+                            ${yearSelected > 0 ? `<span class="bulk-delete-selected-pill">${yearSelected} selected</span>` : ''}
+                        </button>
+                    </div>
+            `;
+
+            if (yearOpen) {
+                const months = Object.keys(groups[year]).map(m => parseInt(m, 10)).sort((a, b) => b - a);
+                html += `<div class="bulk-delete-year-body">`;
+
+                months.forEach(month => {
+                    const mTotal = countSchedulesInMonth(groups, year, month);
+                    const mSelected = countSelectedInMonth(groups, year, month);
+                    const mAll = mSelected === mTotal && mTotal > 0;
+                    const mOpen = bulkDeleteExpandedMonths.has(`${year}-${month}`);
+                    const monthLabel = monthNamesFull[month - 1];
+
+                    html += `
+                        <div class="bulk-delete-month ${mOpen ? 'open' : ''}" data-year="${year}" data-month="${month}">
+                            <div class="bulk-delete-month-header">
+                                <input type="checkbox" class="bulk-delete-month-checkbox"
+                                       data-year-checkbox-month="${year}-${month}"
+                                       ${mAll ? 'checked' : ''}>
+                                <button type="button" class="bulk-delete-toggle-month" data-year-toggle-month="${year}-${month}">
+                                    <i class="fas fa-chevron-${mOpen ? 'down' : 'right'}"></i>
+                                    <span class="bulk-delete-month-label">${monthLabel}</span>
+                                    <span class="bulk-delete-count">${mTotal} schedule${mTotal === 1 ? '' : 's'}</span>
+                                    ${mSelected > 0 ? `<span class="bulk-delete-selected-pill">${mSelected} selected</span>` : ''}
+                                </button>
+                            </div>
+                    `;
+
+                    if (mOpen) {
+                        html += `<div class="bulk-delete-month-body">`;
+                        groups[year][month].forEach(s => {
+                            const checked = bulkDeleteSelection.has(s.id);
+                            const dObj = getDateFromKey(s.dateKey);
+                            const dLabel = dObj.toLocaleDateString('en-US', {
+                                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+                            });
+                            const timeLabel = s.time ? ` • ${escapeHtml(s.time)}` : '';
+                            html += `
+                                <label class="bulk-delete-item">
+                                    <input type="checkbox" class="bulk-delete-item-checkbox"
+                                           data-item-id="${s.id}"
+                                           ${checked ? 'checked' : ''}>
+                                    <div class="bulk-delete-item-body">
+                                        <div class="bulk-delete-item-title">${escapeHtml(s.title)}</div>
+                                        <div class="bulk-delete-item-meta">
+                                            <span><i class="fas fa-calendar-day"></i> ${escapeHtml(dLabel)}${timeLabel}</span>
+                                            ${s.type ? renderTypeBadge(s.type) : ''}
+                                        </div>
+                                    </div>
+                                </label>
+                            `;
+                        });
+                        html += `</div>`;
+                    }
+
+                    html += `</div>`;
+                });
+
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+        });
+
+        bulkDeleteTree.innerHTML = html;
+
+        years.forEach(year => {
+            const yearCb = bulkDeleteTree.querySelector(`[data-year-checkbox="${year}"]`);
+            const yTotal = countSchedulesInYear(groups, year);
+            const ySel = countSelectedInYear(groups, year);
+            if (yearCb) yearCb.indeterminate = ySel > 0 && ySel < yTotal;
+
+            Object.keys(groups[year]).forEach(m => {
+                const monthCb = bulkDeleteTree.querySelector(`[data-year-checkbox-month="${year}-${m}"]`);
+                if (!monthCb) return;
+                const mTotal = countSchedulesInMonth(groups, year, parseInt(m, 10));
+                const mSel = countSelectedInMonth(groups, year, parseInt(m, 10));
+                monthCb.indeterminate = mSel > 0 && mSel < mTotal;
+            });
+        });
+
+        bulkDeleteTree.querySelectorAll('[data-year-checkbox]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const year = parseInt(cb.dataset.yearCheckbox, 10);
+                const target = groups[year] || {};
+                const allIds = [];
+                Object.keys(target).forEach(m => target[m].forEach(s => allIds.push(s.id)));
+                if (cb.checked) allIds.forEach(id => bulkDeleteSelection.add(id));
+                else allIds.forEach(id => bulkDeleteSelection.delete(id));
+                renderBulkDeleteTree();
+            });
+        });
+
+        bulkDeleteTree.querySelectorAll('[data-year-checkbox-month]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const [yearStr, monthStr] = cb.dataset.yearCheckboxMonth.split('-');
+                const year = parseInt(yearStr, 10);
+                const month = parseInt(monthStr, 10);
+                const list = (groups[year] && groups[year][month]) || [];
+                if (cb.checked) list.forEach(s => bulkDeleteSelection.add(s.id));
+                else list.forEach(s => bulkDeleteSelection.delete(s.id));
+                renderBulkDeleteTree();
+            });
+        });
+
+        bulkDeleteTree.querySelectorAll('[data-item-id]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const id = cb.dataset.itemId;
+                if (cb.checked) bulkDeleteSelection.add(id);
+                else bulkDeleteSelection.delete(id);
+                renderBulkDeleteTree();
+            });
+        });
+
+        bulkDeleteTree.querySelectorAll('[data-year-toggle]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const year = parseInt(btn.dataset.yearToggle, 10);
+                if (bulkDeleteExpandedYears.has(year)) bulkDeleteExpandedYears.delete(year);
+                else bulkDeleteExpandedYears.add(year);
+                renderBulkDeleteTree();
+            });
+        });
+
+        bulkDeleteTree.querySelectorAll('[data-year-toggle-month]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.yearToggleMonth;
+                if (bulkDeleteExpandedMonths.has(key)) bulkDeleteExpandedMonths.delete(key);
+                else bulkDeleteExpandedMonths.add(key);
+                renderBulkDeleteTree();
+            });
+        });
+    }
+
+    function bulkDeleteApplyMoveToBin() {
+        if (bulkDeleteSelection.size === 0) return;
+        const ids = Array.from(bulkDeleteSelection);
+        const count = ids.length;
+
+        openConfirmModal({
+            title: `Move ${count} schedule${count === 1 ? '' : 's'} to Recycle Bin?`,
+            message: `The selected schedule${count === 1 ? '' : 's'} will be moved to the Recycle Bin. You can recover them from Settings → Recycle Bin.`,
+            okText: 'Move to Bin',
+            iconClass: 'warning',
+            onConfirm: () => {
+                let moved = 0;
+                ids.forEach(id => {
+                    Object.keys(schedules).forEach(dateKey => {
+                        const list = schedules[dateKey] || [];
+                        const idx = list.findIndex(s => s.id === id);
+                        if (idx === -1) return;
+                        const [removed] = list.splice(idx, 1);
+                        if (list.length === 0) delete schedules[dateKey];
+                        removed.dateKey = dateKey;
+                        removed.deletedAt = new Date().toISOString();
+                        trash.push(removed);
+                        moved++;
+
+                        logHistory({
+                            action: 'deleted',
+                            title: removed.title,
+                            dateKey,
+                            id: removed.id,
+                            notes: 'Moved to Recycle Bin (bulk from Settings)'
+                        });
+                    });
+                });
+
+                bulkDeleteSelection.clear();
+                scheduleSave();
+                renderCalendar();
+                renderNotifications();
+                renderBulkDeleteTree();
+                if (trashOverlay.classList.contains('active')) renderTrash();
+                if (historyOverlay.classList.contains('active')) renderHistory();
+
+                bulkDeleteClose();
             }
         });
     }
@@ -3964,7 +4412,7 @@
         importParsedRows.forEach(r => {
             const dateKey = r.dateKey;
             if (!schedules[dateKey]) schedules[dateKey] = [];
-            schedules[dateKey].push({
+            const newSched = {
                 id: uid(),
                 title: r.title,
                 description: r.description,
@@ -3973,10 +4421,16 @@
                 status: normalizeStatus(r.status),
                 lateMarked: !!r.lateMarked,
                 createdAt: now
-            });
+            };
+            if (!newSched.lateMarked) {
+                maybeMarkLate(dateKey, newSched);
+            }
+            schedules[dateKey].push(newSched);
             added++;
             perDateCounts[dateKey] = (perDateCounts[dateKey] || 0) + 1;
         });
+
+        sweepLateOnAllPastSchedules();
 
         if (currentImportFile) {
             recordImportSignature(currentImportFile);
@@ -4601,6 +5055,43 @@
         openTrashModal();
     });
 
+    if (openBulkDeleteBtn) {
+        openBulkDeleteBtn.addEventListener('click', () => {
+            closeSettingsModal();
+            bulkDeleteOpen();
+        });
+    }
+
+    if (bulkDeleteCancelBtn) bulkDeleteCancelBtn.addEventListener('click', bulkDeleteClose);
+    if (bulkDeleteOverlay) {
+        bulkDeleteOverlay.addEventListener('click', (e) => {
+            if (e.target === bulkDeleteOverlay) bulkDeleteClose();
+        });
+    }
+    if (bulkDeleteSearch) {
+        bulkDeleteSearch.addEventListener('input', () => {
+            renderBulkDeleteTree();
+        });
+    }
+    if (bulkDeleteExpandAllBtn) {
+        bulkDeleteExpandAllBtn.addEventListener('click', () => {
+            const groups = buildBulkDeleteTree(bulkDeleteSearch.value);
+            Object.keys(groups).forEach(y => {
+                bulkDeleteExpandedYears.add(parseInt(y, 10));
+                Object.keys(groups[y]).forEach(m => bulkDeleteExpandedMonths.add(`${y}-${m}`));
+            });
+            renderBulkDeleteTree();
+        });
+    }
+    if (bulkDeleteCollapseAllBtn) {
+        bulkDeleteCollapseAllBtn.addEventListener('click', () => {
+            bulkDeleteExpandedYears.clear();
+            bulkDeleteExpandedMonths.clear();
+            renderBulkDeleteTree();
+        });
+    }
+    if (bulkDeleteMoveToBinBtn) bulkDeleteMoveToBinBtn.addEventListener('click', bulkDeleteApplyMoveToBin);
+
     logoutBtn.addEventListener('click', () => {
         closeSettingsModal();
         openConfirmModal({
@@ -4613,6 +5104,7 @@
                 schedules = {};
                 trash = [];
                 historyLogCache = [];
+                historyLogTotalCount = 0;
 
                 trashSelection.clear();
                 dayListSelection.clear();
@@ -4636,6 +5128,7 @@
                 trashOverlay.classList.remove('active');
                 settingsOverlay.classList.remove('active');
                 validationOverlay.classList.remove('active');
+                bulkDeleteOverlay.classList.remove('active');
                 closeSortPopovers();
                 closeStatusPopup();
 
@@ -4782,6 +5275,7 @@
             if (confirmOverlay.classList.contains('active')) { closeConfirmModal(); return; }
             if (viewOverlay.classList.contains('active')) { closeViewModal(); return; }
             if (reviewOverlay.classList.contains('active')) { goBackToForm(); return; }
+            if (bulkDeleteOverlay.classList.contains('active')) { bulkDeleteClose(); return; }
             if (trashOverlay.classList.contains('active')) { closeTrashModal(); return; }
             if (settingsOverlay.classList.contains('active')) { closeSettingsModal(); return; }
             if (historyOverlay.classList.contains('active')) closeHistoryModal();
