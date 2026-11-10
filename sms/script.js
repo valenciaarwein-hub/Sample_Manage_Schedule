@@ -538,7 +538,7 @@
     let trashSort = { kind: 'date-created', order: 'desc' };
     let notifSort = { kind: 'upcoming', order: 'asc' };
 
-    let viewContext = { kind: 'schedule', trashId: null };
+    let viewContext = { kind: 'schedule', trashId: null, dateKey: null, id: null };
 
     // ============================================================
     // DOM
@@ -601,6 +601,7 @@
     const viewDeletedAt = document.getElementById('viewDeletedAt');
     const closeViewBtn = document.getElementById('closeViewBtn');
     const recoverFromViewBtn = document.getElementById('recoverFromViewBtn');
+    const changeStatusFromViewBtn = document.getElementById('changeStatusFromViewBtn');
 
     const datePickerOverlay = document.getElementById('datePickerOverlay');
     const pickYear = document.getElementById('pickYear');
@@ -1006,7 +1007,7 @@
     }
 
     // ============================================================
-    // NOTIF ITEM — title + status pill on right row, countdown below
+    // NOTIF ITEM — title + status pill on right row, type → date → countdown below
     // ============================================================
     function renderNotifItemHTML(it) {
         const itemClasses = ['notif-item', it.edgeClass, it.unread ? 'unread' : ''].filter(Boolean).join(' ');
@@ -1040,6 +1041,8 @@
                     </span>
                     <span class="notif-sub">
                         ${typeBadgeHtml}
+                    </span>
+                    <span class="notif-date-row">
                         <span class="notif-date">${escapeHtml(dateLabel)}</span>
                     </span>
                     ${countdownHtml}
@@ -1872,11 +1875,16 @@
     // ============================================================
     let openStatusPopup = null;
 
-    function closeStatusPopup() {
+    function closeStatusPopup(reopenView) {
         if (openStatusPopup && openStatusPopup.parentNode) {
             openStatusPopup.parentNode.removeChild(openStatusPopup);
         }
         openStatusPopup = null;
+
+        if (reopenView && viewContext.kind === 'schedule' && viewContext.dateKey && viewContext.id) {
+            const sched = (schedules[viewContext.dateKey] || []).find(s => s.id === viewContext.id);
+            if (sched) openViewModal(viewContext.dateKey, viewContext.id, reopenHistoryAfterEdit);
+        }
     }
 
     function isStatusLocked(dateKey, sched) {
@@ -1958,12 +1966,12 @@
     }
 
     document.addEventListener('click', (e) => {
-        if (openStatusPopup && !e.target.closest('.status-popup') && !e.target.closest('[data-status-trigger]')) {
-            closeStatusPopup();
+        if (openStatusPopup && !e.target.closest('.status-popup') && !e.target.closest('[data-status-trigger]') && !e.target.closest('#changeStatusFromViewBtn')) {
+            closeStatusPopup(true);
         }
     });
     window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && openStatusPopup) closeStatusPopup();
+        if (e.key === 'Escape' && openStatusPopup) closeStatusPopup(true);
     });
     window.addEventListener('scroll', closeStatusPopup, { passive: true });
     window.addEventListener('resize', closeStatusPopup);
@@ -1997,6 +2005,11 @@
         renderNotifications();
         renderDayScheduleList();
         if (historyOverlay.classList.contains('active')) renderHistory();
+
+        // If the picker was opened from the View modal, reopen it with fresh data
+        if (viewContext.kind === 'schedule' && viewContext.dateKey === dateKey && viewContext.id === id) {
+            openViewModal(dateKey, id, reopenHistoryAfterEdit);
+        }
     }
 
     // ============================================================
@@ -2205,11 +2218,12 @@
 
         const dateObj = getDateFromKey(dateKey);
 
-        viewContext = { kind: 'schedule', trashId: null };
+        viewContext = { kind: 'schedule', trashId: null, dateKey, id: scheduleId };
         viewOverlay.classList.remove('trash-context');
         viewTrashDetails.style.display = 'none';
         viewStatusRow.style.display = 'block';
         recoverFromViewBtn.style.display = 'none';
+        if (changeStatusFromViewBtn) changeStatusFromViewBtn.style.display = 'inline-flex';
         viewModalTitle.innerHTML = '<i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details';
 
         viewTitle.textContent = schedule.title;
@@ -2239,7 +2253,7 @@
         const item = trash.find(t => t.id === trashId);
         if (!item) return;
 
-        viewContext = { kind: 'trash', trashId };
+        viewContext = { kind: 'trash', trashId, dateKey: null, id: null };
         viewOverlay.classList.add('trash-context');
         viewModalTitle.innerHTML = '<i class="fas fa-eye" style="color:#dc2626;"></i> Deleted Schedule Details';
 
@@ -2264,6 +2278,7 @@
         viewCreatedAt.textContent = item.createdAt ? formatDateTime(item.createdAt) : '—';
         viewDeletedAt.textContent = item.deletedAt ? formatDateTime(item.deletedAt) : '—';
 
+        if (changeStatusFromViewBtn) changeStatusFromViewBtn.style.display = 'none';
         recoverFromViewBtn.style.display = 'inline-flex';
         viewOverlay.classList.add('active');
     }
@@ -2273,7 +2288,8 @@
         viewOverlay.classList.remove('trash-context');
         viewTrashDetails.style.display = 'none';
         recoverFromViewBtn.style.display = 'none';
-        viewContext = { kind: 'schedule', trashId: null };
+        if (changeStatusFromViewBtn) changeStatusFromViewBtn.style.display = 'none';
+        viewContext = { kind: 'schedule', trashId: null, dateKey: null, id: null };
 
         if (reopenHistoryAfterEdit) {
             reopenHistoryAfterEdit = false;
@@ -2367,10 +2383,21 @@
         const titleVal = scheduleTitle.value.trim();
         const descVal = scheduleDescription.value.trim();
         const resolvedType = getResolvedType().trim();
+        const startVal = startPicker ? startPicker.getValue() : '';
+        const endVal   = endPicker   ? endPicker.getValue()   : '';
 
         if (!titleVal) errors.push('Title is required.');
         if (!descVal) errors.push('Description is required.');
         if (!resolvedType) errors.push('Schedule type is required — pick a button or specify "Other".');
+        if (!startVal) errors.push('Start time is required.');
+        if (!endVal) errors.push('End time is required.');
+        if (startVal && endVal) {
+            const s = parseTimeToMinutes12h(startVal);
+            const e = parseTimeToMinutes12h(endVal);
+            if (s != null && e != null && e < s) {
+                errors.push('End time must be after start time.');
+            }
+        }
 
         return errors;
     }
@@ -2379,6 +2406,7 @@
         const titleField = scheduleTitle.closest('.field');
         const descField = scheduleDescription.closest('.field');
         const typeField = typeButtonGroup.closest('.field');
+        const timeField = document.querySelector('.time-row').closest('.field');
 
         if (!scheduleTitle.value.trim()) titleField.classList.add('invalid');
         else titleField.classList.remove('invalid');
@@ -2388,6 +2416,16 @@
 
         if (!getResolvedType().trim()) typeField.classList.add('invalid');
         else typeField.classList.remove('invalid');
+
+        const startVal = startPicker ? startPicker.getValue() : '';
+        const endVal   = endPicker   ? endPicker.getValue()   : '';
+        if (!startVal || !endVal) timeField.classList.add('invalid');
+        else timeField.classList.remove('invalid');
+
+        if (startPickerEl) startPickerEl.classList.remove('invalid');
+        if (endPickerEl) endPickerEl.classList.remove('invalid');
+        if (!startVal && startPickerEl) startPickerEl.classList.add('invalid');
+        if (!endVal && endPickerEl) endPickerEl.classList.add('invalid');
     }
 
     function requestSaveSchedule() {
@@ -4205,7 +4243,7 @@
                 formType = { base: null, custom: '' };
                 historySort = { kind: 'date-created', order: 'desc' };
                 trashSort = { kind: 'date-created', order: 'desc' };
-                viewContext = { kind: 'schedule', trashId: null };
+                viewContext = { kind: 'schedule', trashId: null, dateKey: null, id: null };
 
                 dayListOverlay.classList.remove('active');
                 modalOverlay.classList.remove('active');
@@ -4257,6 +4295,25 @@
         if (viewContext.kind !== 'trash' || !viewContext.trashId) return;
         recoverOne(viewContext.trashId);
     });
+
+    if (changeStatusFromViewBtn) {
+        changeStatusFromViewBtn.addEventListener('click', () => {
+            if (viewContext.kind !== 'schedule' || !viewContext.dateKey || !viewContext.id) return;
+            const sched = (schedules[viewContext.dateKey] || []).find(s => s.id === viewContext.id);
+            if (!sched) return;
+
+            const anchorDateKey = viewContext.dateKey;
+            const anchorId = viewContext.id;
+            const currentStatus = normalizeStatus(sched.status);
+
+            viewOverlay.classList.remove('active');
+            viewOverlay.classList.remove('trash-context');
+
+            requestAnimationFrame(() => {
+                openStatusPicker(changeStatusFromViewBtn, anchorDateKey, anchorId, currentStatus);
+            });
+        });
+    }
 
     daySelectAll.addEventListener('change', () => {
         if (!activeDayListDateKey) return;
@@ -4344,7 +4401,7 @@
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            if (openStatusPopup) { closeStatusPopup(); return; }
+            if (openStatusPopup) { closeStatusPopup(true); return; }
             if (importSuccessOverlay.classList.contains('active')) { closeImportSuccessModal(); return; }
             if (notifPanel && notifPanel.classList.contains('open')) { closeNotifPanel(); return; }
             if (validationOverlay.classList.contains('active')) { closeValidationModal(); return; }
