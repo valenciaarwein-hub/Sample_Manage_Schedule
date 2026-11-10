@@ -184,7 +184,7 @@
     }
 
     // ============================================================
-    // RECENT IMPORT HISTORY
+    // RECENT IMPORT HISTORY (localStorage — separate from audit log)
     // ============================================================
     const RECENT_IMPORTS_KEY = 'skedo_recent_imports_v1';
     const RECENT_IMPORTS_MAX = 10;
@@ -515,6 +515,98 @@
         popover.querySelectorAll('[data-sort-order]').forEach(el => {
             el.classList.toggle('selected', el.dataset.sortOrder === sort.order);
         });
+    }
+
+    // ============================================================
+    // SCHEDULE HISTORY LOG — Supabase-backed audit trail
+    // ============================================================
+    const HISTORY_LOG_PAGE_SIZE = 10;
+    const HISTORY_LOG_MAX = 500;
+    let historyLogPage = 0;
+    let historyLogCache = [];
+    let historyLogLoading = false;
+
+    async function fetchHistoryLog() {
+        try {
+            const supabase = getSupabase();
+            const { data, error } = await supabase
+                .from('schedule_history')
+                .select('id, action, title, date_key, notes, schedule_id, created_at')
+                .order('created_at', { ascending: false })
+                .limit(HISTORY_LOG_MAX);
+            if (error) throw error;
+            historyLogCache = (data || []).map(row => ({
+                id: row.id,
+                action: row.action,
+                title: row.title || '',
+                dateKey: row.date_key || '',
+                notes: row.notes || '',
+                scheduleId: row.schedule_id || '',
+                at: row.created_at
+            }));
+            return historyLogCache;
+        } catch (err) {
+            console.error('History fetch error:', err);
+            return historyLogCache;
+        }
+    }
+
+    function loadHistoryLog() {
+        return historyLogCache;
+    }
+
+    async function refreshHistoryLog() {
+        if (historyLogLoading) return;
+        historyLogLoading = true;
+        try {
+            await fetchHistoryLog();
+            if (historyOverlay && historyOverlay.classList.contains('active')) {
+                renderHistory();
+            }
+        } finally {
+            historyLogLoading = false;
+        }
+    }
+
+    async function logHistory(entry) {
+        if (!entry || !entry.action) return;
+        try {
+            const supabase = getSupabase();
+            const { data, error } = await supabase
+                .from('schedule_history')
+                .insert({
+                    action: entry.action,
+                    title: entry.title || '(untitled)',
+                    date_key: entry.dateKey || '',
+                    notes: entry.notes || '',
+                    schedule_id: entry.id || ''
+                })
+                .select()
+                .single();
+            if (error) throw error;
+
+            if (data) {
+                const row = {
+                    id: data.id,
+                    action: data.action,
+                    title: data.title || '',
+                    dateKey: data.date_key || '',
+                    notes: data.notes || '',
+                    scheduleId: data.schedule_id || '',
+                    at: data.created_at
+                };
+                historyLogCache.unshift(row);
+                if (historyLogCache.length > HISTORY_LOG_MAX) {
+                    historyLogCache = historyLogCache.slice(0, HISTORY_LOG_MAX);
+                }
+                historyLogPage = 0;
+                if (historyOverlay && historyOverlay.classList.contains('active')) {
+                    renderHistory();
+                }
+            }
+        } catch (err) {
+            console.error('logHistory error:', err);
+        }
     }
 
     // ============================================================
@@ -912,6 +1004,7 @@
 
     let notifSeenIds = new Set(loadJson(NOTIF_SEEN_KEY, []));
 
+    // ── Grouped build + pinned-status sort ──
     function buildNotificationItems() {
         const items = [];
         const nowPH = getNowPH();
@@ -954,20 +1047,9 @@
             });
         });
 
-        // ---------------------------------------------------------
-        // SORT ORDER
-        // notifSort.kind  → which status group is pinned to the top
-        //                   ('upcoming' | 'priority' | 'overdue')
-        // notifSort.order → how items sort *inside* each group:
-        //                   'asc'  = soonest date/time first
-        //                   'desc' = oldest createdAt first
-        // ---------------------------------------------------------
-
         const currentKind = notifSort.kind;
         const isAscending = notifSort.order === 'asc';
 
-        // Rank: the selected kind = 0 (top), the others keep a stable
-        // order so the list is still deterministic.
         function groupRank(status) {
             if (status === currentKind) return 0;
             const fallback = { upcoming: 1, priority: 2, overdue: 3 };
@@ -988,19 +1070,35 @@
             return (a.createdAt || '').localeCompare(b.createdAt || '');
         }
 
-        items.sort((a, b) => {
-            const gr = groupRank(a.status) - groupRank(b.status);
-            if (gr !== 0) return gr;
-            return isAscending ? cmpAscWithin(a, b) : cmpDescWithin(a, b);
+        const buckets = { upcoming: [], priority: [], overdue: [] };
+        items.forEach(it => {
+            if (!buckets[it.status]) buckets[it.status] = [];
+            buckets[it.status].push(it);
         });
 
-        return items;
+        ['upcoming', 'priority', 'overdue'].forEach(key => {
+            buckets[key].sort(isAscending ? cmpAscWithin : cmpDescWithin);
+        });
+
+        const groupOrder = ['upcoming', 'priority', 'overdue'].sort((a, b) => groupRank(a) - groupRank(b));
+
+        const flat = [];
+        groupOrder.forEach(gk => {
+            buckets[gk].forEach(it => flat.push(it));
+        });
+
+        const groups = groupOrder.map(gk => ({
+            key: gk,
+            items: buckets[gk]
+        })).filter(g => g.items.length > 0);
+
+        return { flat, groups };
     }
 
     function renderNotifications() {
-        const items = buildNotificationItems();
+        const { flat, groups } = buildNotificationItems();
 
-        const unreadCount = items.filter(i => i.unread).length;
+        const unreadCount = flat.filter(i => i.unread).length;
         if (unreadCount > 0) {
             notifBadge.style.display = 'flex';
             notifBadge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
@@ -1014,7 +1112,7 @@
 
         syncNotifSortPopover();
 
-        if (items.length === 0) {
+        if (flat.length === 0) {
             notifList.innerHTML = `
                 <div class="notif-empty">
                     <i class="fas fa-bell-slash"></i>
@@ -1025,8 +1123,29 @@
             return;
         }
 
+        const GROUP_META = {
+            upcoming: { label: 'Upcoming', icon: 'fa-clock',             dot: 'green'  },
+            priority: { label: 'Priority', icon: 'fa-star',              dot: 'yellow' },
+            overdue:  { label: 'Late',     icon: 'fa-exclamation-circle', dot: 'red'    }
+        };
+
         let html = '';
-        items.forEach(it => { html += renderNotifItemHTML(it); });
+        groups.forEach(g => {
+            const meta = GROUP_META[g.key] || { label: g.key, icon: 'fa-clock', dot: 'green' };
+            html += `
+                <div class="notif-group notif-group-${g.key}">
+                    <div class="notif-group-header">
+                        <span class="notif-group-dot ${meta.dot}"></span>
+                        <span class="notif-group-label">
+                            <i class="fas ${meta.icon}"></i> ${meta.label}
+                        </span>
+                        <span class="notif-group-count">${g.items.length}</span>
+                    </div>
+            `;
+            g.items.forEach(it => { html += renderNotifItemHTML(it); });
+            html += `</div>`;
+        });
+
         notifList.innerHTML = html;
 
         notifList.querySelectorAll('[data-notif-id]').forEach(btn => {
@@ -1040,9 +1159,6 @@
         });
     }
 
-    // ============================================================
-    // NOTIF ITEM — title + status pill on right, type → date → countdown
-    // ============================================================
     function renderNotifItemHTML(it) {
         const itemClasses = ['notif-item', it.edgeClass, it.unread ? 'unread' : ''].filter(Boolean).join(' ');
         const dateObj = getDateFromKey(it.dateKey);
@@ -1109,8 +1225,8 @@
     }
 
     function markAllNotificationsRead() {
-        const items = buildNotificationItems();
-        items.forEach(i => notifSeenIds.add(i.id));
+        const { flat } = buildNotificationItems();
+        flat.forEach(i => notifSeenIds.add(i.id));
         saveJson(NOTIF_SEEN_KEY, Array.from(notifSeenIds));
         renderNotifications();
     }
@@ -1728,7 +1844,7 @@
     }
 
     // ============================================================
-    // LIVE COUNTDOWN TICKER — flips Left → Late, honours priority/3-day yellow
+    // LIVE COUNTDOWN TICKER — flips Left → Late
     // ============================================================
     let countdownTicker = null;
 
@@ -1905,7 +2021,7 @@
     }
 
     // ============================================================
-    // STATUS POPUP — locked inside 3-day window, Done only if past
+    // STATUS POPUP — in-modal for View, body-level otherwise
     // ============================================================
     let openStatusPopup = null;
 
@@ -2126,6 +2242,14 @@
         renderDayScheduleList();
         if (historyOverlay.classList.contains('active')) renderHistory();
 
+        logHistory({
+            action: 'status',
+            title: item.title,
+            dateKey,
+            id,
+            notes: `Status changed to ${normalized}`
+        });
+
         if (viewContext.kind === 'schedule' && viewContext.dateKey === dateKey && viewContext.id === id) {
             openViewModal(dateKey, id, reopenHistoryAfterEdit);
         }
@@ -2288,6 +2412,14 @@
                 if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) renderDayScheduleList();
                 if (historyOverlay.classList.contains('active')) renderHistory();
                 if (trashOverlay.classList.contains('active')) renderTrash();
+
+                logHistory({
+                    action: 'deleted',
+                    title: removed.title,
+                    dateKey,
+                    id: removed.id,
+                    notes: `Moved to Recycle Bin`
+                });
             }
         });
     }
@@ -2312,6 +2444,14 @@
                     removed.dateKey = dateKey;
                     removed.deletedAt = new Date().toISOString();
                     trash.push(removed);
+
+                    logHistory({
+                        action: 'deleted',
+                        title: removed.title,
+                        dateKey,
+                        id: removed.id,
+                        notes: `Moved to Recycle Bin (bulk)`
+                    });
                 });
                 if (list.length === 0) delete schedules[dateKey];
 
@@ -2812,6 +2952,26 @@
         closeReviewModal();
         modalOverlay.classList.remove('active');
 
+        // Log the create / edit
+        if (mode === 'edit' && id) {
+            logHistory({
+                action: 'edited',
+                title: newData.title,
+                dateKey,
+                id,
+                notes: `Updated schedule on ${dateKey}`
+            });
+        } else {
+            const last = (schedules[dateKey] || []).slice(-1)[0];
+            logHistory({
+                action: 'added',
+                title: newData.title,
+                dateKey,
+                id: last ? last.id : '',
+                notes: `Added new schedule on ${dateKey}`
+            });
+        }
+
         editingScheduleId = null;
         selectedDateKey = null;
         pendingSave = null;
@@ -2909,16 +3069,8 @@
     }
 
     // ============================================================
-    // HISTORY
+    // HISTORY (audit log via Supabase)
     // ============================================================
-    function getAllSchedulesFlat() {
-        const flat = [];
-        Object.keys(schedules).forEach(dateKey => {
-            (schedules[dateKey] || []).forEach(s => flat.push({ dateKey, ...s }));
-        });
-        return flat;
-    }
-
     function populateHistoryYearFilter() {
         const years = new Set();
         years.add(new Date().getFullYear());
@@ -2926,6 +3078,12 @@
         Object.keys(schedules).forEach(dateKey => {
             const y = dateKey.split('-')[0];
             if (y) years.add(parseInt(y, 10));
+        });
+        historyLogCache.forEach(e => {
+            if (e.dateKey) {
+                const y = e.dateKey.split('-')[0];
+                if (y) years.add(parseInt(y, 10));
+            }
         });
 
         const sorted = Array.from(years).sort((a, b) => b - a);
@@ -2944,138 +3102,154 @@
     function renderHistory() {
         populateHistoryYearFilter();
 
-        const all = getAllSchedulesFlat();
-        totalSchedulesCount.textContent = all.length;
-        totalDaysCount.textContent = new Set(all.map(s => s.dateKey)).size;
-        totalMonthsCount.textContent = new Set(all.map(s => s.dateKey.slice(0, 7))).size;
+        const allLogs = historyLogCache;
 
         const query = historySearch.value.trim().toLowerCase();
         const yearFilter = historyYearFilter.value;
         const monthFilter = historyMonthFilter.value;
 
-        const now = new Date();
-        const currentYearStr = String(now.getFullYear());
-        const currentMonthStr = String(now.getMonth() + 1).padStart(2, '0');
+        let filtered = allLogs;
 
-        let filtered = all;
-
-        if (yearFilter === 'all' && monthFilter === 'all') {
-            const currentPrefix = `${currentYearStr}-${currentMonthStr}`;
-            filtered = filtered.filter(s => s.dateKey.startsWith(currentPrefix));
-        } else {
-            if (yearFilter !== 'all') {
-                filtered = filtered.filter(s => s.dateKey.startsWith(yearFilter + '-'));
-            }
-            if (monthFilter !== 'all') {
-                const mm = String(monthFilter).padStart(2, '0');
-                filtered = filtered.filter(s => s.dateKey.slice(5, 7) === mm);
-            }
+        if (yearFilter !== 'all') {
+            filtered = filtered.filter(e => (e.dateKey || '').startsWith(yearFilter + '-'));
         }
-
+        if (monthFilter !== 'all') {
+            const mm = String(monthFilter).padStart(2, '0');
+            filtered = filtered.filter(e => (e.dateKey || '').slice(5, 7) === mm);
+        }
         if (query) {
-            filtered = filtered.filter(s =>
-                s.title.toLowerCase().includes(query) ||
-                (s.description || '').toLowerCase().includes(query)
+            filtered = filtered.filter(e =>
+                (e.title || '').toLowerCase().includes(query) ||
+                (e.notes || '').toLowerCase().includes(query) ||
+                (e.action || '').toLowerCase().includes(query)
             );
         }
 
-        filtered = applySort(filtered, historySort);
-        updateSortIcon(historySortBtn, historySort);
-        syncSortPopover(historySortPopover, historySort);
+        // Stats
+        totalSchedulesCount.textContent = allLogs.length;
+        totalDaysCount.textContent = new Set(allLogs.map(e => e.dateKey).filter(Boolean)).size;
+        totalMonthsCount.textContent = new Set(
+            allLogs.map(e => (e.dateKey || '').slice(0, 7)).filter(Boolean)
+        ).size;
 
         if (filtered.length === 0) {
-            let emptyLabel = 'No schedules found';
-
-            if (yearFilter === 'all' && monthFilter === 'all' && !query) {
-                emptyLabel = `No schedules this month (${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })})`;
-            } else if (query) {
-                emptyLabel = 'No schedules match your search';
-            } else {
-                const yearLabel = yearFilter === 'all' ? 'any year' : yearFilter;
-                const monthLabel = monthFilter === 'all'
-                    ? 'any month'
-                    : monthNames[parseInt(monthFilter, 10) - 1];
-                emptyLabel = `No schedules for ${monthLabel}${yearFilter === 'all' ? '' : ' ' + yearLabel}`;
-            }
-
             historyList.innerHTML = `
                 <div class="history-empty">
                     <i class="fas fa-folder-open"></i>
-                    ${escapeHtml(emptyLabel)}.<br>
+                    No history entries${query ? ' match your search' : ''}.<br>
                     <span style="font-size:0.72rem; color:#cbd5e1; margin-top:4px; display:inline-block;">
-                        Try choosing a different year or month.
+                        Every add, edit, status change, and delete will appear here — from all your devices.
                     </span>
                 </div>
             `;
-            clearAllHistoryBtn.style.display = all.length > 0 ? 'inline-flex' : 'none';
+            clearAllHistoryBtn.style.display = allLogs.length > 0 ? 'inline-flex' : 'none';
+            renderHistoryPager(0);
             return;
         }
 
+        // Pagination
+        const totalPages = Math.ceil(filtered.length / HISTORY_LOG_PAGE_SIZE);
+        if (historyLogPage >= totalPages) historyLogPage = totalPages - 1;
+        if (historyLogPage < 0) historyLogPage = 0;
+
+        const start = historyLogPage * HISTORY_LOG_PAGE_SIZE;
+        const slice = filtered.slice(start, start + HISTORY_LOG_PAGE_SIZE);
+
+        const ACTION_META = {
+            added:     { label: 'Added',     icon: 'fa-plus-circle',  cls: 'action-added' },
+            edited:    { label: 'Edited',    icon: 'fa-pen',           cls: 'action-edited' },
+            status:    { label: 'Status',    icon: 'fa-exchange-alt',  cls: 'action-status' },
+            deleted:   { label: 'Deleted',   icon: 'fa-trash-alt',     cls: 'action-deleted' },
+            recovered: { label: 'Recovered', icon: 'fa-undo-alt',      cls: 'action-recovered' },
+            imported:  { label: 'Imported',  icon: 'fa-file-import',   cls: 'action-imported' }
+        };
+
         let html = '';
-        filtered.forEach(s => {
-            const dateObj = getDateFromKey(s.dateKey);
-            const dateLabel = dateObj.toLocaleDateString('en-US', {
-                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
-            });
-            const addedLabel = s.createdAt ? formatDateTime(s.createdAt) : '—';
-            const st = normalizeStatus(s.status);
-            const stIcon = getStatusIcon(st);
-            const statusPill = st === 'done'
-                ? `<span class="status-pill-inline done"><i class="fas fa-check-circle"></i> Done</span>`
-                : st === 'priority'
-                ? `<span class="status-pill-inline priority"><i class="fas fa-star"></i> Priority</span>`
-                : '';
+        slice.forEach(e => {
+            const meta = ACTION_META[e.action] || { label: e.action, icon: 'fa-info-circle', cls: 'action-status' };
+            const dateObj = e.dateKey ? getDateFromKey(e.dateKey) : null;
+            const dateLabel = dateObj
+                ? dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+                : '—';
+            const atLabel = e.at ? formatDateTime(e.at) : '—';
 
             html += `
-                <div class="history-schedule-item">
-                    <div class="hs-accent"></div>
-                    <div class="hs-body">
-                        <div class="hs-title"><i class="fas ${stIcon} schedule-status-icon ${st}" style="margin-right:6px;"></i><span class="schedule-title-highlight ${st}">${escapeHtml(s.title)}</span></div>
-                        ${s.type ? renderTypeBadge(s.type) : ''}
-                        ${statusPill}
-                        ${s.time ? `<div class="hs-desc" style="color:#6d28d9; font-weight:600;"><i class="fas fa-clock" style="font-size:0.6rem;"></i> ${escapeHtml(s.time)}</div>` : ''}
-                        ${s.description ? `<div class="hs-desc">${escapeHtml(s.description)}</div>` : ''}
-                        <div class="hs-desc" style="font-size:0.65rem; color:#94a3b8; margin-top:2px;">
-                            <i class="fas fa-calendar-day" style="font-size:0.6rem;"></i> ${escapeHtml(dateLabel)}
-                            &nbsp;·&nbsp;
-                            <i class="fas fa-clock" style="font-size:0.6rem;"></i> Added ${escapeHtml(addedLabel)}
+                <div class="history-log-item ${meta.cls}">
+                    <div class="hl-accent"></div>
+                    <div class="hl-body">
+                        <div class="hl-top">
+                            <span class="hl-action-badge">
+                                <i class="fas ${meta.icon}"></i> ${meta.label}
+                            </span>
+                            <span class="hl-title">${escapeHtml(e.title)}</span>
                         </div>
-                    </div>
-                    <div class="hs-actions">
-                        <button class="icon-btn view" data-history-action="view" data-date="${s.dateKey}" data-id="${s.id}" title="View"><i class="fas fa-eye"></i></button>
-                        <button class="icon-btn edit" data-history-action="edit" data-date="${s.dateKey}" data-id="${s.id}" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="icon-btn delete" data-history-action="delete" data-date="${s.dateKey}" data-id="${s.id}" title="Move to recycle bin"><i class="fas fa-trash-alt"></i></button>
+                        <div class="hl-meta">
+                            <span><i class="fas fa-calendar-day"></i> ${escapeHtml(dateLabel)}</span>
+                            <span><i class="fas fa-clock"></i> ${escapeHtml(atLabel)}</span>
+                        </div>
+                        ${e.notes ? `<div class="hl-notes">${escapeHtml(e.notes)}</div>` : ''}
                     </div>
                 </div>
             `;
         });
 
         historyList.innerHTML = html;
-        clearAllHistoryBtn.style.display = all.length > 0 ? 'inline-flex' : 'none';
+        clearAllHistoryBtn.style.display = allLogs.length > 0 ? 'inline-flex' : 'none';
+        renderHistoryPager(totalPages);
+    }
 
-        historyList.querySelectorAll('[data-history-action]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const action = btn.dataset.historyAction;
-                const dateKey = btn.dataset.date;
-                const id = btn.dataset.id;
-                if (!dateKey || !id) return;
+    function renderHistoryPager(totalPages) {
+        const pager = document.getElementById('historyPager');
+        const dots = document.getElementById('historyPagerDots');
+        const prev = document.getElementById('historyPrevBtn');
+        const next = document.getElementById('historyNextBtn');
+        if (!pager || !dots || !prev || !next) return;
 
-                if (action === 'view') { closeHistoryModal(); openViewModal(dateKey, id, true); }
-                else if (action === 'edit') { closeHistoryModal(); openEditFormModal(dateKey, id, true); }
-                else if (action === 'delete') { deleteScheduleFromList(dateKey, id); }
+        if (!totalPages || totalPages <= 1) {
+            pager.style.display = 'none';
+            return;
+        }
+        pager.style.display = 'flex';
+        prev.disabled = historyLogPage === 0;
+        next.disabled = historyLogPage === totalPages - 1;
+
+        let dotsHtml = '';
+        for (let i = 0; i < totalPages; i++) {
+            dotsHtml += `<button type="button" class="history-pager-dot${i === historyLogPage ? ' active' : ''}" data-page="${i}" aria-label="Page ${i + 1}"></button>`;
+        }
+        dots.innerHTML = dotsHtml;
+        dots.querySelectorAll('.history-pager-dot').forEach(dot => {
+            dot.addEventListener('click', () => {
+                historyLogPage = parseInt(dot.dataset.page, 10) || 0;
+                renderHistory();
             });
         });
+
+        prev.onclick = () => {
+            if (historyLogPage > 0) { historyLogPage--; renderHistory(); }
+        };
+        next.onclick = () => {
+            if (historyLogPage < totalPages - 1) { historyLogPage++; renderHistory(); }
+        };
     }
 
     function openHistoryModal() {
         historySearch.value = '';
         const now = new Date();
-        historyYearFilter.value = String(now.getFullYear());
-        historyMonthFilter.value = String(now.getMonth() + 1);
+        historyYearFilter.value = 'all';
+        historyMonthFilter.value = 'all';
 
-        renderHistory();
         historyOverlay.classList.add('active');
+        historyLogPage = 0;
+
+        historyList.innerHTML = `<div class="history-empty">
+            <i class="fas fa-spinner fa-spin"></i>
+            Loading history…
+        </div>`;
+
+        fetchHistoryLog().then(() => {
+            if (historyOverlay.classList.contains('active')) renderHistory();
+        });
     }
 
     function closeHistoryModal() {
@@ -3084,30 +3258,30 @@
     }
 
     function clearAllHistory() {
-        const all = getAllSchedulesFlat();
-        if (all.length === 0) return;
+        const allLogs = historyLogCache;
+        if (allLogs.length === 0) return;
 
         openConfirmModal({
-            title: 'Move ALL schedules to Recycle Bin?',
-            message: `${all.length} schedule${all.length === 1 ? '' : 's'} will be moved to the Recycle Bin.`,
-            okText: 'Move All to Bin',
+            title: 'Clear Schedule History?',
+            message: `${allLogs.length} history entr${allLogs.length === 1 ? 'y' : 'ies'} will be removed from all devices. Your schedules will NOT be deleted.`,
+            okText: 'Clear History',
             iconClass: 'warning',
-            onConfirm: () => {
-                Object.keys(schedules).forEach(dateKey => {
-                    (schedules[dateKey] || []).forEach(s => {
-                        s.dateKey = dateKey;
-                        s.deletedAt = new Date().toISOString();
-                        trash.push(s);
-                    });
-                });
-                schedules = {};
-                dayListSelection.clear();
-                scheduleSave();
+            onConfirm: async () => {
+                try {
+                    const supabase = getSupabase();
+                    const { error } = await supabase
+                        .from('schedule_history')
+                        .delete()
+                        .neq('id', '00000000-0000-0000-0000-000000000000');
+                    if (error) throw error;
 
-                renderCalendar();
-                renderNotifications();
-                closeHistoryModal();
-                if (dayListOverlay.classList.contains('active')) closeDayListModal();
+                    historyLogCache = [];
+                    historyLogPage = 0;
+                    renderHistory();
+                } catch (err) {
+                    console.error('Clear history error:', err);
+                    alert('Could not clear history: ' + err.message);
+                }
             }
         });
     }
@@ -3243,6 +3417,14 @@
         renderTrash();
         if (historyOverlay.classList.contains('active')) renderHistory();
         if (viewContext.kind === 'trash' && viewContext.trashId === id) closeViewModal();
+
+        logHistory({
+            action: 'recovered',
+            title: item.title,
+            dateKey: key,
+            id: item.id,
+            notes: `Restored from Recycle Bin`
+        });
     }
 
     function deleteOnePermanently(id) {
@@ -3258,6 +3440,14 @@
                 scheduleSave();
                 renderTrash();
                 if (viewContext.kind === 'trash' && viewContext.trashId === id) closeViewModal();
+
+                logHistory({
+                    action: 'deleted',
+                    title: item.title,
+                    dateKey: item.dateKey || '',
+                    id: item.id,
+                    notes: `Permanently deleted`
+                });
             }
         });
     }
@@ -3274,6 +3464,14 @@
             delete item.deletedAt;
             if (!schedules[key]) schedules[key] = [];
             schedules[key].push(item);
+
+            logHistory({
+                action: 'recovered',
+                title: item.title,
+                dateKey: key,
+                id: item.id,
+                notes: `Restored from Recycle Bin (bulk)`
+            });
         });
         trashSelection.clear();
         scheduleSave();
@@ -3292,6 +3490,18 @@
             okText: 'Delete Forever',
             iconClass: 'danger',
             onConfirm: () => {
+                trashSelection.forEach(id => {
+                    const old = trash.find(t => t.id === id);
+                    if (old) {
+                        logHistory({
+                            action: 'deleted',
+                            title: old.title,
+                            dateKey: old.dateKey || '',
+                            id: old.id,
+                            notes: `Permanently deleted (bulk)`
+                        });
+                    }
+                });
                 trash = trash.filter(t => !trashSelection.has(t.id));
                 trashSelection.clear();
                 scheduleSave();
@@ -3312,6 +3522,15 @@
             okText: 'Empty Bin',
             iconClass: 'danger',
             onConfirm: () => {
+                trash.forEach(t => {
+                    logHistory({
+                        action: 'deleted',
+                        title: t.title,
+                        dateKey: t.dateKey || '',
+                        id: t.id,
+                        notes: `Permanently deleted (empty bin)`
+                    });
+                });
                 trash = [];
                 scheduleSave();
                 renderTrash();
@@ -3548,6 +3767,37 @@
         exportOverlay.classList.remove('active');
     }
 
+    function buildExportYearLabel() {
+        const years = Array.from(exportSelectedYears).filter(y => !isNaN(y)).sort((a, b) => a - b);
+        if (years.length === 0) {
+            return String(new Date().getFullYear());
+        }
+        if (years.length === 1) {
+            return String(years[0]);
+        }
+
+        const isContiguous = years.every((y, i) => i === 0 || y === years[i - 1] + 1);
+        if (isContiguous) {
+            return `${years[0]}-${years[years.length - 1]}`;
+        }
+
+        const parts = [];
+        let runStart = years[0];
+        let prev = years[0];
+        for (let i = 1; i < years.length; i++) {
+            const y = years[i];
+            if (y === prev + 1) {
+                prev = y;
+                continue;
+            }
+            parts.push(runStart === prev ? String(runStart) : `${runStart}-${prev}`);
+            runStart = y;
+            prev = y;
+        }
+        parts.push(runStart === prev ? String(runStart) : `${runStart}-${prev}`);
+        return parts.join('_');
+    }
+
     function downloadExcelFile() {
         if (typeof XLSX === 'undefined') {
             alert('Excel library not loaded. Please check your internet connection and reload.');
@@ -3584,8 +3834,8 @@
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Schedules');
 
-        const today = formatDateKey(new Date());
-        XLSX.writeFile(wb, `schedules_${today}.xlsx`);
+        const yearLabel = buildExportYearLabel();
+        XLSX.writeFile(wb, `SCHEDULE_${yearLabel}.xlsx`);
         closeExportModal();
     }
 
@@ -3735,6 +3985,13 @@
         renderCalendar();
         renderNotifications();
         if (historyOverlay.classList.contains('active')) renderHistory();
+
+        logHistory({
+            action: 'imported',
+            title: `${added} schedule${added === 1 ? '' : 's'} imported`,
+            dateKey: '',
+            notes: `Imported from ${currentImportFile ? currentImportFile.name : 'Excel file'}`
+        });
 
         closeImportModal();
         showImportSuccessModal(added, perDateCounts);
@@ -4353,6 +4610,7 @@
                 await clearRemote();
                 schedules = {};
                 trash = [];
+                historyLogCache = [];
 
                 trashSelection.clear();
                 dayListSelection.clear();
@@ -4538,6 +4796,7 @@
     // BOOT
     // ============================================================
     function boot() {
+        fetchHistoryLog();
         renderCalendar();
         renderNotifications();
         renderRecentImports();
