@@ -1,4 +1,4 @@
-<!-- cat_loader.html — fragment, injected into #catLoaderHost in index.html -->
+<!-- cat_loader.html — Option B: head-on cat fragment -->
 <div class="loader-screen" id="loaderScreen" aria-hidden="true">
     <div class="loader-stage">
 
@@ -14,10 +14,35 @@
             <span class="geo geo-diamond   geo-8"></span>
         </div>
 
-        <!-- Three.js canvas replaces the SVG cat -->
+        <!-- Head-on cat -->
         <div class="cat-runner">
-            <canvas id="catCanvas" class="loader-canvas" aria-hidden="true"></canvas>
-            <div class="ground-line" aria-hidden="true"></div>
+            <svg class="loader-cat loader-cat-3d" viewBox="0 0 140 140" fill="none"
+                 xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Ears -->
+                <path class="cat-line" d="M40 38 L30 12 L58 30" />
+                <path class="cat-line" d="M100 38 L110 12 L82 30" />
+                <!-- Head -->
+                <ellipse class="cat-line" cx="70" cy="70" rx="40" ry="38" />
+                <!-- Inner ears -->
+                <path class="cat-line cat-eye" d="M42 34 L36 20 L52 30" />
+                <path class="cat-line cat-eye" d="M98 34 L104 20 L88 30" />
+                <!-- Eyes -->
+                <path class="cat-line cat-eye" d="M52 66 Q58 58 64 66" />
+                <path class="cat-line cat-eye" d="M76 66 Q82 58 88 66" />
+                <!-- Nose -->
+                <path class="cat-line" d="M66 82 L74 82 L70 88 Z" />
+                <!-- Mouth -->
+                <path class="cat-line" d="M70 88 Q64 96 56 92" />
+                <path class="cat-line" d="M70 88 Q76 96 84 92" />
+                <!-- Whiskers -->
+                <path class="cat-line cat-whisker" d="M48 84 L18 78" />
+                <path class="cat-line cat-whisker" d="M48 90 L18 94" />
+                <path class="cat-line cat-whisker" d="M92 84 L122 78" />
+                <path class="cat-line cat-whisker" d="M92 90 L122 94" />
+                <!-- Body hinted below head -->
+                <path class="cat-line cat-tail" d="M60 106 Q56 128 40 130 Q28 130 30 118" />
+                <path class="cat-line cat-tail" d="M80 106 Q84 128 100 130 Q112 130 110 118" />
+            </svg>
         </div>
 
         <div class="loader-caption">Loading<span class="loader-dots">...</span></div>
