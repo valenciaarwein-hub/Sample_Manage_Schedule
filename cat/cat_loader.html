@@ -1,0 +1,84 @@
+<!-- cat_loader.html — fragment, injected into #catLoaderHost in index.html -->
+<div class="loader-screen" id="loaderScreen" aria-hidden="true">
+    <div class="loader-stage">
+
+        <!-- Floating geometric shapes (background layer) -->
+        <div class="geo-field" aria-hidden="true">
+            <span class="geo geo-triangle  geo-1"></span>
+            <span class="geo geo-square    geo-2"></span>
+            <span class="geo geo-circle    geo-3"></span>
+            <span class="geo geo-diamond   geo-4"></span>
+            <span class="geo geo-triangle  geo-5"></span>
+            <span class="geo geo-circle    geo-6"></span>
+            <span class="geo geo-square    geo-7"></span>
+            <span class="geo geo-diamond   geo-8"></span>
+        </div>
+
+        <!-- Running cat, ground line, dust -->
+        <div class="cat-runner">
+            <div class="dust" aria-hidden="true">
+                <span class="puff puff-1"></span>
+                <span class="puff puff-2"></span>
+                <span class="puff puff-3"></span>
+            </div>
+
+            <svg class="loader-cat" viewBox="0 0 160 120" fill="none"
+                 xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Tail -->
+                <path class="cat-line cat-tail"
+                      d="M28 74 Q6 70 10 52 Q13 42 24 44" />
+
+                <!-- Body -->
+                <path class="cat-line"
+                      d="M34 78 Q34 60 52 58 L108 58 Q124 58 124 74 Q124 88 108 90 L50 90 Q34 88 34 78 Z" />
+
+                <!-- Back leg 1 -->
+                <path class="cat-line cat-leg cat-leg-a"
+                      d="M50 88 Q46 100 40 108 Q38 112 44 112 L54 112 Q58 112 56 106 L60 88" />
+
+                <!-- Back leg 2 -->
+                <path class="cat-line cat-leg cat-leg-b"
+                      d="M64 88 Q60 100 54 108 Q52 112 58 112 L68 112 Q72 112 70 106 L74 88" />
+
+                <!-- Front leg 1 -->
+                <path class="cat-line cat-leg cat-leg-c"
+                      d="M100 88 Q96 100 90 108 Q88 112 94 112 L104 112 Q108 112 106 106 L110 88" />
+
+                <!-- Front leg 2 -->
+                <path class="cat-line cat-leg cat-leg-d"
+                      d="M114 88 Q110 100 104 108 Q102 112 108 112 L118 112 Q122 112 120 106 L124 88" />
+
+                <!-- Neck + head -->
+                <path class="cat-line"
+                      d="M116 60 Q122 48 134 44 Q146 40 150 50 Q154 60 146 66 Q138 72 128 72 Q122 72 118 70" />
+
+                <!-- Ear (back) -->
+                <path class="cat-line"
+                      d="M128 44 L124 30 L136 38" />
+
+                <!-- Ear (front) -->
+                <path class="cat-line"
+                      d="M140 42 L142 28 L152 40" />
+
+                <!-- Eye -->
+                <path class="cat-line cat-eye"
+                      d="M136 52 Q138 49 140 52" />
+
+                <!-- Nose + mouth -->
+                <path class="cat-line"
+                      d="M150 58 L153 60 L150 62" />
+                <path class="cat-line"
+                      d="M150 62 Q147 65 144 63" />
+
+                <!-- Whiskers -->
+                <path class="cat-line cat-whisker" d="M148 56 L162 52" />
+                <path class="cat-line cat-whisker" d="M148 60 L162 60" />
+            </svg>
+
+            <!-- Ground line -->
+            <div class="ground-line" aria-hidden="true"></div>
+        </div>
+
+        <div class="loader-caption">Loading<span class="loader-dots">...</span></div>
+    </div>
+</div>
