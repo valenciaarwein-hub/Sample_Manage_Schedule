@@ -1,9 +1,3 @@
-/* ============================================================
-   SKEDO · style.css — PART 1 of 2
-   Base, calendar, upcoming, recent imports, floating nav,
-   day list, review, view, date picker
-   ============================================================ */
-
 :root {
     --edge-late: #ef4444;
     --edge-priority: #eab308;
@@ -196,7 +190,6 @@ body {
 
 .upcoming-title-cell { font-weight: 600; color: #111827; font-size: 0.85rem; }
 
-/* Description clamp — keeps rows compact */
 .upcoming-desc-cell {
     color: #6b7280; font-size: 0.78rem; line-height: 1.4;
 }
@@ -950,7 +943,10 @@ body {
 
 /* ---- Item: transparent bg + colored LEFT EDGE only ---- */
 .notif-item {
-    display: flex; gap: 12px; padding: 14px 14px 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 14px 14px 16px;
     border-radius: 14px;
     background: transparent;
     border: 1.5px solid #e5e7eb;
@@ -958,8 +954,10 @@ body {
     border-left-color: #e5e7eb;
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.08s;
-    position: relative; text-align: left; font-family: 'Roboto', sans-serif;
-    width: 100%; align-items: flex-start;
+    position: relative;
+    text-align: left;
+    font-family: 'Roboto', sans-serif;
+    width: 100%;
 }
 .notif-item:hover {
     background: transparent;
@@ -969,7 +967,6 @@ body {
 }
 .notif-item:active { transform: scale(0.995); }
 
-/* All visual variants → no background */
 .notif-item.unread,
 .notif-item.imminent,
 .notif-item.imminent.unread,
@@ -985,66 +982,176 @@ body {
 .notif-item.priority-edge { border-left-color: #eab308; }
 .notif-item.upcoming-edge { border-left-color: #22c55e; }
 
-/* Unread highlight = subtle ring, no bg */
 .notif-item.unread { box-shadow: inset 0 0 0 1px rgba(109, 40, 217, 0.10); }
 
-/* Keep dot markup harmless (unused but doesn't break layout) */
 .notif-dot { display: none !important; }
 
-.notif-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.notif-title { display: block; font-weight: 700; font-size: 0.92rem; color: #111827; line-height: 1.3; word-break: break-word; }
-.notif-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.8rem; line-height: 1.4; color: #6b7280; }
+/* Body fills available space; status pill on the right */
+.notif-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.notif-top-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+}
+
+.notif-title {
+    flex: 1;
+    min-width: 0;
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: #111827;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.notif-sub {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #6b7280;
+}
 .notif-type-badge-wrap { display: inline-flex; align-items: center; pointer-events: none; flex-shrink: 0; }
 .notif-item .type-badge { font-size: 0.7rem; padding: 3px 10px; margin-top: 0; border-radius: 20px; font-weight: 600; }
 .notif-item .type-badge i { font-size: 0.66rem; }
 
 .notif-date { font-weight: 700; color: #111827; white-space: nowrap; }
 
+/* ============ UNIFORM STATUS PILL (right edge) ============ */
 .notif-status-pill {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 0.62rem; font-weight: 700; padding: 2px 8px;
-    border-radius: 20px; text-transform: uppercase;
-    letter-spacing: 0.3px; flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0 10px;
+    height: 22px;
+    min-width: 78px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 1px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    box-sizing: border-box;
+    font-variant-numeric: tabular-nums;
 }
-.notif-status-pill.done { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-.notif-status-pill.priority { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
-.notif-status-pill.late { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
-.notif-status-pill.upcoming { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.notif-status-pill i { font-size: 0.62rem; line-height: 1; }
+
+.notif-status-pill.done {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #bbf7d0;
+}
+.notif-status-pill.priority {
+    background: #fef9c3;
+    color: #a16207;
+    border-color: #fde68a;
+}
+.notif-status-pill.late {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+.notif-status-pill.upcoming {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #bbf7d0;
+}
 
 .notif-empty { text-align: center; padding: 30px 16px; color: #9ca3af; font-size: 0.85rem; line-height: 1.5; }
 .notif-empty i { font-size: 2rem; color: #d1d5db; display: block; margin-bottom: 8px; }
 
 .notif-footer { padding: 10px 12px; border-top: 1.5px solid #e5e7eb; background: #f9fafb; flex-shrink: 0; }
 .notif-mark-read {
-    width: 100%; padding: 9px 14px; background: white;
-    border: 1.5px solid #e5e7eb; color: #4c1d95; border-radius: 12px;
-    font-family: 'Roboto', sans-serif; font-size: 0.8rem; font-weight: 600;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    gap: 6px; transition: background 0.15s, border-color 0.15s;
+    width: 100%;
+    padding: 9px 14px;
+    background: white;
+    border: 1.5px solid #e5e7eb;
+    color: #4c1d95;
+    border-radius: 12px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s, border-color 0.15s;
 }
 .notif-mark-read:hover { background: #f3f4f6; border-color: #c4b5fd; }
 .notif-mark-read:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* ---- Countdown ---- */
+/* ============ COUNTDOWN (Left/Late) ============ */
 .notif-countdown {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 0.68rem; font-weight: 800; padding: 3px 10px;
-    border-radius: 20px; letter-spacing: 0.4px; white-space: nowrap;
-    font-variant-numeric: tabular-nums; font-feature-settings: "tnum";
-    line-height: 1.2; margin-top: 2px; border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    line-height: 1.2;
+    margin-top: 4px;
+    border: 1px solid transparent;
+    align-self: flex-start;
+    max-width: 100%;
 }
+.notif-countdown .nc-label {
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.6rem;
+    opacity: 0.85;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+
+.notif-countdown.is-safe {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.notif-countdown.is-priority {
+    background: #fef9c3;
+    color: #854d0e;
+    border-color: #fde68a;
+}
+
+.notif-countdown.is-urgent {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
 .notif-countdown.is-late {
-    background: #fee2e2; color: #991b1b; border-color: #fca5a5;
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
     animation: notifLatePulse 1.8s ease-in-out infinite;
 }
 @keyframes notifLatePulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55), 0 0 0 0 rgba(239, 68, 68, 0.30); }
     50%      { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0), 0 0 12px 2px rgba(239, 68, 68, 0.25); }
 }
-.notif-countdown.is-urgent { background: #fef9c3; color: #854d0e; border-color: #fde047; }
-.notif-countdown.is-safe { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-.notif-countdown.is-priority { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-.notif-countdown .nc-label { font-weight: 800; text-transform: uppercase; font-size: 0.6rem; opacity: 0.85; letter-spacing: 0.5px; }
 
 /* ===== EXPORT ===== */
 .export-modal {
@@ -1751,7 +1858,7 @@ body {
     .notif-sub { font-size: 0.74rem; gap: 5px; }
     .notif-countdown { font-size: 0.62rem; padding: 2px 8px; gap: 4px; }
     .notif-countdown .nc-label { font-size: 0.55rem; }
-    .notif-status-pill { font-size: 0.58rem; padding: 2px 7px; }
+    .notif-status-pill { font-size: 0.58rem; height: 20px; min-width: 68px; padding: 0 8px; }
     .export-modal { max-width: calc(100vw - 20px); padding: 16px 16px 0; }
     .export-modal .modal-actions { margin: 0 -16px; padding: 12px 16px 14px; }
     .export-filter-block { padding: 10px 12px; border-radius: 12px; }
@@ -1825,6 +1932,8 @@ body {
     .floating-navbar .btn-create, .floating-navbar .btn-import, .floating-navbar .btn-export, .floating-navbar .btn-history, .floating-navbar .btn-settings { width: 40px; height: 40px; }
     .floating-navbar .btn-create i, .floating-navbar .btn-import i, .floating-navbar .btn-export i, .floating-navbar .btn-history i, .floating-navbar .btn-settings i { font-size: 0.95rem; }
     .notif-btn { width: 30px; height: 30px; font-size: 0.75rem; border-radius: 8px; }
+    .notif-item { padding: 10px 10px 10px 12px; gap: 8px; border-left-width: 4px; }
+    .notif-status-pill { font-size: 0.55rem; height: 18px; min-width: 62px; padding: 0 7px; }
     .loader-cube { width: 80px; height: 80px; }
     .loader-caption { font-size: 0.72rem; }
     .app-footer { font-size: 0.46rem; }
