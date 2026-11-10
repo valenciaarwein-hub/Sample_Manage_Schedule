@@ -1,6 +1,7 @@
 /* ============================================================
-   cat_loader.css — Three.js cat loader + Spy Hunter geo shapes
-   Injected with cat_loader.html. Nothing else depends on this.
+   cat_loader.css — Three.js realistic cat loader + Spy Hunter
+   geo shapes. Injected with cat_loader.html. Nothing else
+   depends on this file.
    ============================================================ */
 
 /* ---------- Screen ---------- */
@@ -112,6 +113,15 @@
     align-items: flex-end;
     justify-content: center;
     z-index: 2;
+
+    /* Soft purple radial backdrop so the shaded 3D materials have
+       something to sit against instead of flat white. */
+    background: radial-gradient(
+        ellipse at 50% 60%,
+        rgba(237, 233, 254, 0.55) 0%,
+        rgba(255, 255, 255, 0) 70%
+    );
+    border-radius: 50% 50% 45% 45% / 40% 40% 60% 60%;
 }
 
 .loader-canvas {
@@ -120,6 +130,7 @@
     display: block;
     position: relative;
     z-index: 2;
+    filter: drop-shadow(0 6px 12px rgba(109, 40, 217, 0.18));
 }
 
 /* ---------- Ground line (scrolls under the paws) ---------- */
