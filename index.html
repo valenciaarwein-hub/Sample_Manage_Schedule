@@ -57,9 +57,36 @@
                 <div class="notif-panel" id="notifPanel" role="dialog" aria-label="Notifications">
                     <div class="notif-header">
                         <h4><i class="fas fa-bell"></i> Notifications</h4>
-                        <button class="notif-close" id="notifCloseBtn" aria-label="Close">
-                            <i class="fas fa-times"></i>
-                        </button>
+                        <div class="notif-header-actions">
+                            <div class="sort-wrap">
+                                <button class="notif-sort-btn" id="notifSortBtn" title="Sort notifications" aria-haspopup="true" aria-expanded="false">
+                                    <i class="fas fa-sort-amount-down"></i>
+                                </button>
+                                <div class="notif-sort-popover" id="notifSortPopover" role="menu">
+                                    <div class="sort-popover-label">Status</div>
+                                    <button class="sort-option" data-notif-status="upcoming" role="menuitemradio">
+                                        <span>Upcoming</span><i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="sort-option" data-notif-status="priority" role="menuitemradio">
+                                        <span>Priority</span><i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="sort-option" data-notif-status="late" role="menuitemradio">
+                                        <span>Late</span><i class="fas fa-check"></i>
+                                    </button>
+                                    <div class="sort-popover-divider"></div>
+                                    <div class="sort-popover-label">Order</div>
+                                    <button class="sort-option" data-notif-order="asc" role="menuitemradio">
+                                        <span><i class="fas fa-arrow-up sort-order-icon"></i> Ascending</span><i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="sort-option" data-notif-order="desc" role="menuitemradio">
+                                        <span><i class="fas fa-arrow-down sort-order-icon"></i> Descending</span><i class="fas fa-check"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <button class="notif-close" id="notifCloseBtn" aria-label="Close">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="notif-list" id="notifList"></div>
                     <div class="notif-footer">
