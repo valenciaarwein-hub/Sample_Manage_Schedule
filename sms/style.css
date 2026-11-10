@@ -1,3 +1,9 @@
+/* ============================================================
+   SKEDO · style.css — PART 1 of 2
+   Base, calendar, upcoming, recent imports, floating nav,
+   day list, review, view, date picker
+   ============================================================ */
+
 :root {
     --edge-late: #ef4444;
     --edge-priority: #eab308;
@@ -636,6 +642,13 @@ body {
 .detail-view {
     background: #f9fafb; border-radius: 16px; padding: 16px; margin-bottom: 6px;
     border: 1.5px solid #e5e7eb; overflow-y: auto; max-height: 50vh;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.detail-view::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
 }
 .detail-view .detail-label {
     font-size: 0.7rem; font-weight: 600; color: #6b7280;
@@ -1554,6 +1567,44 @@ body {
 .status-popup-option.selected[data-pick="priority"] { background: #fefce8; color: #a16207; }
 .status-popup-option.selected[data-pick="priority"] .status-popup-check,
 .status-popup-option.selected[data-pick="priority"] > i:first-child { color: #FFEB3B; }
+
+/* Disabled option (e.g. Done when schedule hasn't passed) */
+.status-popup-option.disabled,
+.status-popup-option:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: transparent !important;
+    color: #9ca3af !important;
+    pointer-events: auto;
+}
+.status-popup-option.disabled:hover,
+.status-popup-option:disabled:hover {
+    background: transparent !important;
+    color: #9ca3af !important;
+}
+.status-popup-option.disabled > i:first-child,
+.status-popup-option:disabled > i:first-child {
+    color: #cbd5e1 !important;
+}
+.status-popup-option.disabled span,
+.status-popup-option:disabled span {
+    font-style: italic;
+}
+
+/* Popup mounted inside the View modal */
+#viewOverlay .status-popup {
+    position: absolute;
+    z-index: 10;
+}
+#viewOverlay .view-status-popup-wrap {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+#viewOverlay .view-status-popup-wrap > .status-popup {
+    pointer-events: auto;
+}
 
 /* ===== INPUT BORDERLESS ===== */
 .input-no-border { border: none !important; outline: none; box-shadow: none; background: transparent; }
