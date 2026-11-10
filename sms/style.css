@@ -1,3 +1,9 @@
+/* ============================================================
+   SKEDO · style.css — PART 1 of 2
+   Base, calendar, upcoming, recent imports, floating nav,
+   day list, review, view, date picker
+   ============================================================ */
+
 :root {
     --edge-late: #ef4444;
     --edge-priority: #eab308;
@@ -727,7 +733,11 @@ body {
    SKEDO · style.css — PART 2 of 2
    History, settings, trash, confirm, validation, notifications,
    export, import, schedule statuses, status popup, bulk delete,
-   time picker, loader, responsive
+   time picker, responsive
+
+   NOTE: the cat loader styles now live in cat/cat_loader.css.
+   The old .loader-screen / .cat-orbit / .loader-cube blocks were
+   removed from this file to avoid conflicts with the external loader.
    ============================================================ */
 
 /* ===== HISTORY ===== */
@@ -1070,6 +1080,10 @@ body {
     max-height: calc(100vh - 140px);
     overflow: hidden;
     animation: notifPopIn 0.16s ease-out;
+
+    /* PATCH: keep the panel inside the viewport on short / narrow screens */
+    max-height: min(calc(100vh - 140px), 560px);
+    box-sizing: border-box;
 }
 .notif-panel.open { display: flex; }
 @keyframes notifPopIn {
@@ -2050,9 +2064,7 @@ body {
 }
 
 /* PATCH (Time Input — Remove Focus Border/Highlight):
-   Keyboard-only focus indicator on the wrapper (preserves a11y).
-   Mouse-click focus produces no visual change because :focus-visible
-   only matches keyboard focus. */
+   Keyboard-only focus indicator on the wrapper (preserves a11y). */
 .time-picker:has(.time-input:focus-visible) {
     border-color: #6d28d9;
     box-shadow: 0 0 0 4px rgba(109, 40, 217, 0.12);
@@ -2129,105 +2141,6 @@ body {
 }
 
 *:focus-visible { outline: 2px solid #6d28d9; outline-offset: 2px; }
-
-/* ===== CAT LOADER (line-drawn, orbiting) =====
-   PATCH (Line-Drawn Cat Loader): replaces the old 3D cube loader.
-   The SVG markup in index.html uses .cat-orbit, .loader-cat, .cat-line,
-   .cat-eye, .cat-whisker and .cat-tail — all styled below. */
-.loader-screen {
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    background: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.45s ease, visibility 0.45s ease;
-}
-.loader-screen.active { opacity: 1; visibility: visible; }
-
-.loader-stage {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 22px;
-    transform: scale(0.92);
-    transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.loader-screen.active .loader-stage { transform: scale(1); }
-
-/* Circle that the cat floats inside — the cat orbits the center of this box */
-.cat-orbit {
-    position: relative;
-    width: 140px;
-    height: 140px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    filter: drop-shadow(0 0 10px rgba(109, 40, 217, 0.28));
-}
-
-/* Cat SVG — rotates around its own center */
-.loader-cat {
-    width: 100px;
-    height: 100px;
-    overflow: visible;
-    animation: catOrbit 2.4s linear infinite;
-    transform-origin: 50% 50%;
-}
-@keyframes catOrbit {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-}
-
-/* All strokes drawn in purple, no fill */
-.cat-line {
-    stroke: #6d28d9;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    fill: none;
-    stroke-dasharray: 300;
-    stroke-dashoffset: 300;
-    animation: catDraw 1.8s ease-in-out infinite alternate;
-}
-
-/* PATCH: per-path dash lengths so each stroke's "draw" is visible.
-   Short paths (eyes, nose) would otherwise snap instantly because
-   the 300-unit dasharray is longer than their real path length. */
-.cat-eye      { stroke: #8b5cf6; stroke-width: 2.2; stroke-dasharray: 8; stroke-dashoffset: 8; }
-.cat-whisker  { stroke: #a78bfa; stroke-width: 1.6; stroke-dasharray: 24; stroke-dashoffset: 24; animation-delay: 0.3s; }
-.cat-tail     { stroke: #c4b5fd; stroke-width: 1.8; stroke-dasharray: 120; stroke-dashoffset: 120; animation-delay: 0.5s; }
-
-@keyframes catDraw {
-    0%   { stroke-dashoffset: 300; opacity: 0.4; }
-    60%  { stroke-dashoffset: 0;   opacity: 1; }
-    100% { stroke-dashoffset: 0;   opacity: 1; }
-}
-
-.loader-caption {
-    font-family: 'Roboto', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #4c1d95;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    display: flex;
-    align-items: center;
-    gap: 2px;
-}
-.loader-dots {
-    display: inline-block;
-    width: 20px;
-    text-align: left;
-    animation: dotsBlink 1.2s steps(4, end) infinite;
-}
-@keyframes dotsBlink {
-    0%, 100% { opacity: 0.2; }
-    50%      { opacity: 1; }
-}
 
 /* ===== RESPONSIVE — 900 ===== */
 @media (max-width: 900px) {
@@ -2417,18 +2330,25 @@ body {
     .validation-list li { font-size: 0.75rem; }
     .validation-modal .modal-actions .btn { min-width: 100px; }
 
+    /* ---------- Notifications (mobile fit) ---------- */
     .notif-btn { width: 34px; height: 34px; font-size: 0.85rem; border-radius: 10px; }
     .notif-panel {
-        width: calc(100vw - 16px);
-        right: 8px;
+        /* PATCH (notif mobile fit): pin to the viewport with comfortable
+           margins, don't overflow top, and leave room for the floating
+           navbar + the phone's safe area. */
+        width: auto;
         left: 8px;
-        bottom: calc(14px + 60px);
-        max-height: calc(100vh - 120px);
+        right: 8px;
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        bottom: calc(14px + 60px + env(safe-area-inset-bottom, 0px));
+        max-height: none;
+        border-radius: 16px;
+        box-sizing: border-box;
     }
     .notif-header { padding: 12px 14px; }
     .notif-header h4 { font-size: 0.88rem; }
     .notif-sort-btn { width: 30px; height: 30px; font-size: 0.75rem; border-radius: 9px; }
-    .notif-sort-popover { width: 190px; }
+    .notif-sort-popover { width: 190px; right: 0; }
     .notif-item { padding: 12px 12px 12px 14px; gap: 10px; border-left-width: 4px; }
     .notif-title { font-size: 0.86rem; }
     .notif-sub { font-size: 0.74rem; gap: 5px; }
@@ -2493,11 +2413,6 @@ body {
     .status-popup { width: 160px !important; }
     .status-popup-option { font-size: 0.78rem; padding: 8px 10px; }
 
-    /* PATCH (Cat Loader): responsive sizes for the new cat markup */
-    .cat-orbit { width: 120px; height: 120px; }
-    .loader-cat { width: 84px; height: 84px; }
-    .loader-caption { font-size: 0.8rem; }
-
     .time-row { gap: 8px; }
     .time-group { min-width: 0; }
     .time-dash { padding-bottom: 8px; font-size: 1rem; }
@@ -2536,14 +2451,8 @@ body {
     .floating-navbar .btn-create, .floating-navbar .btn-import, .floating-navbar .btn-export, .floating-navbar .btn-history, .floating-navbar .btn-settings { width: 40px; height: 40px; }
     .floating-navbar .btn-create i, .floating-navbar .btn-import i, .floating-navbar .btn-export i, .floating-navbar .btn-history i, .floating-navbar .btn-settings i { font-size: 0.95rem; }
     .notif-btn { width: 30px; height: 30px; font-size: 0.75rem; border-radius: 8px; }
-    .notif-panel { bottom: calc(12px + 56px); max-height: calc(100vh - 110px); }
+    .notif-panel { bottom: calc(12px + 56px + env(safe-area-inset-bottom, 0px)); }
     .notif-item { padding: 10px 10px 10px 12px; gap: 8px; border-left-width: 4px; }
     .notif-status-pill { font-size: 0.55rem; height: 18px; min-width: 62px; padding: 0 7px; }
-
-    /* PATCH (Cat Loader): responsive sizes for the new cat markup */
-    .cat-orbit { width: 100px; height: 100px; }
-    .loader-cat { width: 72px; height: 72px; }
-    .loader-caption { font-size: 0.72rem; }
-
     .app-footer { font-size: 0.46rem; }
 }
