@@ -1,4 +1,3 @@
-// sms/script.js
 (function() {
     'use strict';
 
@@ -115,6 +114,9 @@
         return clock;
     }
 
+    // ============================================================
+    // NOTIFICATION COUNTDOWN — Left / Late, priority-or-3-day = yellow
+    // ============================================================
     function getNotifCountdownHTML(dateKey, s) {
         const nowPH = getNowPH();
         const nowMs = Date.now();
@@ -161,12 +163,18 @@
         }
 
         const label = formatCountdown(leftMs);
+        const st = normalizeStatus(s.status);
+        const diff = daysUntil(dateKey);
+        const within3Days = diff >= 0 && diff <= 3;
         const hoursLeft = leftMs / 3600000;
-        let cls = 'is-safe';
-        if (normalizeStatus(s.status) === 'priority') {
+
+        let cls;
+        if (st === 'priority' || within3Days) {
             cls = 'is-priority';
         } else if (hoursLeft <= 24) {
             cls = 'is-urgent';
+        } else {
+            cls = 'is-safe';
         }
 
         return `<span class="notif-countdown ${cls}" data-countdown="left" data-date-key="${dateKey}" data-id="${s.id}">
@@ -997,6 +1005,9 @@
         });
     }
 
+    // ============================================================
+    // NOTIF ITEM — title + status pill on right row, countdown below
+    // ============================================================
     function renderNotifItemHTML(it) {
         const itemClasses = ['notif-item', it.edgeClass, it.unread ? 'unread' : ''].filter(Boolean).join(' ');
         const dateObj = getDateFromKey(it.dateKey);
@@ -1023,7 +1034,10 @@
         return `
             <button class="${itemClasses}" data-notif-id="${it.id}" data-notif-date="${it.dateKey}">
                 <span class="notif-body">
-                    <span class="notif-title">${escapeHtml(it.title)} ${statusPill}</span>
+                    <span class="notif-top-row">
+                        <span class="notif-title">${escapeHtml(it.title)}</span>
+                        ${statusPill}
+                    </span>
                     <span class="notif-sub">
                         ${typeBadgeHtml}
                         <span class="notif-date">${escapeHtml(dateLabel)}</span>
@@ -1677,7 +1691,7 @@
     }
 
     // ============================================================
-    // LIVE COUNTDOWN TICKER (flips Left → Late automatically)
+    // LIVE COUNTDOWN TICKER — flips Left → Late, honours priority/3-day yellow
     // ============================================================
     let countdownTicker = null;
 
@@ -1738,8 +1752,12 @@
 
                 newLabel = formatCountdown(Math.max(0, leftMs));
 
+                const st = normalizeStatus(sched.status);
+                const diff = daysUntil(dateKey);
+                const within3Days = diff >= 0 && diff <= 3;
                 const hoursLeft = leftMs / 3600000;
-                if (normalizeStatus(sched.status) === 'priority') {
+
+                if (st === 'priority' || within3Days) {
                     newClass = 'is-priority';
                 } else if (hoursLeft <= 24) {
                     newClass = 'is-urgent';
@@ -1802,7 +1820,8 @@
         lateTicker = setInterval(tickLate, 1000);
     }
 
-    // ============================================================
+    /* === CONTINUE WITH PART 2 === */
+     // ============================================================
     // DAY LIST MODAL
     // ============================================================
     function openDayListModal(dateKey) {
