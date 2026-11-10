@@ -14,7 +14,7 @@
             <span class="geo geo-diamond   geo-8"></span>
         </div>
 
-        <!-- Running cat, ground line, dust -->
+        <!-- Walking cat, ground line, dust -->
         <div class="cat-runner">
             <div class="dust" aria-hidden="true">
                 <span class="puff puff-1"></span>
@@ -22,72 +22,136 @@
                 <span class="puff puff-3"></span>
             </div>
 
-            <svg class="loader-cat" viewBox="0 0 200 140" fill="none"
+            <svg class="loader-cat" viewBox="0 0 220 150" fill="none"
                  xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <!-- Tail (curves up and back) -->
+
+                <!-- ===== TAIL (natural S-curve, sways) ===== -->
                 <path class="cat-line cat-tail"
-                      d="M42 96 Q22 92 16 74 Q12 60 24 54 Q32 50 38 58" />
+                      d="M44 96
+                         Q24 94 18 80
+                         Q14 66 24 60
+                         Q34 56 36 66
+                         Q38 74 30 76" />
 
-                <!-- Back leg (far side, behind body) -->
-                <path class="cat-line cat-leg cat-leg-a"
-                      d="M62 100 Q58 112 54 120 Q52 126 60 126 L70 126 Q74 126 72 120 L76 100" />
+                <!-- ===== FAR-SIDE LEGS (drawn first, behind body) ===== -->
 
-                <!-- Body — chest to hips, with a slight belly curve -->
-                <path class="cat-line"
-                      d="M50 100 Q48 78 68 72 L112 72 Q140 72 142 92 Q142 104 130 106 L74 106 Q58 108 50 100 Z" />
+                <!-- Far back leg (full bone: hip → knee → ankle → paw) -->
+                <g class="cat-leg-group cat-leg-back-far">
+                    <path class="cat-line cat-leg"
+                          d="M66 100
+                             Q62 110 60 118
+                             Q58 124 64 126
+                             L74 126
+                             Q78 126 76 122
+                             L74 108" />
+                </g>
 
-                <!-- Back leg (near side) -->
-                <path class="cat-line cat-leg cat-leg-b"
-                      d="M78 104 Q74 116 68 124 Q66 130 74 130 L84 130 Q88 130 86 124 L90 104" />
+                <!-- Far front leg -->
+                <g class="cat-leg-group cat-leg-front-far">
+                    <path class="cat-line cat-leg"
+                          d="M146 100
+                             Q142 110 140 118
+                             Q138 124 144 126
+                             L154 126
+                             Q158 126 156 122
+                             L154 108" />
+                </g>
 
-                <!-- Front leg (far side) -->
-                <path class="cat-line cat-leg cat-leg-c"
-                      d="M118 104 Q114 116 108 124 Q106 130 114 130 L124 130 Q128 130 126 124 L130 104" />
+                <!-- ===== BODY ===== -->
+                <!-- Single continuous path: haunch → spine → shoulders → chest → belly -->
+                <path class="cat-line cat-body"
+                      d="M48 102
+                         Q46 88 52 80
+                         Q58 70 74 68
+                         Q96 64 124 66
+                         Q148 68 154 80
+                         Q160 90 156 100
+                         Q154 108 146 108
+                         L58 108
+                         Q50 108 48 102 Z" />
 
-                <!-- Front leg (near side) -->
-                <path class="cat-line cat-leg cat-leg-d"
-                      d="M134 104 Q130 116 124 124 Q122 130 130 130 L140 130 Q144 130 142 124 L146 104" />
+                <!-- Chest ruff / shoulder fur -->
+                <path class="cat-line cat-fur"
+                      d="M140 78 Q146 74 152 80" />
+                <path class="cat-line cat-fur"
+                      d="M146 84 Q152 82 156 88" />
 
-                <!-- Neck + head (side profile, chin tucked) -->
-                <path class="cat-line"
-                      d="M136 74 Q142 60 156 56 Q170 52 178 62 Q184 72 176 80 Q168 88 156 88 Q146 88 140 84" />
+                <!-- Back fur strokes (subtle, follow the spine curve) -->
+                <path class="cat-line cat-fur" d="M76 72 Q82 68 90 70" />
+                <path class="cat-line cat-fur" d="M98 68 Q104 64 112 66" />
+                <path class="cat-line cat-fur" d="M120 66 Q126 64 134 66" />
+
+                <!-- Haunch line (hind leg muscle) -->
+                <path class="cat-line cat-fur"
+                      d="M60 84 Q68 82 72 88" />
+
+                <!-- ===== NEAR-SIDE LEGS (drawn on top of body) ===== -->
+
+                <!-- Near back leg -->
+                <g class="cat-leg-group cat-leg-back-near">
+                    <path class="cat-line cat-leg"
+                          d="M78 104
+                             Q74 114 72 120
+                             Q70 126 76 128
+                             L86 128
+                             Q90 128 88 124
+                             L86 110" />
+                </g>
+
+                <!-- Near front leg -->
+                <g class="cat-leg-group cat-leg-front-near">
+                    <path class="cat-line cat-leg"
+                          d="M150 104
+                             Q146 114 144 120
+                             Q142 126 148 128
+                             L158 128
+                             Q162 128 160 124
+                             L158 110" />
+                </g>
+
+                <!-- ===== NECK + HEAD ===== -->
+                <!-- Neck connects shoulder to skull; chin tucked -->
+                <path class="cat-line cat-head"
+                      d="M150 78
+                         Q156 64 168 60
+                         Q180 56 190 62
+                         Q198 68 196 78
+                         Q194 86 186 88
+                         Q178 90 170 86
+                         Q162 82 158 80" />
 
                 <!-- Back ear -->
                 <path class="cat-line"
-                      d="M152 58 L148 42 L162 52" />
+                      d="M164 62 L162 44 L176 56" />
 
-                <!-- Front ear -->
+                <!-- Front ear (slightly larger, tips forward) -->
                 <path class="cat-line"
-                      d="M166 58 L170 40 L182 54" />
+                      d="M180 62 L186 42 L196 58" />
 
-                <!-- Eye (almond shape) -->
+                <!-- Ear inner details -->
+                <path class="cat-line cat-fur"
+                      d="M180 56 L184 46 L190 56" />
+
+                <!-- Eye (almond + pupil hint) -->
                 <path class="cat-line cat-eye"
-                      d="M162 68 Q165 64 168 68 Q165 70 162 68 Z" />
+                      d="M178 72 Q182 68 186 72 Q182 74 178 72 Z" />
 
                 <!-- Nose -->
-                <path class="cat-line"
-                      d="M178 74 L182 76 L178 79 Z" />
+                <path class="cat-line cat-nose"
+                      d="M196 76 L200 78 L196 81 Z" />
 
                 <!-- Mouth -->
-                <path class="cat-line"
-                      d="M178 79 Q175 83 171 81" />
+                <path class="cat-line cat-fur"
+                      d="M196 81 Q192 84 188 82" />
 
-                <!-- Chin fur tuft -->
+                <!-- Chin tuft -->
                 <path class="cat-line cat-whisker"
-                      d="M172 84 Q170 88 166 88" />
+                      d="M190 86 Q188 90 184 90" />
 
-                <!-- Whiskers (three per side, thin) -->
-                <path class="cat-line cat-whisker" d="M176 72 L194 68" />
-                <path class="cat-line cat-whisker" d="M176 76 L194 76" />
-                <path class="cat-line cat-whisker" d="M176 80 L194 84" />
-
-                <!-- Fur detail strokes on the back (subtle) -->
-                <path class="cat-line cat-fur" d="M70 76 Q74 72 80 74" />
-                <path class="cat-line cat-fur" d="M92 74 Q96 70 102 72" />
-                <path class="cat-line cat-fur" d="M114 74 Q118 70 124 72" />
-
-                <!-- Shoulder fur tuft -->
-                <path class="cat-line cat-fur" d="M138 82 Q142 78 146 82" />
+                <!-- Whiskers (three, fanning slightly) -->
+                <path class="cat-line cat-whisker" d="M194 74 L214 70" />
+                <path class="cat-line cat-whisker" d="M194 78 L214 78" />
+                <path class="cat-line cat-whisker" d="M194 82 L214 86" />
             </svg>
 
             <!-- Ground line -->
