@@ -1,9 +1,3 @@
-/* ============================================================
-   SKEDO · style.css — PART 1 of 2
-   Base, calendar, upcoming, recent imports, floating nav,
-   day list, review, view, date picker
-   ============================================================ */
-
 :root {
     --edge-late: #ef4444;
     --edge-priority: #eab308;
@@ -2046,7 +2040,24 @@ body {
     border: 1.5px solid #e5e7eb; border-radius: 14px;
     background: #ffffff; transition: border-color 0.15s, box-shadow 0.15s; overflow: visible;
 }
-.time-picker:focus-within { border-color: #6d28d9; box-shadow: 0 0 0 4px rgba(109, 40, 217, 0.12); }
+
+/* PATCH (Time Input — Remove Focus Border/Highlight):
+   The wrapper no longer lights up when the inner input is focused.
+   Border stays the same subtle #e5e7eb, no purple box-shadow ring. */
+.time-picker:focus-within {
+    border-color: #e5e7eb;
+    box-shadow: none;
+}
+
+/* PATCH (Time Input — Remove Focus Border/Highlight):
+   Keyboard-only focus indicator on the wrapper (preserves a11y).
+   Mouse-click focus produces no visual change because :focus-visible
+   only matches keyboard focus. */
+.time-picker:has(.time-input:focus-visible) {
+    border-color: #6d28d9;
+    box-shadow: 0 0 0 4px rgba(109, 40, 217, 0.12);
+}
+
 .time-input {
     flex: 1; min-width: 0; background: transparent;
     padding: 10px 12px; font-size: 0.95rem; font-family: 'Roboto', sans-serif;
@@ -2056,6 +2067,17 @@ body {
 }
 .time-input::placeholder { color: #cbd5e1; font-weight: 500; }
 .time-input:focus { outline: none; box-shadow: none; }
+
+/* PATCH (Time Input — Remove Focus Border/Highlight):
+   Defensive — ensure the inner input never shows a ring. */
+.time-picker .time-input,
+.time-picker .time-input:focus,
+.time-picker .time-input:focus-visible {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
 .time-ampm {
     display: flex; flex-shrink: 0;
     border-radius: 0 14px 14px 0; overflow: hidden; background: #f9fafb;
@@ -2108,59 +2130,104 @@ body {
 
 *:focus-visible { outline: 2px solid #6d28d9; outline-offset: 2px; }
 
-/* ===== 3D LOADER ===== */
+/* ===== CAT LOADER (line-drawn, orbiting) =====
+   PATCH (Line-Drawn Cat Loader): replaces the old 3D cube loader.
+   The SVG markup in index.html uses .cat-orbit, .loader-cat, .cat-line,
+   .cat-eye, .cat-whisker and .cat-tail — all styled below. */
 .loader-screen {
-    position: fixed; inset: 0; z-index: 99999; background: #ffffff;
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; visibility: hidden;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
     transition: opacity 0.45s ease, visibility 0.45s ease;
 }
 .loader-screen.active { opacity: 1; visibility: visible; }
+
 .loader-stage {
-    display: flex; flex-direction: column; align-items: center; gap: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
     transform: scale(0.92);
     transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .loader-screen.active .loader-stage { transform: scale(1); }
-.loader-cube {
-    width: 130px; height: 130px; overflow: visible;
-    animation: cubeSpin 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+
+/* Circle that the cat floats inside — the cat orbits the center of this box */
+.cat-orbit {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 0 10px rgba(109, 40, 217, 0.28));
+}
+
+/* Cat SVG — rotates around its own center */
+.loader-cat {
+    width: 100px;
+    height: 100px;
+    overflow: visible;
+    animation: catOrbit 2.4s linear infinite;
     transform-origin: 50% 50%;
-    filter: drop-shadow(0 0 12px rgba(109, 40, 217, 0.35));
 }
-@keyframes cubeSpin {
-    0%   { transform: rotateX(0deg)   rotateY(0deg)   rotateZ(0deg); }
-    50%  { transform: rotateX(180deg) rotateY(180deg) rotateZ(0deg); }
-    100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(0deg); }
+@keyframes catOrbit {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
 }
-.cube-face {
-    stroke: #6d28d9; stroke-width: 2; fill: none;
-    stroke-linejoin: round; stroke-dasharray: 240; stroke-dashoffset: 240;
-    animation: drawLine 1.6s ease-in-out infinite alternate;
+
+/* All strokes drawn in purple, no fill */
+.cat-line {
+    stroke: #6d28d9;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    stroke-dasharray: 300;
+    stroke-dashoffset: 300;
+    animation: catDraw 1.8s ease-in-out infinite alternate;
 }
-.face-front { stroke: #8b5cf6; animation-delay: 0.2s; }
-.cube-edge {
-    stroke: #a78bfa; stroke-width: 2; stroke-linecap: round;
-    stroke-dasharray: 60; stroke-dashoffset: 60;
-    animation: drawLine 1.6s ease-in-out infinite alternate;
-    animation-delay: 0.4s;
-}
-.edge-diag { stroke: #c4b5fd; stroke-width: 1.4; animation-delay: 0.6s; }
-@keyframes drawLine {
-    0%   { stroke-dashoffset: 240; opacity: 0.35; }
-    50%  { stroke-dashoffset: 0;   opacity: 1; }
+
+/* PATCH: per-path dash lengths so each stroke's "draw" is visible.
+   Short paths (eyes, nose) would otherwise snap instantly because
+   the 300-unit dasharray is longer than their real path length. */
+.cat-eye      { stroke: #8b5cf6; stroke-width: 2.2; stroke-dasharray: 8; stroke-dashoffset: 8; }
+.cat-whisker  { stroke: #a78bfa; stroke-width: 1.6; stroke-dasharray: 24; stroke-dashoffset: 24; animation-delay: 0.3s; }
+.cat-tail     { stroke: #c4b5fd; stroke-width: 1.8; stroke-dasharray: 120; stroke-dashoffset: 120; animation-delay: 0.5s; }
+
+@keyframes catDraw {
+    0%   { stroke-dashoffset: 300; opacity: 0.4; }
+    60%  { stroke-dashoffset: 0;   opacity: 1; }
     100% { stroke-dashoffset: 0;   opacity: 1; }
 }
+
 .loader-caption {
-    font-family: 'Roboto', sans-serif; font-size: 0.9rem; font-weight: 600;
-    color: #4c1d95; letter-spacing: 0.6px; text-transform: uppercase;
-    display: flex; align-items: center; gap: 2px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #4c1d95;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 2px;
 }
 .loader-dots {
-    display: inline-block; width: 20px; text-align: left;
+    display: inline-block;
+    width: 20px;
+    text-align: left;
     animation: dotsBlink 1.2s steps(4, end) infinite;
 }
-@keyframes dotsBlink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+@keyframes dotsBlink {
+    0%, 100% { opacity: 0.2; }
+    50%      { opacity: 1; }
+}
 
 /* ===== RESPONSIVE — 900 ===== */
 @media (max-width: 900px) {
@@ -2426,8 +2493,11 @@ body {
     .status-popup { width: 160px !important; }
     .status-popup-option { font-size: 0.78rem; padding: 8px 10px; }
 
-    .loader-cube { width: 100px; height: 100px; }
+    /* PATCH (Cat Loader): responsive sizes for the new cat markup */
+    .cat-orbit { width: 120px; height: 120px; }
+    .loader-cat { width: 84px; height: 84px; }
     .loader-caption { font-size: 0.8rem; }
+
     .time-row { gap: 8px; }
     .time-group { min-width: 0; }
     .time-dash { padding-bottom: 8px; font-size: 1rem; }
@@ -2469,7 +2539,11 @@ body {
     .notif-panel { bottom: calc(12px + 56px); max-height: calc(100vh - 110px); }
     .notif-item { padding: 10px 10px 10px 12px; gap: 8px; border-left-width: 4px; }
     .notif-status-pill { font-size: 0.55rem; height: 18px; min-width: 62px; padding: 0 7px; }
-    .loader-cube { width: 80px; height: 80px; }
+
+    /* PATCH (Cat Loader): responsive sizes for the new cat markup */
+    .cat-orbit { width: 100px; height: 100px; }
+    .loader-cat { width: 72px; height: 72px; }
     .loader-caption { font-size: 0.72rem; }
+
     .app-footer { font-size: 0.46rem; }
 }
