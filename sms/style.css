@@ -705,21 +705,22 @@ body {
 
 /* ===== FIXED-SIZE, NON-OVERLAPPING SCHEDULE CARDS ===== */
 #dayListOverlay .day-schedule-card {
-    height: 96px;
-    min-height: 96px;
-    max-height: 96px;
+    height: 112px;
+    min-height: 112px;
+    max-height: 112px;
     box-sizing: border-box;
     overflow: hidden;
     align-items: stretch;
     flex-wrap: nowrap;
+    padding: 10px 14px;
 }
 
 #dayListOverlay .day-schedule-card .card-body {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: stretch;
-    gap: 2px;
+    gap: 4px;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
@@ -734,6 +735,11 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-height: 1.4em;
+    line-height: 1.4;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
 }
 
 #dayListOverlay .day-schedule-card .card-desc {
@@ -978,6 +984,11 @@ body {
 }
 .date-preview i { font-size: 1.1rem; color: #6d28d9; flex-shrink: 0; }
 .date-preview span { font-size: 0.95rem; }
+
+/* ============================================================
+   ^^^ END OF PART 1 ^^^
+   ^^^ NEXT LINE STARTS PART 2 ^^^
+   ============================================================ */
 
 /* ============================================================
    SKEDO · style.css — PART 2 of 2
@@ -2562,7 +2573,7 @@ body {
     .ri-pager-dot { width: 5px; height: 5px; }
     .ri-pager-dot.active { width: 14px; }
 
-    /* ===== FLOATING NAVBAR — shrink-to-fit, natural button sizes ===== */
+    /* ===== FLOATING NAVBAR — icon-only, shrink-to-fit ===== */
     .floating-navbar {
         left: 50%;
         right: auto;
@@ -2570,10 +2581,11 @@ body {
         transform: translateX(-50%);
         width: fit-content;
         max-width: calc(100vw - 16px);
-        padding: 8px 10px;
-        gap: 6px;
+        padding: 6px 8px;
+        gap: 4px;
         border-radius: 50px;
         justify-content: center;
+        align-items: center;
         box-sizing: border-box;
         overflow-x: auto;
         overflow-y: hidden;
@@ -2591,7 +2603,7 @@ body {
     .nav-right {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
         flex-shrink: 0;
         flex: 0 0 auto;
     }
@@ -2605,20 +2617,12 @@ body {
         width: auto;
         min-width: 0;
         height: auto;
-        border-radius: 40px;
-        padding: 10px 14px;
-        gap: 6px;
+        border-radius: 50%;
+        padding: 9px 10px;
+        gap: 0;
         justify-content: center;
         align-items: center;
         white-space: nowrap;
-    }
-
-    .floating-navbar .btn-create i,
-    .floating-navbar .btn-import i,
-    .floating-navbar .btn-export i,
-    .floating-navbar .btn-history i,
-    .floating-navbar .btn-settings i {
-        font-size: 0.95rem;
     }
 
     .floating-navbar .btn-create span,
@@ -2626,8 +2630,15 @@ body {
     .floating-navbar .btn-export span,
     .floating-navbar .btn-history span,
     .floating-navbar .btn-settings span {
-        display: inline;
-        font-size: 0.82rem;
+        display: none;
+    }
+
+    .floating-navbar .btn-create i,
+    .floating-navbar .btn-import i,
+    .floating-navbar .btn-export i,
+    .floating-navbar .btn-history i,
+    .floating-navbar .btn-settings i {
+        font-size: 1rem;
     }
 
     .app-footer { font-size: 0.48rem; bottom: 4px; left: 8px; opacity: 0.35; letter-spacing: 0.2px; }
@@ -2667,9 +2678,14 @@ body {
         padding-top: 8px;
     }
     #dayListOverlay .day-schedule-card {
-        height: 108px;
-        min-height: 108px;
-        max-height: 108px;
+        height: 124px;
+        min-height: 124px;
+        max-height: 124px;
+        padding: 10px 12px;
+    }
+    #dayListOverlay .day-schedule-card .card-title {
+        font-size: 0.82rem;
+        min-height: 1.4em;
     }
     #dayListOverlay .day-schedule-card .card-actions {
         width: auto;
@@ -2859,11 +2875,11 @@ body {
     .type-btn { padding: 7px 10px; font-size: 0.72rem; border-radius: 10px; }
     .type-btn i { font-size: 0.68rem; }
 
-    /* Shrink-to-fit navbar kept at the smallest phones too */
     .floating-navbar {
         width: fit-content;
         max-width: calc(100vw - 12px);
-        padding: 6px 8px;
+        padding: 5px 7px;
+        gap: 3px;
     }
     .floating-navbar .btn-create,
     .floating-navbar .btn-import,
@@ -2873,6 +2889,7 @@ body {
         flex: 0 0 auto;
         width: auto;
         height: auto;
+        padding: 8px 9px;
     }
     .floating-navbar .btn-create i,
     .floating-navbar .btn-import i,
