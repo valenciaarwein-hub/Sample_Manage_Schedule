@@ -39,6 +39,34 @@
         };
     }
 
+    /* PATCH: precise "now" in PH time as epoch ms, so late countdowns
+       can tick every second (not just every minute). */
+    function getNowPHMs() {
+        const now = new Date();
+        const fmt = new Intl.DateTimeFormat('en-CA', {
+            timeZone: PH_TZ,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false
+        });
+        const parts = {};
+        fmt.formatToParts(now).forEach(p => { if (p.type !== 'literal') parts[p.type] = p.value; });
+
+        let hours24 = parseInt(parts.hour, 10);
+        if (hours24 === 24) hours24 = 0;
+        const minutes = parseInt(parts.minute, 10);
+        const seconds = parseInt(parts.second, 10);
+
+        return {
+            totalSeconds: hours24 * 3600 + minutes * 60 + seconds,
+            totalMinutes: hours24 * 60 + minutes,
+            hours24,
+            minutes,
+            seconds,
+            dateKey: `${parts.year}-${parts.month}-${parts.day}`
+        };
+    }
+
     function parseTimeToMinutes12h(str) {
         if (!str) return null;
         const m = String(str).trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -137,15 +165,19 @@
     // NOTIFICATION COUNTDOWN — Left / Late
     // ============================================================
     function getNotifCountdownHTML(dateKey, s) {
-        const nowPH = getNowPH();
+        const nowPH = getNowPHMs();
         const nowMs = Date.now();
 
-        if (isScheduleLateNow(dateKey, s, nowPH)) {
+        if (isScheduleLateNow(dateKey, s, getNowPH())) {
             const range = parseScheduleTimeRange(s.time);
             let elapsedMs = 0;
             if (range) {
                 if (dateKey === nowPH.dateKey) {
-                    elapsedMs = Math.max(0, (nowPH.totalMinutes - range.endMin) * 60 * 1000);
+                    // PATCH: seconds-precision → ticks every second
+                    const endMs =
+                        Math.floor(range.endMin / 60) * 3600 * 1000 +
+                        (range.endMin % 60) * 60 * 1000;
+                    elapsedMs = Math.max(0, (nowPH.totalSeconds * 1000) - endMs);
                 } else {
                     const target = getDateFromKey(dateKey);
                     target.setHours(23, 59, 0, 0);
@@ -1932,7 +1964,7 @@
         const nodes = notifList.querySelectorAll('[data-countdown]');
         if (nodes.length === 0) return;
 
-        const nowPH = getNowPH();
+        const nowPH = getNowPHMs();          // PATCH: seconds-precision now
         const nowMs = Date.now();
         let becameLate = false;
 
@@ -1942,7 +1974,7 @@
             const sched = (schedules[dateKey] || []).find(s => s.id === id);
             if (!sched) return;
 
-            const isLate = isScheduleLateNow(dateKey, sched, nowPH);
+            const isLate = isScheduleLateNow(dateKey, sched, getNowPH());
             let newLabel = '';
             let newClass = '';
 
@@ -1953,7 +1985,11 @@
                 let elapsedMs = 0;
                 if (range) {
                     if (dateKey === nowPH.dateKey) {
-                        elapsedMs = Math.max(0, (nowPH.totalMinutes - range.endMin) * 60 * 1000);
+                        // PATCH: seconds-precision → ticks every second
+                        const endMs =
+                            Math.floor(range.endMin / 60) * 3600 * 1000 +
+                            (range.endMin % 60) * 60 * 1000;
+                        elapsedMs = Math.max(0, (nowPH.totalSeconds * 1000) - endMs);
                     } else {
                         const target = getDateFromKey(dateKey);
                         target.setHours(23, 59, 0, 0);
@@ -2052,8 +2088,12 @@
         lateTicker = setInterval(tickLate, 1000);
     }
 
-    /* === CONTINUE WITH PART 2 === */
-     // ============================================================
+    /* ============================================================
+       ^^^ END OF PART 1 ^^^
+       ^^^ PART 2 STARTS ON THE NEXT LINE ^^^
+       ============================================================ */
+
+    // ============================================================
     // DAY LIST MODAL
     // ============================================================
     function openDayListModal(dateKey) {
