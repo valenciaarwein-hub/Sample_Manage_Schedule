@@ -202,7 +202,7 @@
 </div>
 
 <div class="app-footer" aria-hidden="true">
-    Copyright 2026 • ARWEIN VALENCIA HAHA
+    © 2026 Arwein Valencia HaHa. All rights reserved.
 </div>
 
 <!-- ============ DAY LIST MODAL ============ -->
@@ -227,7 +227,10 @@
             <i class="fas fa-plus-circle"></i> Add New Schedule
         </button>
 
-        <div class="modal-actions" style="margin-top: 16px;">
+        <!-- PATCH: removed inline margin-top so the CSS rule
+             #dayListOverlay .modal > .modal-actions controls the
+             footer spacing cleanly (divider + padding). -->
+        <div class="modal-actions">
             <button class="btn btn-secondary" id="closeDayListBtn">Close</button>
         </div>
     </div>
