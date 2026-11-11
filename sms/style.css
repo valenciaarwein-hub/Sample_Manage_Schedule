@@ -1,3 +1,9 @@
+/* ============================================================
+   SKEDO · style.css — PART 1 of 2
+   Base, calendar, upcoming, recent imports, floating nav,
+   day list, review, view, date picker
+   ============================================================ */
+
 :root {
     --edge-late: #ef4444;
     --edge-priority: #eab308;
@@ -149,7 +155,6 @@ body {
     padding: 4px 12px; border-radius: 40px; white-space: nowrap;
 }
 
-/* Fixed-height scroll wrap — ~10 rows visible, scrollbar hidden */
 .upcoming-table-wrap {
     border: 1.5px solid #e5e7eb;
     border-radius: 16px;
@@ -574,8 +579,16 @@ body {
 
 .day-schedule-list {
     display: flex; flex-direction: column; gap: 8px; overflow-y: auto;
-    margin-bottom: 16px; padding-right: 4px; flex: 1;
-    min-height: 80px; max-height: 50vh;
+    margin-bottom: 16px; padding-right: 4px;
+
+    /* PATCH (day list modal — fixed height): lock the list to a stable
+       height so the modal doesn't jump between a 1-item day and a
+       10-item day. The list scrolls internally; the modal frame
+       stays the same size regardless of how many schedules exist. */
+    height: 340px;
+    flex: 0 0 auto;
+    min-height: 340px;
+    max-height: 340px;
 }
 .day-schedule-list::-webkit-scrollbar { width: 4px; }
 .day-schedule-list::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 10px; }
@@ -669,15 +682,22 @@ body {
 /* ===== VIEW MODAL ===== */
 .detail-view {
     background: #f9fafb; border-radius: 16px; padding: 16px; margin-bottom: 6px;
-    border: 1.5px solid #e5e7eb; overflow-y: auto; max-height: 50vh;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    border: 1.5px solid #e5e7eb;
+    overflow-y: auto;
+
+    /* PATCH (view modal — full description): allow the detail panel to
+       use more vertical space so long descriptions are fully readable.
+       The modal's own max-height: 90vh keeps the Close button visible;
+       only the inner panel scrolls. Visible thin scrollbar hints that
+       there's more content when the description is very long. */
+    max-height: 65vh;
+    scrollbar-width: thin;
+    scrollbar-color: #c4b5fd transparent;
 }
-.detail-view::-webkit-scrollbar {
-    width: 0 !important;
-    height: 0 !important;
-    display: none !important;
-}
+.detail-view::-webkit-scrollbar { width: 6px; }
+.detail-view::-webkit-scrollbar-track { background: transparent; }
+.detail-view::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 10px; }
+
 .detail-view .detail-label {
     font-size: 0.7rem; font-weight: 600; color: #6b7280;
     text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px;
@@ -780,6 +800,74 @@ body {
 
 .history-empty { text-align: center; padding: 24px 16px; color: #9ca3af; font-size: 0.85rem; }
 .history-empty i { font-size: 1.8rem; color: #d1d5db; margin-bottom: 8px; display: block; }
+
+/* PATCH: unique "typing dots" loading state for the history modal.
+   Used only while fetchHistoryLog() is resolving. Replaces the
+   generic fa-spinner so it feels distinct from every other loader. */
+.history-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 48px 16px;
+    color: #6b7280;
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+.history-loading-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 18px;
+}
+.history-loading-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #6d28d9;
+    opacity: 0.25;
+    transform: scale(0.85);
+    animation: historyDotPulse 1.1s ease-in-out infinite;
+}
+.history-loading-dots span:nth-child(1) { animation-delay: 0s;    }
+.history-loading-dots span:nth-child(2) { animation-delay: 0.18s; }
+.history-loading-dots span:nth-child(3) { animation-delay: 0.36s; }
+
+@keyframes historyDotPulse {
+    0%, 100% {
+        opacity: 0.25;
+        transform: scale(0.85);
+        box-shadow: 0 0 0 0 rgba(109, 40, 217, 0);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+        box-shadow: 0 0 0 4px rgba(109, 40, 217, 0.12);
+    }
+}
+.history-loading-caption {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #4c1d95;
+}
+.history-loading-caption::after {
+    content: "…";
+    animation: historyCaptionDots 1.2s steps(4, end) infinite;
+    display: inline-block;
+    width: 10px;
+    text-align: left;
+}
+@keyframes historyCaptionDots {
+    0%, 100% { opacity: 0.2; }
+    50%      { opacity: 1; }
+}
 
 /* History log rows */
 .history-log-item {
@@ -1064,12 +1152,15 @@ body {
     50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
 }
 
-/* Panel anchored ABOVE the floating navbar */
 .notif-panel {
-    position: fixed;
-    right: 16px;
-    bottom: calc(20px + 70px);
-    width: 370px;
+    /* PATCH (notif placement): anchor the panel directly under the bell
+       button instead of floating near the bottom of the screen. It now
+       "drops down" from the notification icon, which is where users
+       intuitively look. Right-aligned so it stays inside the header. */
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 360px;
     max-width: calc(100vw - 32px);
     background: #ffffff;
     border: 1.5px solid #e5e7eb;
@@ -1079,17 +1170,16 @@ body {
     z-index: 2100;
     display: none;
     flex-direction: column;
-    max-height: calc(100vh - 140px);
     overflow: hidden;
     animation: notifPopIn 0.16s ease-out;
 
-    /* PATCH: keep the panel inside the viewport on short / narrow screens */
+    /* Cap the height so it never overflows the viewport. */
     max-height: min(calc(100vh - 140px), 560px);
     box-sizing: border-box;
 }
 .notif-panel.open { display: flex; }
 @keyframes notifPopIn {
-    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -2280,11 +2370,55 @@ body {
     .ri-pager-dot { width: 5px; height: 5px; }
     .ri-pager-dot.active { width: 14px; }
 
-    .floating-navbar { bottom: 14px; padding: 8px 12px; gap: 8px; border-radius: 50px; width: calc(100vw - 16px); max-width: 460px; justify-content: center; }
+    .floating-navbar {
+        /* PATCH (mobile navbar fit): lock the bar to the viewport width
+           minus safe-area insets, so all 5 buttons always fit — no
+           horizontal overflow on a 320 px phone, no clipping behind
+           the home indicator on a notched phone. */
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+        left: 8px;
+        right: 8px;
+        transform: none;
+        width: auto;
+        max-width: none;
+        padding: 8px 10px;
+        gap: 6px;
+        border-radius: 50px;
+        justify-content: space-between;
+        box-sizing: border-box;
+    }
+
     .nav-left, .nav-center, .nav-right { display: contents; }
-    .floating-navbar .btn-create, .floating-navbar .btn-import, .floating-navbar .btn-export, .floating-navbar .btn-history, .floating-navbar .btn-settings { padding: 10px; border-radius: 50%; width: 46px; height: 46px; justify-content: center; gap: 0; margin: 0; flex-shrink: 0; }
-    .floating-navbar .btn-create span, .floating-navbar .btn-import span, .floating-navbar .btn-export span, .floating-navbar .btn-history span, .floating-navbar .btn-settings span { display: none; }
-    .floating-navbar .btn-create i, .floating-navbar .btn-import i, .floating-navbar .btn-export i, .floating-navbar .btn-history i, .floating-navbar .btn-settings i { font-size: 1.05rem; }
+
+    /* Every button becomes a square that can grow/shrink to share the
+       available width evenly. min-width: 0 lets them compress below
+       46 px on very narrow screens without forcing a wrap. */
+    .floating-navbar .btn-create,
+    .floating-navbar .btn-import,
+    .floating-navbar .btn-export,
+    .floating-navbar .btn-history,
+    .floating-navbar .btn-settings {
+        padding: 0;
+        border-radius: 50%;
+        width: auto;
+        min-width: 0;
+        height: 46px;
+        flex: 1 1 0;
+        justify-content: center;
+        align-items: center;
+        gap: 0;
+        margin: 0;
+    }
+    .floating-navbar .btn-create span,
+    .floating-navbar .btn-import span,
+    .floating-navbar .btn-export span,
+    .floating-navbar .btn-history span,
+    .floating-navbar .btn-settings span { display: none; }
+    .floating-navbar .btn-create i,
+    .floating-navbar .btn-import i,
+    .floating-navbar .btn-export i,
+    .floating-navbar .btn-history i,
+    .floating-navbar .btn-settings i { font-size: 1.05rem; }
     .app-footer { font-size: 0.48rem; bottom: 4px; left: 8px; opacity: 0.35; letter-spacing: 0.2px; }
 
     .modal-overlay { padding: 10px; align-items: flex-end; }
@@ -2309,6 +2443,11 @@ body {
     .day-list-toolbar { padding: 8px 10px; gap: 8px; border-radius: 12px; }
     .day-select-all { font-size: 0.78rem; gap: 6px; }
     .day-checkbox { width: 16px; height: 16px; }
+    .day-schedule-list {
+        height: 280px;
+        min-height: 280px;
+        max-height: 280px;
+    }
     .day-schedule-card { padding: 10px 12px; border-radius: 14px; gap: 8px; }
     .day-schedule-card .card-title { font-size: 0.82rem; }
     .day-schedule-card .card-desc { font-size: 0.68rem; }
@@ -2373,15 +2512,22 @@ body {
     /* ---------- Notifications (mobile fit) ---------- */
     .notif-btn { width: 34px; height: 34px; font-size: 0.85rem; border-radius: 10px; }
     .notif-panel {
-        /* PATCH (notif mobile fit): pin to the viewport with comfortable
-           margins, don't overflow top, and leave room for the floating
-           navbar + the phone's safe area. */
-        width: auto;
+        /* PATCH (notif placement + size): on phones, anchor the panel
+           just below the app header instead of the very top of the
+           viewport, so it doesn't collide with the status bar / notch.
+           Keep it full-width but give it a natural bottom margin. */
+        position: fixed;
+        top: auto;
+        bottom: auto;
         left: 8px;
         right: 8px;
-        top: calc(8px + env(safe-area-inset-top, 0px));
-        bottom: calc(14px + 60px + env(safe-area-inset-bottom, 0px));
-        max-height: none;
+        width: auto;
+        max-width: none;
+
+        margin-top: calc(56px + env(safe-area-inset-top, 0px));
+
+        max-height: calc(100vh - 56px - 14px - 60px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+
         border-radius: 16px;
         box-sizing: border-box;
     }
@@ -2488,10 +2634,10 @@ body {
     .type-btn { padding: 7px 10px; font-size: 0.72rem; border-radius: 10px; }
     .type-btn i { font-size: 0.68rem; }
     .floating-navbar { padding: 6px 8px; gap: 5px; }
-    .floating-navbar .btn-create, .floating-navbar .btn-import, .floating-navbar .btn-export, .floating-navbar .btn-history, .floating-navbar .btn-settings { width: 40px; height: 40px; }
+    .floating-navbar .btn-create, .floating-navbar .btn-import, .floating-navbar .btn-export, .floating-navbar .btn-history, .floating-navbar .btn-settings { width: auto; height: 42px; flex: 1 1 0; }
     .floating-navbar .btn-create i, .floating-navbar .btn-import i, .floating-navbar .btn-export i, .floating-navbar .btn-history i, .floating-navbar .btn-settings i { font-size: 0.95rem; }
     .notif-btn { width: 30px; height: 30px; font-size: 0.75rem; border-radius: 8px; }
-    .notif-panel { bottom: calc(12px + 56px + env(safe-area-inset-bottom, 0px)); }
+    .notif-panel { margin-top: calc(52px + env(safe-area-inset-top, 0px)); }
     .notif-item { padding: 10px 10px 10px 12px; gap: 8px; border-left-width: 4px; }
     .notif-status-pill { font-size: 0.55rem; height: 18px; min-width: 62px; padding: 0 7px; }
     .app-footer { font-size: 0.46rem; }
