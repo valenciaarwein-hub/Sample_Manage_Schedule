@@ -3427,10 +3427,18 @@
         historyLogPage = 0;
         historyLogLoading = false;
 
-        historyList.innerHTML = `<div class="history-empty">
-            <i class="fas fa-spinner fa-spin"></i>
-            Loading history…
-        </div>`;
+        /* PATCH: history loading — unique typing-dots placeholder
+           (defined in sms/style.css as .history-loading / .history-loading-dots).
+           Replaces the old generic fa-spinner so it feels distinct
+           from every other loader in the app. */
+        historyList.innerHTML = `
+            <div class="history-loading">
+                <div class="history-loading-dots">
+                    <span></span><span></span><span></span>
+                </div>
+                <div class="history-loading-caption">Loading history</div>
+            </div>
+        `;
 
         fetchHistoryLog().then(() => {
             if (historyOverlay.classList.contains('active')) renderHistory();
