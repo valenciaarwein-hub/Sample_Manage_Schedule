@@ -461,7 +461,6 @@
         charCount.textContent = scheduleDescription.value.length;
     }
 
-    /* PATCH: word-count helpers for the schedule title (30-word limit). */
     function countWords(str) {
         const s = String(str || '').trim();
         if (!s) return 0;
