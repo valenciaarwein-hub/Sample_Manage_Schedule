@@ -1116,7 +1116,6 @@
             });
         });
 
-        // Sort: pinned status first, then Asc/Desc within each group
         const currentKind = notifSort.kind;
         const isAscending = notifSort.order === 'asc';
 
@@ -1561,11 +1560,6 @@
                 const timeRange = parseScheduleTimeRange(s.time);
                 const diffFromToday = daysUntil(dateKey);
 
-                /* PATCH (Upcoming 7 Days — Add Priority Status):
-                   Compute the effective status the same way the calendar
-                   and day list do — Late → Done → Priority (manual or auto)
-                   → Upcoming. This makes auto-priority (0–3 days ahead,
-                   not late, not done) show as a Priority badge here too. */
                 const autoPriority = !isLate && st !== 'done' && diffFromToday >= 0 && diffFromToday <= 3;
 
                 const effectiveStatus = isLate ? 'late'
@@ -1581,8 +1575,8 @@
                     description: s.description || '',
                     type: s.type || '',
                     time: s.time || '',
-                    status: st,                // raw stored status
-                    effectiveStatus,           // displayed status
+                    status: st,
+                    effectiveStatus,
                     isLate,
                     startMinutes: timeRange ? timeRange.startMin : Number.MAX_SAFE_INTEGER
                 });
@@ -1616,8 +1610,6 @@
                 ? `<span class="upcoming-time-cell">${escapeHtml(r.time)}</span>`
                 : `<span class="upcoming-desc-cell empty">—</span>`;
 
-            /* PATCH: badge selection now branches on effectiveStatus,
-               so auto-priority rows render as Priority too. */
             let statusBadge;
             if (r.effectiveStatus === 'late') {
                 statusBadge = `<span class="upcoming-status-badge late"><i class="fas fa-exclamation-circle"></i> Late</span>`;
@@ -2686,7 +2678,7 @@
         if (endPicker) endPicker.reset();
         resetTypeButtons(null);
         updateCharCounter();
-        updateTitleWordCounter();               /* PATCH: refresh title word counter */
+        updateTitleWordCounter();
 
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
         modalOverlay.classList.add('active');
@@ -2713,7 +2705,7 @@
         scheduleDescription.value = schedule.description || '';
         resetTypeButtons(schedule.type || null);
         updateCharCounter();
-        updateTitleWordCounter();               /* PATCH: refresh title word counter */
+        updateTitleWordCounter();
 
         if (startPicker) startPicker.reset();
         if (endPicker) endPicker.reset();
@@ -2756,7 +2748,6 @@
         const endVal   = endPicker   ? endPicker.getValue()   : '';
 
         if (!titleVal) errors.push('Title is required.');
-        /* PATCH: cap the title at 30 words. */
         const titleWords = countWords(titleVal);
         if (titleWords > 30) {
             errors.push(`Title must be 30 words or fewer (currently ${titleWords}).`);
@@ -2782,7 +2773,6 @@
         const typeField = typeButtonGroup.closest('.field');
         const timeField = document.querySelector('.time-row').closest('.field');
 
-        /* PATCH: mark the title field invalid if empty OR over 30 words. */
         const titleTrimmed = scheduleTitle.value.trim();
         if (!titleTrimmed || countWords(titleTrimmed) > 30) titleField.classList.add('invalid');
         else titleField.classList.remove('invalid');
@@ -3013,7 +3003,7 @@
         scheduleDescription.value = pendingSave.newData.description;
         resetTypeButtons(pendingSave.newData.type);
         updateCharCounter();
-        updateTitleWordCounter();               /* PATCH: refresh title word counter */
+        updateTitleWordCounter();
 
         if (startPicker) startPicker.reset();
         if (endPicker) endPicker.reset();
@@ -3427,10 +3417,6 @@
         historyLogPage = 0;
         historyLogLoading = false;
 
-        /* PATCH: history loading — unique typing-dots placeholder
-           (defined in sms/style.css as .history-loading / .history-loading-dots).
-           Replaces the old generic fa-spinner so it feels distinct
-           from every other loader in the app. */
         historyList.innerHTML = `
             <div class="history-loading">
                 <div class="history-loading-dots">
@@ -4137,8 +4123,6 @@
 
             (schedules[dateKey] || []).forEach(s => {
                 rows.push({
-                    /* PATCH: keep the schedule id so the eye button in the
-                       preview can open the View modal for the right row. */
                     id: s.id,
                     dateKey,
                     title: s.title,
@@ -4249,7 +4233,6 @@
                 ? `<span style="color:#dc2626; font-weight:700;">Yes</span>`
                 : `<span style="color:#cbd5e1;">No</span>`;
 
-            /* PATCH: description truncated in the cell, full text on hover. */
             const descCell = r.description
                 ? `<span class="ep-desc" title="${escapeHtml(r.description)}">${escapeHtml(r.description)}</span>`
                 : `<span style="color:#cbd5e1;">No description</span>`;
@@ -4281,7 +4264,6 @@
         html += '</tbody></table>';
         exportPreviewScroll.innerHTML = html;
 
-        /* PATCH: wire the per-row eye buttons to the existing View modal. */
         exportPreviewScroll.querySelectorAll('.ep-eye-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -5048,22 +5030,14 @@
     // ============================================================
     // LOGO → CAT LOADER → REFRESH
     // ============================================================
-    /* PATCH (Cat Loader): the loader markup/styles/JS are now external
-       (cat/cat_loader.html, cat/cat_loader.css, cat/cat_loader.js).
-       Delegate to window.CatLoader if available; otherwise fall back
-       to a plain reload so the logo click never does nothing. */
     const headerLogo = document.getElementById('headerLogo');
 
     function showLoaderAndReload() {
         if (window.CatLoader) {
-            // Prefer the external loader — it manages the delay + reload.
             window.CatLoader.showAndReload(5000);
             return;
         }
-        // CatLoader.js hasn't loaded yet (or was removed). Wait for it,
-        // then delegate. If that never resolves, reload after a beat.
         if (window.CatLoader === undefined) {
-            // Give cat_loader.js a chance to inject first
             setTimeout(() => {
                 if (window.CatLoader) {
                     window.CatLoader.showAndReload(5000);
@@ -5073,7 +5047,6 @@
             }, 50);
             return;
         }
-        // Last resort
         window.location.reload();
     }
 
@@ -5314,7 +5287,7 @@
 
     scheduleTitle.addEventListener('input', () => {
         scheduleTitle.closest('.field').classList.remove('invalid');
-        updateTitleWordCounter();               /* PATCH: live title word counter */
+        updateTitleWordCounter();
     });
     scheduleDescription.addEventListener('input', () => {
         scheduleDescription.closest('.field').classList.remove('invalid');
