@@ -1,4 +1,4 @@
-// sms/script.js — PART 1 of 2
+// sms/script.js
 (function() {
     'use strict';
 
@@ -2052,8 +2052,7 @@
         lateTicker = setInterval(tickLate, 1000);
     }
 
-    /* === CONTINUE WITH PART 2 === */
-     // ============================================================
+    // ============================================================
     // DAY LIST MODAL
     // ============================================================
     function openDayListModal(dateKey) {
