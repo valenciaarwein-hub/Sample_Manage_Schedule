@@ -201,7 +201,7 @@ body {
 .upcoming-table .col-time { width: 130px; }
 .upcoming-table .col-type { width: 130px; }
 .upcoming-table .col-status { width: 120px; }
-.upcoming-table .col-desc { width: auto; }
+.upcoming-table .col-desc { width: auto; max-width: 0; }
 .upcoming-table .col-actions { width: 120px; text-align: right; }
 
 .upcoming-date-cell { font-weight: 600; color: #111827; font-size: 0.82rem; white-space: nowrap; }
@@ -229,7 +229,13 @@ body {
     text-overflow: ellipsis;
     white-space: normal;
     word-break: break-word;
+    overflow-wrap: anywhere;
     max-height: 2.8em;
+
+    /* PATCH: hard cap on the description cell width so it can never
+       push the Actions column or overlap the row below. */
+    max-width: 100%;
+    min-width: 0;
 }
 .upcoming-desc-cell.empty { color: #d1d5db; font-style: italic; }
 
@@ -453,7 +459,7 @@ body {
     font-size: 0.55rem;
     font-weight: 400;
     letter-spacing: 0.25px;
-    text-transform: uppercase;
+    text-transform: none;
     color: #cbd5e1;
     opacity: 0.35;
     pointer-events: none;
@@ -551,6 +557,22 @@ body {
 
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; flex-shrink: 0; }
 
+/* PATCH: day-list modal action row — the "Add New Schedule" button
+   already has its own 14px bottom margin, so the default 20px
+   .modal-actions top margin would double up. Reset it here and add
+   a little extra bottom padding so the modal has a "formal" footer
+   breathing room below the Close button. */
+#dayListOverlay .modal > .modal-actions {
+    margin-top: 0;
+    padding-top: 8px;
+    padding-bottom: 4px;
+    border-top: 1.5px solid #f3f4f6;
+}
+#dayListOverlay .modal > .modal-actions .btn-secondary {
+    min-width: 120px;
+    justify-content: center;
+}
+
 .btn {
     padding: 10px 20px; border-radius: 30px; font-weight: 600;
     border: none; cursor: pointer; font-size: 0.9rem;
@@ -574,6 +596,12 @@ body {
     background: #f9fafb; border: 1.5px solid #e5e7eb; border-radius: 14px;
     padding: 8px 12px; margin-bottom: 10px; flex-wrap: wrap;
 }
+.day-list-toolbar[style*="display: none"],
+.day-list-toolbar[style*="display:none"] {
+    display: flex !important;
+    visibility: hidden;
+    pointer-events: none;
+}
 .day-select-all { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 500; color: #374151; cursor: pointer; user-select: none; }
 .day-select-all input, .day-checkbox { width: 18px; height: 18px; accent-color: #6d28d9; cursor: pointer; flex-shrink: 0; }
 
@@ -582,13 +610,19 @@ body {
     margin-bottom: 16px; padding-right: 4px;
 
     /* PATCH (day list modal — fixed height): lock the list to a stable
-       height so the modal doesn't jump between a 1-item day and a
-       10-item day. The list scrolls internally; the modal frame
-       stays the same size regardless of how many schedules exist. */
+       height so the modal doesn't jump between a 0-item day, a 1-item
+       day, and a 10-item day. The list scrolls internally; the modal
+       frame stays the same size regardless of how many schedules exist. */
     height: 340px;
     flex: 0 0 auto;
     min-height: 340px;
     max-height: 340px;
+    box-sizing: border-box;
+
+    /* PATCH: the empty-state message is vertically centered inside the
+       full fixed height, so a day with 0 schedules reads as "same box,
+       just nothing inside" — not a smaller modal. */
+    justify-content: flex-start;
 }
 .day-schedule-list::-webkit-scrollbar { width: 4px; }
 .day-schedule-list::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 10px; }
@@ -605,8 +639,25 @@ body {
 }
 .day-schedule-card .card-body { flex: 1; min-width: 0; }
 .day-schedule-card .card-title { font-weight: 600; font-size: 0.9rem; color: #111827; margin-bottom: 2px; word-break: break-word; }
-.day-schedule-card .card-desc { font-size: 0.75rem; color: #6b7280; word-break: break-word; white-space: pre-wrap; }
-.day-schedule-card .card-actions { display: flex; gap: 4px; flex-shrink: 0; align-self: center; align-items: center; }
+
+/* PATCH: description no longer overlaps the action buttons. */
+.day-schedule-card .card-desc {
+    font-size: 0.75rem;
+    color: #6b7280;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+    min-width: 0;
+}
+.day-schedule-card .card-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    align-self: center;
+    align-items: center;
+    margin-left: auto;
+}
 
 .icon-btn {
     width: 34px; height: 34px; border-radius: 10px; border: none;
@@ -630,10 +681,31 @@ body {
     display: flex; align-items: center; justify-content: center; gap: 6px;
     cursor: pointer; transition: background 0.15s, border-color 0.15s;
     width: 100%; font-family: 'Roboto', sans-serif; flex-shrink: 0;
+
+    /* PATCH: keep the button visually separated from the fixed-height
+       list above it, and give it consistent vertical rhythm with the
+       "Close" action row below. */
+    margin: 6px 0 14px 0;
+    min-height: 48px;
+    box-sizing: border-box;
 }
 .btn-add-schedule:hover { background: #faf5ff; border-color: #a78bfa; }
 
-.empty-day-message { text-align: center; padding: 24px 16px; color: #9ca3af; font-size: 0.85rem; }
+.empty-day-message {
+    text-align: center;
+    padding: 24px 16px;
+    color: #9ca3af;
+    font-size: 0.85rem;
+    /* PATCH: center the empty-state text vertically inside the fixed
+       list box, so the modal frame is identical whether the day has
+       schedules or not. */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    box-sizing: border-box;
+}
 .empty-day-message i { font-size: 1.8rem; color: #d1d5db; margin-bottom: 8px; display: block; }
 
 /* ===== REVIEW MODAL ===== */
@@ -693,6 +765,12 @@ body {
     max-height: 65vh;
     scrollbar-width: thin;
     scrollbar-color: #c4b5fd transparent;
+
+    /* PATCH: guarantees the description never overlaps the modal footer
+       (Close / Change Status row). min-height: 0 lets the panel shrink
+       inside the flex column modal and forces the internal scrollbar. */
+    min-height: 0;
+    flex: 0 1 auto;
 }
 .detail-view::-webkit-scrollbar { width: 6px; }
 .detail-view::-webkit-scrollbar-track { background: transparent; }
@@ -748,10 +826,6 @@ body {
    History, settings, trash, confirm, validation, notifications,
    export, import, schedule statuses, status popup, bulk delete,
    time picker, responsive
-
-   NOTE: the cat loader styles now live in cat/cat_loader.css.
-   The old .loader-screen / .cat-orbit / .loader-cube blocks were
-   removed from this file to avoid conflicts with the external loader.
    ============================================================ */
 
 /* ===== HISTORY ===== */
@@ -801,9 +875,7 @@ body {
 .history-empty { text-align: center; padding: 24px 16px; color: #9ca3af; font-size: 0.85rem; }
 .history-empty i { font-size: 1.8rem; color: #d1d5db; margin-bottom: 8px; display: block; }
 
-/* PATCH: unique "typing dots" loading state for the history modal.
-   Used only while fetchHistoryLog() is resolving. Replaces the
-   generic fa-spinner so it feels distinct from every other loader. */
+/* PATCH: unique "typing dots" loading state for the history modal. */
 .history-loading {
     display: flex;
     flex-direction: column;
@@ -1085,10 +1157,6 @@ body {
 .trash-footer .btn-danger { margin-right: auto; }
 
 /* ===== CONFIRM ===== */
-
-/* PATCH: the confirmation dialog must always render above every other
-   overlay — including the Bulk Delete modal, which shares the same base
-   z-index (2000) and is opened just before this one. */
 #confirmOverlay {
     z-index: 2100;
 }
@@ -1153,10 +1221,6 @@ body {
 }
 
 .notif-panel {
-    /* PATCH (notif placement): anchor the panel directly under the bell
-       button instead of floating near the bottom of the screen. It now
-       "drops down" from the notification icon, which is where users
-       intuitively look. Right-aligned so it stays inside the header. */
     position: absolute;
     top: calc(100% + 10px);
     right: 0;
@@ -1172,8 +1236,6 @@ body {
     flex-direction: column;
     overflow: hidden;
     animation: notifPopIn 0.16s ease-out;
-
-    /* Cap the height so it never overflows the viewport. */
     max-height: min(calc(100vh - 140px), 560px);
     box-sizing: border-box;
 }
@@ -1245,7 +1307,6 @@ body {
 .notif-list::-webkit-scrollbar { width: 4px; }
 .notif-list::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 10px; }
 
-/* Grouped sections */
 .notif-group {
     display: flex;
     flex-direction: column;
@@ -1298,7 +1359,6 @@ body {
 .notif-group-priority .notif-group-header { background: #fefce8; color: #a16207; border-color: #fde68a; }
 .notif-group-overdue  .notif-group-header { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
 
-/* Items */
 .notif-item {
     display: flex;
     align-items: flex-start;
@@ -1324,23 +1384,11 @@ body {
 }
 .notif-item:active { transform: scale(0.995); }
 
-.notif-item.unread,
-.notif-item.imminent,
-.notif-item.imminent.unread,
-.notif-item.overdue,
-.notif-item.overdue.unread,
-.notif-item.upcoming,
-.notif-item.upcoming.unread {
-    background: transparent;
-}
-
 .notif-item.late-edge     { border-left-color: #ef4444; }
 .notif-item.priority-edge { border-left-color: #eab308; }
 .notif-item.upcoming-edge { border-left-color: #22c55e; }
 
 .notif-item.unread { box-shadow: inset 0 0 0 1px rgba(109, 40, 217, 0.10); }
-
-.notif-dot { display: none !important; }
 
 .notif-body {
     flex: 1;
@@ -1461,10 +1509,6 @@ body {
     border: 1px solid transparent;
     align-self: flex-start;
     max-width: 100%;
-
-    /* PATCH (late countdown — seconds visible): guarantee the whole
-       HH:MM:SS string is shown, never clipped by a tight container.
-       No overflow-hidden, no max-width clipping. */
     overflow: visible;
     text-overflow: clip;
     flex-shrink: 0;
@@ -2081,9 +2125,6 @@ body {
 }
 .late-pill i { font-size: 0.6rem; }
 
-.history-schedule-item .hs-title .schedule-title-highlight.done { background: #dcfce7; color: #14532d; text-decoration: line-through; text-decoration-color: rgba(22, 163, 74, 0.55); }
-.history-schedule-item .hs-title .schedule-title-highlight.priority { background: #fef08a; color: #713f12; font-weight: 700; }
-
 /* ===== STATUS ICON BUTTON ===== */
 .status-icon-btn {
     width: 34px; height: 34px; border-radius: 50%; border: none;
@@ -2137,7 +2178,6 @@ body {
 .status-popup-option.selected[data-pick="priority"] .status-popup-check,
 .status-popup-option.selected[data-pick="priority"] > i:first-child { color: #FFEB3B; }
 
-/* Disabled option */
 .status-popup-option.disabled,
 .status-popup-option:disabled {
     opacity: 0.45;
@@ -2160,7 +2200,6 @@ body {
     font-style: italic;
 }
 
-/* Popup mounted inside View modal */
 #viewOverlay .status-popup {
     position: absolute;
     z-index: 10;
@@ -2190,15 +2229,11 @@ body {
     background: #ffffff; transition: border-color 0.15s, box-shadow 0.15s; overflow: visible;
 }
 
-/* PATCH (Time Input — Remove Focus Border/Highlight):
-   The wrapper no longer lights up when the inner input is focused. */
 .time-picker:focus-within {
     border-color: #e5e7eb;
     box-shadow: none;
 }
 
-/* PATCH (Time Input — Remove Focus Border/Highlight):
-   Keyboard-only focus indicator on the wrapper (preserves a11y). */
 .time-picker:has(.time-input:focus-visible) {
     border-color: #6d28d9;
     box-shadow: 0 0 0 4px rgba(109, 40, 217, 0.12);
@@ -2373,8 +2408,6 @@ body {
     .ri-pager-dot.active { width: 14px; }
 
     .floating-navbar {
-        /* PATCH (mobile navbar fit): lock the bar to the viewport width
-           minus safe-area insets, so all 5 buttons always fit. */
         bottom: calc(14px + env(safe-area-inset-bottom, 0px));
         left: 8px;
         right: 8px;
@@ -2448,7 +2481,7 @@ body {
     .day-schedule-card { padding: 10px 12px; border-radius: 14px; gap: 8px; }
     .day-schedule-card .card-title { font-size: 0.82rem; }
     .day-schedule-card .card-desc { font-size: 0.68rem; }
-    .day-schedule-card .card-actions { width: 100%; justify-content: flex-end; margin-top: 4px; padding-top: 6px; border-top: 1px solid #e5e7eb; }
+    .day-schedule-card .card-actions { width: 100%; justify-content: flex-end; margin-top: 4px; padding-top: 6px; border-top: 1px solid #e5e7eb; margin-left: 0; }
     .icon-btn { width: 32px; height: 32px; font-size: 0.75rem; border-radius: 9px; }
     .btn-add-schedule { padding: 10px 16px; font-size: 0.8rem; border-radius: 14px; }
     .review-body { max-height: 50vh; gap: 10px; }
@@ -2506,13 +2539,8 @@ body {
     .validation-list li { font-size: 0.75rem; }
     .validation-modal .modal-actions .btn { min-width: 100px; }
 
-    /* ---------- Notifications (mobile fit) ---------- */
     .notif-btn { width: 34px; height: 34px; font-size: 0.85rem; border-radius: 10px; }
     .notif-panel {
-        /* PATCH (notif placement + size): on phones, anchor the panel
-           just below the app header instead of the very top of the
-           viewport, so it doesn't collide with the status bar / notch.
-           Keep it full-width but give it a natural bottom margin. */
         position: fixed;
         top: auto;
         bottom: auto;
@@ -2520,11 +2548,8 @@ body {
         right: 8px;
         width: auto;
         max-width: none;
-
         margin-top: calc(56px + env(safe-area-inset-top, 0px));
-
         max-height: calc(100vh - 56px - 14px - 60px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-
         border-radius: 16px;
         box-sizing: border-box;
     }
@@ -2592,7 +2617,7 @@ body {
     .import-success-modal .modal-actions .btn { min-width: 100px; }
 
     .status-icon-btn { width: 30px; height: 30px; font-size: 0.78rem; margin-right: 2px; }
-    .day-schedule-card .card-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+    .day-schedule-card .card-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; margin-left: 0; }
     .status-popup { width: 160px !important; }
     .status-popup-option { font-size: 0.78rem; padding: 8px 10px; }
 
@@ -2637,10 +2662,6 @@ body {
     .notif-panel { margin-top: calc(52px + env(safe-area-inset-top, 0px)); }
     .notif-item { padding: 10px 10px 10px 12px; gap: 8px; border-left-width: 4px; }
     .notif-status-pill { font-size: 0.55rem; height: 18px; min-width: 62px; padding: 0 7px; }
-
-    /* PATCH (late countdown — seconds visible on the smallest phones):
-       give the countdown pill more room so the full HH:MM:SS string
-       never gets clipped by a tight container. */
     .notif-countdown {
         font-size: 0.6rem;
         padding: 2px 7px;
@@ -2653,6 +2674,5 @@ body {
         text-overflow: clip;
     }
     .notif-countdown .nc-label { font-size: 0.5rem; }
-
     .app-footer { font-size: 0.46rem; }
 }
