@@ -11,14 +11,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="sms/style.css">
-    <!-- PATCH: external cat loader styles -->
+    <!-- External cat loader styles -->
     <link rel="stylesheet" href="cat/cat_loader.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
 <!-- ============ CAT LOADER HOST ============ -->
-<!-- PATCH: the loader markup is injected at runtime from cat/cat_loader.html
+<!-- The loader markup is injected at runtime from cat/cat_loader.html
      by cat/cat_loader.js. Nothing else in this file changed. -->
 <div id="catLoaderHost"></div>
 
@@ -245,8 +245,9 @@
             <input type="hidden" id="selectedDate" value="">
 
             <div class="field">
-                <label>Title <span class="required-mark">*</span></label>
-                <input type="text" id="scheduleTitle" placeholder="e.g. Team meeting" maxlength="60" autocomplete="off">
+                <label>Title <span class="required-mark">*</span> <span style="font-weight:400; color:#6b7280;">(max 30 words)</span></label>
+                <input type="text" id="scheduleTitle" placeholder="e.g. Team meeting" autocomplete="off">
+                <div class="char-counter"><span id="titleWordCount">0</span> / 30 words</div>
             </div>
 
             <div class="field">
@@ -581,6 +582,52 @@
     </div>
 </div>
 
+<!-- ============ BULK DELETE SCHEDULES MODAL ============ -->
+<div class="modal-overlay" id="bulkDeleteOverlay">
+    <div class="modal bulk-delete-modal">
+        <div class="bulk-delete-title-row">
+            <h3><i class="fas fa-calendar-times"></i> Delete Schedules</h3>
+            <div class="bulk-delete-toolbar-inline">
+                <button class="btn btn-secondary btn-sm" id="bulkDeleteExpandAllBtn" title="Expand all">
+                    <i class="fas fa-plus-square"></i> Expand
+                </button>
+                <button class="btn btn-secondary btn-sm" id="bulkDeleteCollapseAllBtn" title="Collapse all">
+                    <i class="fas fa-minus-square"></i> Collapse
+                </button>
+            </div>
+        </div>
+        <p class="bulk-delete-subtitle">
+            Select the schedules you want to remove. Expand a year or month to choose individual items.
+            Everything you select here goes to the <strong>Recycle Bin</strong> — you can
+            recover it or delete it permanently from there.
+        </p>
+
+        <div class="bulk-delete-search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" id="bulkDeleteSearch" placeholder="Search by title or description…">
+        </div>
+
+        <div class="bulk-delete-summary" id="bulkDeleteSummary">
+            <span><i class="fas fa-check-square"></i> <span id="bulkDeleteSelectedCount">0</span> selected</span>
+            <span><i class="fas fa-list"></i> <span id="bulkDeleteTotalCount">0</span> total</span>
+        </div>
+
+        <div class="bulk-delete-tree" id="bulkDeleteTree"></div>
+
+        <div class="bulk-delete-empty" id="bulkDeleteEmpty" style="display:none;">
+            <i class="fas fa-mug-hot"></i>
+            <p>No schedules yet.<br>Create one to see it here.</p>
+        </div>
+
+        <div class="modal-actions bulk-delete-actions">
+            <button class="btn btn-secondary" id="bulkDeleteCancelBtn">Close</button>
+            <button class="btn btn-danger" id="bulkDeleteMoveToBinBtn" disabled>
+                <i class="fas fa-trash-alt"></i> Move Selected to Recycle Bin
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- ============ CONFIRM MODAL ============ -->
 <div class="modal-overlay" id="confirmOverlay">
     <div class="modal confirm-modal">
@@ -765,52 +812,6 @@
     </div>
 </div>
 
-<!-- ============ BULK DELETE SCHEDULES MODAL ============ -->
-<div class="modal-overlay" id="bulkDeleteOverlay">
-    <div class="modal bulk-delete-modal">
-        <div class="bulk-delete-title-row">
-            <h3><i class="fas fa-calendar-times"></i> Delete Schedules</h3>
-            <div class="bulk-delete-toolbar-inline">
-                <button class="btn btn-secondary btn-sm" id="bulkDeleteExpandAllBtn" title="Expand all">
-                    <i class="fas fa-plus-square"></i> Expand
-                </button>
-                <button class="btn btn-secondary btn-sm" id="bulkDeleteCollapseAllBtn" title="Collapse all">
-                    <i class="fas fa-minus-square"></i> Collapse
-                </button>
-            </div>
-        </div>
-        <p class="bulk-delete-subtitle">
-            Select the schedules you want to remove. Expand a year or month to choose individual items.
-            Everything you select here goes to the <strong>Recycle Bin</strong> — you can
-            recover it or delete it permanently from there.
-        </p>
-
-        <div class="bulk-delete-search-wrap">
-            <i class="fas fa-search"></i>
-            <input type="text" id="bulkDeleteSearch" placeholder="Search by title or description…">
-        </div>
-
-        <div class="bulk-delete-summary" id="bulkDeleteSummary">
-            <span><i class="fas fa-check-square"></i> <span id="bulkDeleteSelectedCount">0</span> selected</span>
-            <span><i class="fas fa-list"></i> <span id="bulkDeleteTotalCount">0</span> total</span>
-        </div>
-
-        <div class="bulk-delete-tree" id="bulkDeleteTree"></div>
-
-        <div class="bulk-delete-empty" id="bulkDeleteEmpty" style="display:none;">
-            <i class="fas fa-mug-hot"></i>
-            <p>No schedules yet.<br>Create one to see it here.</p>
-        </div>
-
-        <div class="modal-actions bulk-delete-actions">
-            <button class="btn btn-secondary" id="bulkDeleteCancelBtn">Close</button>
-            <button class="btn btn-danger" id="bulkDeleteMoveToBinBtn" disabled>
-                <i class="fas fa-trash-alt"></i> Move Selected to Recycle Bin
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- ============ SUPABASE CLIENT BOOTSTRAP ============ -->
 <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
@@ -823,7 +824,8 @@
     window.dispatchEvent(new Event('supabase-ready'));
 </script>
 
-<!-- PATCH: external cat loader logic — fetches cat/cat_loader.html, injects into #catLoaderHost, exposes window.CatLoader -->
+<!-- External cat loader logic — fetches cat/cat_loader.html,
+     injects into #catLoaderHost, exposes window.CatLoader -->
 <script src="cat/cat_loader.js"></script>
 
 <script src="sms/script.js"></script>
