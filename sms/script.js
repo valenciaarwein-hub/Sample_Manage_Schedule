@@ -429,6 +429,29 @@
         charCount.textContent = scheduleDescription.value.length;
     }
 
+    /* PATCH: word-count helpers for the schedule title (30-word limit). */
+    function countWords(str) {
+        const s = String(str || '').trim();
+        if (!s) return 0;
+        return s.split(/\s+/).filter(Boolean).length;
+    }
+
+    function updateTitleWordCounter() {
+        const el = document.getElementById('titleWordCount');
+        if (!el) return;
+        const n = countWords(scheduleTitle.value);
+        el.textContent = String(n);
+        const parent = el.parentElement;
+        if (parent) {
+            parent.style.color = n > 30 ? '#dc2626' : '';
+            parent.style.fontWeight = n > 30 ? '700' : '';
+        }
+    }
+
+    function getTitleWordCount() {
+        return countWords(scheduleTitle.value);
+    }
+
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -2663,6 +2686,7 @@
         if (endPicker) endPicker.reset();
         resetTypeButtons(null);
         updateCharCounter();
+        updateTitleWordCounter();               /* PATCH: refresh title word counter */
 
         document.querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
         modalOverlay.classList.add('active');
@@ -2689,6 +2713,7 @@
         scheduleDescription.value = schedule.description || '';
         resetTypeButtons(schedule.type || null);
         updateCharCounter();
+        updateTitleWordCounter();               /* PATCH: refresh title word counter */
 
         if (startPicker) startPicker.reset();
         if (endPicker) endPicker.reset();
@@ -2731,6 +2756,11 @@
         const endVal   = endPicker   ? endPicker.getValue()   : '';
 
         if (!titleVal) errors.push('Title is required.');
+        /* PATCH: cap the title at 30 words. */
+        const titleWords = countWords(titleVal);
+        if (titleWords > 30) {
+            errors.push(`Title must be 30 words or fewer (currently ${titleWords}).`);
+        }
         if (!descVal) errors.push('Description is required.');
         if (!resolvedType) errors.push('Schedule type is required — pick a button or specify "Other".');
         if (!startVal) errors.push('Start time is required.');
@@ -2752,7 +2782,9 @@
         const typeField = typeButtonGroup.closest('.field');
         const timeField = document.querySelector('.time-row').closest('.field');
 
-        if (!scheduleTitle.value.trim()) titleField.classList.add('invalid');
+        /* PATCH: mark the title field invalid if empty OR over 30 words. */
+        const titleTrimmed = scheduleTitle.value.trim();
+        if (!titleTrimmed || countWords(titleTrimmed) > 30) titleField.classList.add('invalid');
         else titleField.classList.remove('invalid');
 
         if (!scheduleDescription.value.trim()) descField.classList.add('invalid');
@@ -2981,6 +3013,7 @@
         scheduleDescription.value = pendingSave.newData.description;
         resetTypeButtons(pendingSave.newData.type);
         updateCharCounter();
+        updateTitleWordCounter();               /* PATCH: refresh title word counter */
 
         if (startPicker) startPicker.reset();
         if (endPicker) endPicker.reset();
@@ -4096,6 +4129,9 @@
 
             (schedules[dateKey] || []).forEach(s => {
                 rows.push({
+                    /* PATCH: keep the schedule id so the eye button in the
+                       preview can open the View modal for the right row. */
+                    id: s.id,
                     dateKey,
                     title: s.title,
                     type: s.type || '',
@@ -4192,6 +4228,7 @@
                         <th>Status</th>
                         <th>Late</th>
                         <th>Description</th>
+                        <th class="ep-actions-head">View</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -4203,6 +4240,12 @@
             const lateCell = r.lateMarked
                 ? `<span style="color:#dc2626; font-weight:700;">Yes</span>`
                 : `<span style="color:#cbd5e1;">No</span>`;
+
+            /* PATCH: description truncated in the cell, full text on hover. */
+            const descCell = r.description
+                ? `<span class="ep-desc" title="${escapeHtml(r.description)}">${escapeHtml(r.description)}</span>`
+                : `<span style="color:#cbd5e1;">No description</span>`;
+
             html += `
                 <tr>
                     <td class="ep-date">${monthLabel}</td>
@@ -4213,13 +4256,33 @@
                     <td class="ep-type">${r.type ? escapeHtml(r.type) : '<span style="color:#94a3b8;">—</span>'}</td>
                     <td class="ep-type">${escapeHtml(getStatusLabel(r.status))}</td>
                     <td class="ep-type">${lateCell}</td>
-                    <td class="ep-desc">${r.description ? escapeHtml(r.description) : '<span style="color:#cbd5e1;">No description</span>'}</td>
+                    <td class="ep-desc-cell">${descCell}</td>
+                    <td class="ep-actions-cell">
+                        <button type="button"
+                                class="ep-eye-btn"
+                                data-export-view-id="${r.id}"
+                                data-export-view-date="${r.dateKey}"
+                                title="View full schedule">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
                 </tr>
             `;
         });
 
         html += '</tbody></table>';
         exportPreviewScroll.innerHTML = html;
+
+        /* PATCH: wire the per-row eye buttons to the existing View modal. */
+        exportPreviewScroll.querySelectorAll('.ep-eye-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.exportViewId;
+                const dateKey = btn.dataset.exportViewDate;
+                if (!id || !dateKey) return;
+                openViewModal(dateKey, id);
+            });
+        });
     }
 
     function openExportModal() {
@@ -4984,27 +5047,27 @@
     const headerLogo = document.getElementById('headerLogo');
 
     function showLoaderAndReload() {
-    if (window.CatLoader) {
-        // Prefer the external loader — it manages the 5s delay + reload.
-        window.CatLoader.showAndReload(5000);
-        return;
+        if (window.CatLoader) {
+            // Prefer the external loader — it manages the delay + reload.
+            window.CatLoader.showAndReload(5000);
+            return;
+        }
+        // CatLoader.js hasn't loaded yet (or was removed). Wait for it,
+        // then delegate. If that never resolves, reload after a beat.
+        if (window.CatLoader === undefined) {
+            // Give cat_loader.js a chance to inject first
+            setTimeout(() => {
+                if (window.CatLoader) {
+                    window.CatLoader.showAndReload(5000);
+                } else {
+                    window.location.reload();
+                }
+            }, 50);
+            return;
+        }
+        // Last resort
+        window.location.reload();
     }
-    // CatLoader.js hasn't loaded yet (or was removed). Wait for it,
-    // then delegate. If that never resolves, reload after a beat.
-    if (window.CatLoader === undefined) {
-        // Give cat_loader.js a chance to inject first
-        setTimeout(() => {
-            if (window.CatLoader) {
-                window.CatLoader.showAndReload(5000);
-            } else {
-                window.location.reload();
-            }
-        }, 50);
-        return;
-    }
-    // Last resort
-    window.location.reload();
-}
 
     if (headerLogo) {
         headerLogo.addEventListener('click', showLoaderAndReload);
@@ -5243,6 +5306,7 @@
 
     scheduleTitle.addEventListener('input', () => {
         scheduleTitle.closest('.field').classList.remove('invalid');
+        updateTitleWordCounter();               /* PATCH: live title word counter */
     });
     scheduleDescription.addEventListener('input', () => {
         scheduleDescription.closest('.field').classList.remove('invalid');
