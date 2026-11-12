@@ -197,7 +197,7 @@ body {
 
 .upcoming-table .col-date { width: 110px; }
 .upcoming-table .col-day { width: 90px; }
-.upcoming-table .col-title { width: 22%; }
+.upcoming-table .col-title { width: 24%; }
 .upcoming-table .col-time { width: 130px; }
 .upcoming-table .col-type { width: 130px; }
 .upcoming-table .col-status { width: 120px; }
@@ -206,7 +206,18 @@ body {
 
 .upcoming-date-cell { font-weight: 600; color: #111827; font-size: 0.82rem; white-space: nowrap; }
 .upcoming-day-cell { font-size: 0.78rem; color: #6b7280; font-weight: 500; white-space: nowrap; }
-.upcoming-time-cell { font-size: 0.78rem; font-weight: 600; color: #6d28d9; white-space: nowrap; }
+.upcoming-time-cell {
+    font-size: 0.78rem; font-weight: 600; color: #6d28d9;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    word-break: break-word;
+    max-height: 2.7em;
+    line-height: 1.35;
+}
 
 .upcoming-today-badge {
     display: inline-block;
@@ -216,7 +227,18 @@ body {
     border-radius: 6px; margin-left: 6px; vertical-align: middle;
 }
 
-.upcoming-title-cell { font-weight: 600; color: #111827; font-size: 0.85rem; }
+.upcoming-title-cell {
+    font-weight: 600; color: #111827; font-size: 0.85rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    word-break: break-word;
+    max-height: 1.35em;
+    line-height: 1.35;
+}
 
 .upcoming-desc-cell {
     color: #6b7280; font-size: 0.78rem; line-height: 1.4;
@@ -230,7 +252,8 @@ body {
     white-space: normal;
     word-break: break-word;
     overflow-wrap: anywhere;
-    max-height: 2.8em;
+    max-height: 2.7em;
+    line-height: 1.35;
     max-width: 100%;
     min-width: 0;
 }
@@ -626,9 +649,6 @@ body {
 }
 #dayListOverlay .day-list-close-x:active { transform: scale(0.94); }
 
-/* Scrollable region — stops cleanly above the footer.
-   padding-bottom matches the footer height so the LAST card is
-   fully visible, not hidden behind the footer's opaque backdrop. */
 #dayListOverlay .day-list-scroll-body {
     flex: 1 1 auto;
     min-height: 0;
@@ -1191,6 +1211,26 @@ body {
     white-space: pre-wrap;
 }
 
+/* ===== HISTORY — eye icon for full-details viewing ===== */
+.history-log-item .hl-open-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: #ede9fe;
+    color: #5b21b6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    align-self: center;
+    transition: background 0.15s, transform 0.1s;
+}
+.history-log-item .hl-open-btn:hover  { background: #ddd6fe; }
+.history-log-item .hl-open-btn:active { transform: scale(0.94); }
+
 .history-pager {
     display: flex;
     align-items: center;
@@ -1548,7 +1588,21 @@ body {
 .notif-item.priority-edge { border-left-color: #eab308; }
 .notif-item.upcoming-edge { border-left-color: #22c55e; }
 
-.notif-item.unread { box-shadow: inset 0 0 0 1px rgba(109, 40, 217, 0.10); }
+/* ===== NOTIFICATION — unread highlight, clears when viewed ===== */
+.notif-item.unread {
+    background: #f5f3ff;
+    border-left-color: #8b5cf6;
+}
+.notif-item.unread:hover {
+    background: #ede9fe;
+    border-left-color: #6d28d9;
+}
+.notif-item:not(.unread) {
+    background: transparent;
+}
+.notif-item:not(.unread):hover {
+    background: #f9fafb;
+}
 
 .notif-body {
     flex: 1;
@@ -2487,21 +2541,116 @@ body {
     .weekdays { font-size: 0.62rem; margin-bottom: 6px; }
     .upcoming-title { font-size: 1rem; }
     .upcoming-table th, .upcoming-table td { padding: 10px 10px; }
-    .upcoming-table .col-date { width: 90px; }
-    .upcoming-table .col-day { width: 70px; }
-    .upcoming-table .col-time { width: 100px; }
-    .upcoming-table .col-type { width: 110px; }
-    .upcoming-table .col-status { width: 100px; }
-    .upcoming-table .col-actions { width: 100px; }
     .upcoming-table-wrap { max-height: 500px; }
+
+    /* ---- TABLET: table layout preserved, columns widened, ---- */
+    /* ---- description no longer overlaps the next column ---- */
+    .upcoming-table { font-size: 0.82rem; table-layout: fixed; }
+    .upcoming-table .col-date  { width: 92px; }
+    .upcoming-table .col-day   { width: 66px; }
+    .upcoming-table .col-title { width: 22%; }
+    .upcoming-table .col-time  { width: 96px; }
+    .upcoming-table .col-type  { width: 104px; }
+    .upcoming-table .col-status{ width: 96px; }
+    .upcoming-table .col-desc  { width: 26%; max-width: none; }
+    .upcoming-table .col-actions { width: 96px; }
+
+    .upcoming-table td { vertical-align: top; }
+
+    .upcoming-title-cell {
+        -webkit-line-clamp: 2;
+        max-height: 2.7em;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+    .upcoming-time-cell {
+        -webkit-line-clamp: 2;
+        max-height: 2.7em;
+        white-space: normal;
+        word-break: break-word;
+    }
+    .upcoming-desc-cell.upcoming-desc-clamp {
+        -webkit-line-clamp: 2;
+        max-height: 2.7em;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        min-width: 0;
+    }
+    .upcoming-actions .icon-btn { width: 28px; height: 28px; font-size: 0.7rem; }
+
+    /* ---- HEADER: logo + bell on top row; month/year left ---- */
+    /* ---- + prev/next/today on bottom row right            ---- */
+    .calendar-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 10px;
+        grid-template-columns: none;
+    }
+    .header-logo {
+        order: 1;
+        flex: 0 0 auto;
+        height: 34px;
+        max-width: 120px;
+    }
+    .calendar-header .nav-buttons {
+        order: 2;
+        margin-left: auto;
+        display: contents;
+    }
+    .calendar-header .notif-wrap {
+        order: 2;
+        margin-left: auto;
+    }
+    .month-year {
+        order: 3;
+        flex: 1 1 auto;
+        justify-content: flex-start;
+        min-width: 0;
+    }
+    .month-year-trigger {
+        text-align: left;
+        padding-left: 0;
+    }
+    .calendar-header #prevMonthBtn { order: 4; margin-left: auto; }
+    .calendar-header #nextMonthBtn { order: 4; }
+    .calendar-header #todayBtn { order: 4; }
+    .calendar-header #prevMonthBtn,
+    .calendar-header #nextMonthBtn,
+    .calendar-header #todayBtn { flex: 0 0 auto; }
+
+    /* ---- FLOATING NAVBAR: bigger buttons + more spacing ---- */
+    .floating-navbar {
+        padding: 10px 14px;
+        gap: 10px;
+    }
+    .nav-left, .nav-right { gap: 8px; }
+    .nav-center { gap: 8px; }
+
+    .floating-navbar .btn-create,
+    .floating-navbar .btn-import,
+    .floating-navbar .btn-export,
+    .floating-navbar .btn-history,
+    .floating-navbar .btn-settings {
+        padding: 12px 20px;
+    }
+    .floating-navbar .btn-create i,
+    .floating-navbar .btn-import i,
+    .floating-navbar .btn-export i,
+    .floating-navbar .btn-history i,
+    .floating-navbar .btn-settings i {
+        font-size: 1.05rem;
+    }
 }
 
 /* ===== RESPONSIVE — 600 ===== */
 @media (max-width: 600px) {
     body { padding: 8px; padding-bottom: 90px; align-items: flex-start; }
-    .calendar-header { gap: 8px; margin-bottom: 14px; min-height: 38px; }
-    .header-logo { height: 32px; max-width: 100px; }
-    .month-year-trigger { font-size: 1rem; padding: 4px 8px; border-radius: 10px; }
+    .calendar-header { gap: 6px 8px; margin-bottom: 12px; min-height: 0; }
+    .header-logo { height: 30px; max-width: 100px; }
+    .month-year-trigger { font-size: 1.05rem; padding: 4px 8px; border-radius: 10px; }
     .nav-buttons { gap: 4px; }
     .nav-btn { width: 34px; height: 34px; font-size: 0.85rem; border-radius: 10px; }
     #todayBtn { padding: 0 10px; font-size: 0.75rem; height: 34px; }
@@ -2535,22 +2684,32 @@ body {
     .upcoming-table td.col-date, .upcoming-table td.col-day, .upcoming-table td.col-title, .upcoming-table td.col-time, .upcoming-table td.col-type, .upcoming-table td.col-status, .upcoming-table td.col-desc { width: 100%; font-size: 0.85rem; }
     .upcoming-table td.col-title { font-weight: 600; }
     .upcoming-table td.col-title .upcoming-title-cell { font-size: 0.88rem; }
-    .upcoming-time-cell { font-size: 0.82rem; }
+    .upcoming-time-cell { font-size: 0.82rem; white-space: normal; }
     .upcoming-status-badge { font-size: 0.62rem; padding: 3px 9px; }
     .upcoming-date-cell, .upcoming-day-cell { font-size: 0.85rem; white-space: normal; }
     .upcoming-today-badge { font-size: 0.58rem; padding: 1px 6px; margin-left: 6px; }
 
-    /* ===== UPCOMING 7 DAYS — show 2–3 lines of description ===== */
+    /* ---- MOBILE UPCOMING: title 2 lines, desc 3 lines ---- */
+    .upcoming-title-cell {
+        -webkit-line-clamp: 2;
+        max-height: 2.7em;
+        white-space: normal;
+        font-size: 0.88rem;
+    }
     .upcoming-desc-cell {
         font-size: 0.8rem;
         white-space: normal;
         word-break: break-word;
         line-height: 1.45;
+        display: block;
     }
     .upcoming-desc-cell.upcoming-desc-clamp {
+        display: -webkit-box;
         -webkit-line-clamp: 3;
         max-height: 4.35em;
-        line-height: 1.45;
+        white-space: normal;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .upcoming-table td.col-desc { align-items: flex-start; }
     .upcoming-table td.col-desc::before { padding-top: 2px; }
@@ -2581,7 +2740,7 @@ body {
     .ri-pager-dot { width: 5px; height: 5px; }
     .ri-pager-dot.active { width: 14px; }
 
-    /* ===== FLOATING NAVBAR — icon-only, bigger icons, more space ===== */
+    /* ---- FLOATING NAVBAR: bigger icons, more spacing ---- */
     .floating-navbar {
         left: 50%;
         right: auto;
@@ -2589,8 +2748,8 @@ body {
         transform: translateX(-50%);
         width: fit-content;
         max-width: calc(100vw - 16px);
-        padding: 8px 12px;
-        gap: 8px;
+        padding: 10px 14px;
+        gap: 10px;
         border-radius: 50px;
         justify-content: center;
         align-items: center;
@@ -2611,7 +2770,7 @@ body {
     .nav-right {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         flex-shrink: 0;
         flex: 0 0 auto;
     }
@@ -2623,10 +2782,11 @@ body {
     .floating-navbar .btn-settings {
         flex: 0 0 auto;
         width: auto;
-        min-width: 0;
+        min-width: 48px;
+        min-height: 48px;
         height: auto;
         border-radius: 50%;
-        padding: 11px 12px;
+        padding: 14px 14px;
         gap: 0;
         justify-content: center;
         align-items: center;
@@ -2646,7 +2806,7 @@ body {
     .floating-navbar .btn-export i,
     .floating-navbar .btn-history i,
     .floating-navbar .btn-settings i {
-        font-size: 1.2rem;
+        font-size: 1.3rem;
     }
 
     .app-footer {
@@ -2658,6 +2818,8 @@ body {
         letter-spacing: 0.25px;
         opacity: 0.65;
     }
+
+    .month-year { flex-basis: 100%; }
 
     .modal-overlay { padding: 10px; align-items: flex-end; }
     .modal { padding: 18px; border-radius: 22px; max-height: 92vh; border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; }
@@ -2679,7 +2841,7 @@ body {
     .date-preview i { font-size: 0.95rem; }
     .date-preview span { font-size: 0.85rem; }
 
-    /* ===== DAY LIST MODAL (mobile) ===== */
+    /* ---- DAY LIST MODAL (mobile) ---- */
     #dayListOverlay .modal {
         height: auto;
         max-height: 92vh;
@@ -2743,6 +2905,7 @@ body {
     .hl-title { font-size: 0.78rem; }
     .hl-meta { font-size: 0.65rem; gap: 8px; }
     .hl-notes { font-size: 0.68rem; padding: 3px 7px; }
+    .history-log-item .hl-open-btn { width: 28px; height: 28px; font-size: 0.7rem; border-radius: 8px; }
     .history-pager { gap: 8px; margin-top: 8px; }
     .history-pager-arrow { width: 26px; height: 26px; font-size: 0.6rem; }
     .history-pager-dots { padding: 5px 10px; gap: 4px; }
@@ -2870,6 +3033,10 @@ body {
     .time-option { font-size: 0.8rem; padding: 7px 10px; }
     .late-pill { font-size: 0.58rem; padding: 2px 7px; }
     #changeStatusFromViewBtn { width: 100%; justify-content: center; margin-right: 0 !important; }
+
+    #prevMonthBtn,
+    #nextMonthBtn,
+    #todayBtn { height: 32px; }
 }
 
 /* ===== RESPONSIVE — 380 ===== */
@@ -2898,13 +3065,13 @@ body {
     .type-btn i { font-size: 0.68rem; }
 
     .floating-navbar {
-        padding: 7px 10px;
-        gap: 6px;
+        padding: 8px 12px;
+        gap: 8px;
     }
     .nav-left,
     .nav-center,
     .nav-right {
-        gap: 6px;
+        gap: 8px;
     }
     .floating-navbar .btn-create,
     .floating-navbar .btn-import,
@@ -2914,14 +3081,16 @@ body {
         flex: 0 0 auto;
         width: auto;
         height: auto;
-        padding: 10px 11px;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 12px 12px;
     }
     .floating-navbar .btn-create i,
     .floating-navbar .btn-import i,
     .floating-navbar .btn-export i,
     .floating-navbar .btn-history i,
     .floating-navbar .btn-settings i {
-        font-size: 1.1rem;
+        font-size: 1.15rem;
     }
 
     .app-footer {
