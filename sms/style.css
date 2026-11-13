@@ -501,8 +501,23 @@ body {
     z-index: 2000; padding: 16px;
     visibility: hidden; opacity: 0;
     transition: opacity 0.2s, visibility 0.2s;
+    overscroll-behavior: contain;
 }
 .modal-overlay.active { visibility: visible; opacity: 1; }
+
+/* ============================================================
+   MODAL BODY LOCK — prevent background scroll while any modal
+   is open. Only the modal's own scrollable area moves.
+   ============================================================ */
+body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    top: var(--modal-scroll-lock-y, 0px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
 
 .modal {
     background: #ffffff; border-radius: 28px; padding: 24px; width: 100%;
@@ -2543,8 +2558,7 @@ body {
     .upcoming-table th, .upcoming-table td { padding: 10px 10px; }
     .upcoming-table-wrap { max-height: 500px; }
 
-    /* ---- TABLET: table layout preserved, columns widened, ---- */
-    /* ---- description no longer overlaps the next column ---- */
+    /* ---- TABLET: table layout preserved, columns widened ---- */
     .upcoming-table { font-size: 0.82rem; table-layout: fixed; }
     .upcoming-table .col-date  { width: 92px; }
     .upcoming-table .col-day   { width: 66px; }
@@ -2581,7 +2595,6 @@ body {
     .upcoming-actions .icon-btn { width: 28px; height: 28px; font-size: 0.7rem; }
 
     /* ---- HEADER: logo + bell on top row; month/year left ---- */
-    /* ---- + prev/next/today on bottom row right            ---- */
     .calendar-header {
         display: flex;
         flex-wrap: wrap;
@@ -2650,7 +2663,19 @@ body {
     body { padding: 8px; padding-bottom: 90px; align-items: flex-start; }
     .calendar-header { gap: 6px 8px; margin-bottom: 12px; min-height: 0; }
     .header-logo { height: 30px; max-width: 100px; }
-    .month-year-trigger { font-size: 1.05rem; padding: 4px 8px; border-radius: 10px; }
+    /* BIGGER MONTH/YEAR ON MOBILE */
+    .month-year-trigger {
+        font-size: 1.4rem;
+        font-weight: 700;
+        padding: 4px 8px;
+        border-radius: 10px;
+        letter-spacing: -0.02em;
+    }
+    .month-year {
+        flex-basis: 100%;
+        margin-top: 2px;
+        margin-bottom: 4px;
+    }
     .nav-buttons { gap: 4px; }
     .nav-btn { width: 34px; height: 34px; font-size: 0.85rem; border-radius: 10px; }
     #todayBtn { padding: 0 10px; font-size: 0.75rem; height: 34px; }
@@ -2818,8 +2843,6 @@ body {
         letter-spacing: 0.25px;
         opacity: 0.65;
     }
-
-    .month-year { flex-basis: 100%; }
 
     .modal-overlay { padding: 10px; align-items: flex-end; }
     .modal { padding: 18px; border-radius: 22px; max-height: 92vh; border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; }
@@ -3042,7 +3065,14 @@ body {
 /* ===== RESPONSIVE — 380 ===== */
 @media (max-width: 380px) {
     .header-logo { height: 26px; max-width: 80px; }
-    .month-year-trigger { font-size: 0.9rem; padding: 3px 6px; }
+    .month-year-trigger {
+        font-size: 1.2rem;
+        padding: 3px 6px;
+    }
+    .month-year {
+        margin-top: 1px;
+        margin-bottom: 3px;
+    }
     .nav-btn { width: 30px; height: 30px; font-size: 0.75rem; border-radius: 8px; }
     #todayBtn { height: 30px; font-size: 0.68rem; padding: 0 8px; }
     .app-container { padding: 10px 6px 16px; border-radius: 14px; }
