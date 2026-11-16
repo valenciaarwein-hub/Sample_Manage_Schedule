@@ -1,9 +1,3 @@
-/* ============================================================
-   SKEDO · style.css — PART 1 of 3
-   Base, calendar, upcoming, recent imports, floating nav,
-   day list, review, view, date picker
-   ============================================================ */
-
 :root {
     --edge-late: #ef4444;
     --edge-priority: #eab308;
@@ -1010,18 +1004,6 @@ body.modal-open {
 }
 .date-preview i { font-size: 1.1rem; color: #6d28d9; flex-shrink: 0; }
 .date-preview span { font-size: 0.95rem; }
-
-/* ============================================================
-   ^^^ END OF PART 1 ^^^
-   ^^^ PART 2 STARTS ON THE NEXT LINE ^^^
-   ============================================================ */
-
-/* ============================================================
-   SKEDO · style.css — PART 2 of 3
-   History, settings, trash, confirm, validation, notifications,
-   export, import, statuses, popup, bulk delete, time picker,
-   responsive (base 900 / 600 / 380)
-   ============================================================ */
 
 /* ===== HISTORY ===== */
 .history-modal { max-width: 640px; }
@@ -2825,19 +2807,6 @@ body.modal-open {
     .notif-countdown .nc-label { font-size: 0.5rem; }
 }
 
-/* ============================================================
-   ^^^ END OF PART 2 ^^^
-   ^^^ PART 3 STARTS ON THE NEXT LINE ^^^
-   ============================================================ */
-
-/* ============================================================
-   SKEDO · style.css — PART 3 of 3
-   View-mode dropdown + Day / 3 Days / Week time-grid view,
-   plus header layout overrides that place the dropdown to the
-   left of the notification bell (tablet/mobile) and hide the
-   caret.
-   ============================================================ */
-
 /* ===== VIEW DROPDOWN ===== */
 .view-dropdown-wrap {
     position: relative;
@@ -3119,17 +3088,6 @@ body.modal-open {
 }
 .tg-empty i { font-size: 1.8rem; color: #d1d5db; display: block; margin-bottom: 8px; }
 
-/* ============================================================
-   PART 3 — RESPONSIVE OVERRIDES
-   These come after the base 900/600/380 blocks in Part 2,
-   so they win on order. They:
-     - place the view dropdown to the LEFT of the bell on both
-       tablet and mobile,
-     - keep the bell on the same row as the logo,
-     - hide the caret on tablet/mobile to match the bell,
-     - resize the dropdown button to fit the header rows.
-   ============================================================ */
-
 /* ===== TABLET (≤900px) — header 2-row layout + dropdown left of bell ===== */
 @media (max-width: 900px) {
 
@@ -3279,18 +3237,6 @@ body.modal-open {
     .tg-slot { height: 46px; }
     .tg-event { font-size: 0.54rem; }
 }
-/* ============================================================
-   SKEDO · MOBILE OVERRIDES & FIXES — APPEND AT END OF style.css
-   Covers:
-     1. View-mode dropdown (left-anchored, phone-safe)
-     2. Hide calendar scroll icons / scrollbars
-     3. Mobile week grid: vertical scroll, hidden scrollbar
-     4. Mobile header: Month/Year left of arrows + Today + bell
-   ============================================================ */
-
-/* ============================================================
-   1) VIEW-MODE DROPDOWN — LEFT-ANCHORED, PHONE-SAFE
-   ============================================================ */
 
 /* Wrapper must be the positioning context */
 .view-dropdown-wrap {
