@@ -1,4 +1,4 @@
-// sms/script.js — PART 1 of 2
+// sms/script.js — PART 1 of 3
 (function() {
     'use strict';
 
@@ -320,7 +320,7 @@
             }));
 
             isLoaded = true;
-            renderCalendar();
+            renderActiveView();
             renderNotifications();
             renderRecentImports();
             if (historyOverlay && historyOverlay.classList.contains('active')) renderHistory();
@@ -332,7 +332,7 @@
             console.error('Load error:', err);
             isLoaded = true;
             if (showErrors) alert('Could not load schedules from Supabase: ' + err.message);
-            renderCalendar();
+            renderActiveView();
         }
     }
 
@@ -699,6 +699,11 @@
     let currentYear = currentDate.getFullYear();
     let currentMonth = currentDate.getMonth();
 
+    /* View mode: 'month' | 'day' | '3days' | 'week' */
+    let currentView = 'month';
+    let viewAnchorDate = new Date();
+    viewAnchorDate.setHours(0, 0, 0, 0);
+
     let editingScheduleId = null;
     let selectedDateKey = null;
     let activeDayListDateKey = null;
@@ -736,6 +741,12 @@
     const importBtn = document.getElementById('importBtn');
     const logoutBtn = document.getElementById('logoutBtn');
     const settingsBtn = document.getElementById('settingsBtn');
+
+    /* NEW: view-mode dropdown + time-grid container */
+    const timeGridView = document.getElementById('timeGridView');
+    const viewDropdownBtn = document.getElementById('viewDropdownBtn');
+    const viewDropdownMenu = document.getElementById('viewDropdownMenu');
+    const viewDropdownLabel = document.getElementById('viewDropdownLabel');
 
     const upcomingTableBody = document.getElementById('upcomingTableBody');
     const upcomingEmpty = document.getElementById('upcomingEmpty');
@@ -1006,10 +1017,8 @@
             }
         });
 
-        /* PATCH: AM/PM buttons must NOT focus the input.
-           Focusing the input fires its 'focus' listener (which opens the
-           dropdown) and on mobile also pops the on-screen keyboard.
-           The AM/PM buttons should only change state. */
+        /* AM/PM buttons must NOT focus the input — otherwise the dropdown
+           opens and the mobile keyboard pops. Just toggle the state. */
         ampmBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -1858,7 +1867,7 @@
     // ============================================================
     // CALENDAR RENDERER (auto-priority within 3 days)
     // ============================================================
-    function renderCalendar() {
+    function renderMonthCalendar() {
         monthYearText.textContent = `${monthNames[currentMonth]} ${currentYear}`;
 
         const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
@@ -1990,6 +1999,249 @@
     }
 
     // ============================================================
+    // VIEW MODE HELPERS + TIME-GRID RENDERER
+    // ============================================================
+    function formatViewLabel(view) {
+        switch (view) {
+            case 'day':    return 'Day';
+            case '3days':  return '3 Days';
+            case 'week':   return 'Week';
+            default:       return 'Month';
+        }
+    }
+
+    function updateHeaderMonthYearLabel() {
+        if (!monthYearText) return;
+
+        if (currentView === 'month') {
+            monthYearText.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+            return;
+        }
+
+        const dates = getViewDates();
+        const first = dates[0];
+        const last  = dates[dates.length - 1];
+
+        if (currentView === 'day') {
+            monthYearText.textContent = first.toLocaleDateString('en-US', {
+                month: 'long', day: 'numeric', year: 'numeric'
+            });
+            return;
+        }
+
+        const sameMonth = first.getMonth() === last.getMonth() &&
+                          first.getFullYear() === last.getFullYear();
+        if (sameMonth) {
+            monthYearText.textContent =
+                `${monthNames[first.getMonth()]} ${first.getDate()} – ${last.getDate()}, ${first.getFullYear()}`;
+        } else {
+            const a = first.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const b = last.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            monthYearText.textContent = `${a} – ${b}`;
+        }
+    }
+
+    function renderCalendar() {
+        if (currentView === 'month') {
+            renderMonthCalendar();
+            updateHeaderMonthYearLabel();
+        } else {
+            renderTimeGridView();
+        }
+    }
+
+    function renderActiveView() {
+        const isMonth = currentView === 'month';
+
+        calendarGrid.style.display = isMonth ? '' : 'none';
+        if (timeGridView) timeGridView.style.display = isMonth ? 'none' : '';
+
+        const weekdayHeaders = document.querySelector('.weekdays');
+        if (weekdayHeaders) weekdayHeaders.style.display = isMonth ? '' : 'none';
+
+        if (isMonth) {
+            renderMonthCalendar();
+            updateHeaderMonthYearLabel();
+        } else {
+            renderTimeGridView();
+        }
+        renderUpcomingTable();
+    }
+
+    function getViewDates() {
+        const anchor = new Date(viewAnchorDate);
+        anchor.setHours(0, 0, 0, 0);
+
+        if (currentView === 'day') {
+            return [new Date(anchor)];
+        }
+        if (currentView === '3days') {
+            const out = [];
+            for (let i = 0; i < 3; i++) {
+                const d = new Date(anchor);
+                d.setDate(anchor.getDate() + i);
+                out.push(d);
+            }
+            return out;
+        }
+        // week — Monday → Sunday
+        const dow = anchor.getDay();
+        const mondayOffset = (dow === 0) ? -6 : 1 - dow;
+        const monday = new Date(anchor);
+        monday.setDate(anchor.getDate() + mondayOffset);
+        const out = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            out.push(d);
+        }
+        return out;
+    }
+
+    function buildHourRangeForDay(dateKey) {
+        const list = schedules[dateKey] || [];
+        let minStart = null;
+        let maxEnd = null;
+
+        list.forEach(s => {
+            const range = parseScheduleTimeRange(s.time);
+            if (!range) return;
+            if (minStart === null || range.startMin < minStart) minStart = range.startMin;
+            if (maxEnd === null || range.endMin > maxEnd) maxEnd = range.endMin;
+        });
+
+        let startHour = 0;
+        let endHour = 24;
+
+        if (minStart !== null && maxEnd !== null) {
+            startHour = Math.max(0, Math.floor(minStart / 60));
+            endHour = Math.min(24, Math.ceil(maxEnd / 60));
+            if (endHour <= startHour) endHour = Math.min(24, startHour + 1);
+        }
+
+        return { startHour, endHour };
+    }
+
+    function formatHourLabel(h) {
+        if (h === 0)  return '12 AM';
+        if (h === 12) return '12 PM';
+        if (h < 12)   return `${h} AM`;
+        return `${h - 12} PM`;
+    }
+
+    function renderTimeGridView() {
+        if (!timeGridView) return;
+        const dates = getViewDates();
+
+        let overallStart = 24;
+        let overallEnd = 0;
+        dates.forEach(d => {
+            const k = formatDateKey(d);
+            const { startHour, endHour } = buildHourRangeForDay(k);
+            if (startHour < overallStart) overallStart = startHour;
+            if (endHour > overallEnd) overallEnd = endHour;
+        });
+        if (overallEnd <= overallStart) {
+            overallStart = 8;
+            overallEnd = 18;
+        }
+
+        const nowPH = getNowPH();
+        const todayKey = formatDateKey(new Date());
+
+        let headerHtml = `<div class="tg-header"><div class="tg-header-gutter"></div>`;
+        dates.forEach(d => {
+            const k = formatDateKey(d);
+            const isToday = k === todayKey;
+            headerHtml += `
+                <div class="tg-day-head${isToday ? ' is-today' : ''}">
+                    <span class="tg-weekday">${weekdayShort[d.getDay()]}</span>
+                    <span class="tg-daynum">${d.getDate()}</span>
+                </div>
+            `;
+        });
+        headerHtml += `</div>`;
+
+        let hoursHtml = `<div class="tg-hours">`;
+        for (let h = overallStart; h < overallEnd; h++) {
+            hoursHtml += `<div class="tg-hour-label">${formatHourLabel(h)}</div>`;
+        }
+        hoursHtml += `</div>`;
+
+        let colsHtml = `<div class="tg-columns">`;
+        dates.forEach(d => {
+            const k = formatDateKey(d);
+            const isToday = k === todayKey;
+            const list = (schedules[k] || []).slice();
+
+            colsHtml += `<div class="tg-day-col${isToday ? ' is-today' : ''}" data-day-col="${k}">`;
+
+            for (let h = overallStart; h < overallEnd; h++) {
+                colsHtml += `<div class="tg-slot" data-hour="${h}"></div>`;
+            }
+
+            list.forEach(s => {
+                const range = parseScheduleTimeRange(s.time);
+                if (!range) return;
+
+                const startMin = Math.max(overallStart * 60, range.startMin);
+                const endMin   = Math.min(overallEnd * 60,   range.endMin);
+                if (endMin <= startMin) return;
+
+                const topPx = ((startMin - overallStart * 60) / 60) * 60;
+                const heightPx = ((endMin - startMin) / 60) * 60;
+
+                const st = normalizeStatus(s.status);
+                const isLate = isScheduleLateNow(k, s, nowPH);
+                const effectiveStatus = isLate ? 'late'
+                                     : st === 'done' ? 'done'
+                                     : st === 'priority' ? 'priority'
+                                     : 'upcoming';
+
+                const statusClass = effectiveStatus === 'done' ? ' status-done'
+                                  : effectiveStatus === 'late' ? ' status-late'
+                                  : effectiveStatus === 'priority' ? ' status-priority'
+                                  : '';
+
+                colsHtml += `
+                    <div class="tg-event${statusClass}"
+                         data-view-date="${k}"
+                         data-view-id="${s.id}"
+                         style="top:${topPx}px; height:${Math.max(22, heightPx)}px;"
+                         title="${escapeHtml(s.title)} — ${escapeHtml(s.time || '')}">
+                        <div class="tg-event-title">${escapeHtml(s.title)}</div>
+                        <div class="tg-event-time">${escapeHtml(s.time || '')}</div>
+                    </div>
+                `;
+            });
+
+            colsHtml += `</div>`;
+        });
+        colsHtml += `</div>`;
+
+        timeGridView.innerHTML = `${headerHtml}<div class="tg-body">${hoursHtml}${colsHtml}</div>`;
+
+        timeGridView.querySelectorAll('.tg-event').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const dateKey = el.dataset.viewDate;
+                const id = el.dataset.viewId;
+                if (dateKey && id) openViewModal(dateKey, id);
+            });
+        });
+
+        updateHeaderMonthYearLabel();
+
+        const bodyEl = timeGridView.querySelector('.tg-body');
+        if (bodyEl) {
+            const target = 8 * 60;
+            const offsetMin = (target - overallStart * 60);
+            const scrollTo = Math.max(0, (offsetMin / 60) * 60);
+            bodyEl.scrollTop = Math.min(scrollTo, bodyEl.scrollHeight - bodyEl.clientHeight);
+        }
+    }
+
+    // ============================================================
     // LIVE COUNTDOWN TICKER
     // ============================================================
     let countdownTicker = null;
@@ -2108,7 +2360,7 @@
         const snap = buildLateSnapshot();
         if (snap !== lastLateSnapshot) {
             lastLateSnapshot = snap;
-            renderCalendar();
+            renderActiveView();
             if (dayListOverlay.classList.contains('active') && activeDayListDateKey) {
                 renderDayScheduleList();
             }
@@ -2121,13 +2373,7 @@
         lastLateSnapshot = buildLateSnapshot();
         lateTicker = setInterval(tickLate, 1000);
     }
-
-    /* ============================================================
-       ^^^ END OF PART 1 ^^^
-       ^^^ PART 2 STARTS ON THE NEXT LINE ^^^
-       ============================================================ */
-
-    // ============================================================
+        // ============================================================
     // DAY LIST MODAL
     // ============================================================
     function openDayListModal(dateKey) {
@@ -2141,7 +2387,7 @@
         autoMarkPastDayAsLate(dateKey);
 
         renderDayScheduleList();
-        renderCalendar();
+        renderActiveView();
         renderNotifications();
 
         const scrollBody = dayListOverlay.querySelector('.day-list-scroll-body');
@@ -2438,7 +2684,7 @@
         item.updatedAt = new Date().toISOString();
 
         scheduleSave();
-        renderCalendar();
+        renderActiveView();
         renderNotifications();
         renderDayScheduleList();
         if (historyOverlay.classList.contains('active')) renderHistory();
@@ -2608,7 +2854,7 @@
                 dayListSelection.delete(id);
                 scheduleSave();
 
-                renderCalendar();
+                renderActiveView();
                 renderNotifications();
                 if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) renderDayScheduleList();
                 if (historyOverlay.classList.contains('active')) renderHistory();
@@ -2659,7 +2905,7 @@
                 dayListSelection.clear();
                 scheduleSave();
 
-                renderCalendar();
+                renderActiveView();
                 renderNotifications();
                 if (dayListOverlay.classList.contains('active') && activeDayListDateKey === dateKey) renderDayScheduleList();
                 if (historyOverlay.classList.contains('active')) renderHistory();
@@ -3246,7 +3492,7 @@
         }
 
         scheduleSave();
-        renderCalendar();
+        renderActiveView();
         renderNotifications();
 
         const shouldReopenHistory = reopenHistoryAfterEdit;
@@ -3364,9 +3610,22 @@
     function closeDatePickerModal() { datePickerOverlay.classList.remove('active'); }
 
     function goToPickedDate() {
-        currentYear = parseInt(pickYear.value, 10);
-        currentMonth = parseInt(pickMonth.value, 10);
-        renderCalendar();
+        const y = parseInt(pickYear.value, 10);
+        const m = parseInt(pickMonth.value, 10);
+        const d = parseInt(pickDay.value, 10);
+
+        currentYear = y;
+        currentMonth = m;
+
+        if (currentView === 'month') {
+            renderMonthCalendar();
+            updateHeaderMonthYearLabel();
+        } else {
+            viewAnchorDate = new Date(y, m, d);
+            viewAnchorDate.setHours(0, 0, 0, 0);
+            renderTimeGridView();
+        }
+        renderUpcomingTable();
         closeDatePickerModal();
     }
 
@@ -3992,7 +4251,7 @@
 
                 bulkDeleteSelection.clear();
                 scheduleSave();
-                renderCalendar();
+                renderActiveView();
                 renderNotifications();
                 renderBulkDeleteTree();
                 if (trashOverlay.classList.contains('active')) renderTrash();
@@ -4129,7 +4388,7 @@
         schedules[key].push(item);
         scheduleSave();
 
-        renderCalendar();
+        renderActiveView();
         renderNotifications();
         renderTrash();
         if (historyOverlay.classList.contains('active')) renderHistory();
@@ -4192,7 +4451,7 @@
         });
         trashSelection.clear();
         scheduleSave();
-        renderCalendar();
+        renderActiveView();
         renderNotifications();
         renderTrash();
         if (historyOverlay.classList.contains('active')) renderHistory();
@@ -4304,6 +4563,77 @@
     }
 
     // ============================================================
+    // VIEW DROPDOWN
+    // ============================================================
+    function updateViewDropdownUI() {
+        if (!viewDropdownMenu) return;
+        viewDropdownMenu.querySelectorAll('[data-view]').forEach(el => {
+            el.classList.toggle('selected', el.dataset.view === currentView);
+        });
+        if (viewDropdownLabel) viewDropdownLabel.textContent = formatViewLabel(currentView);
+        if (viewDropdownBtn) {
+            viewDropdownBtn.classList.toggle('active',
+                viewDropdownMenu.classList.contains('open'));
+            viewDropdownBtn.setAttribute('aria-expanded',
+                viewDropdownMenu.classList.contains('open') ? 'true' : 'false');
+        }
+    }
+
+    function setViewMode(view) {
+        if (!['month', 'day', '3days', 'week'].includes(view)) return;
+        if (view === currentView) {
+            closeViewDropdown();
+            return;
+        }
+
+        currentView = view;
+        viewAnchorDate = new Date();
+        viewAnchorDate.setHours(0, 0, 0, 0);
+
+        currentYear = viewAnchorDate.getFullYear();
+        currentMonth = viewAnchorDate.getMonth();
+
+        updateViewDropdownUI();
+        renderActiveView();
+        closeViewDropdown();
+    }
+
+    function openViewDropdown() {
+        if (!viewDropdownMenu) return;
+        viewDropdownMenu.classList.add('open');
+        viewDropdownBtn.classList.add('active');
+        viewDropdownBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeViewDropdown() {
+        if (!viewDropdownMenu) return;
+        viewDropdownMenu.classList.remove('open');
+        viewDropdownBtn.classList.remove('active');
+        viewDropdownBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    if (viewDropdownBtn && viewDropdownMenu) {
+        viewDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (viewDropdownMenu.classList.contains('open')) closeViewDropdown();
+            else openViewDropdown();
+        });
+
+        viewDropdownMenu.querySelectorAll('[data-view]').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setViewMode(opt.dataset.view);
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.view-dropdown-wrap')) closeViewDropdown();
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeViewDropdown();
+        });
+    }
+        // ============================================================
     // EXPORT
     // ============================================================
     const MONTH_NAMES_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -4731,7 +5061,7 @@
         recordRecentImport(currentImportFile ? currentImportFile.name : 'Imported file', added);
 
         scheduleSave();
-        renderCalendar();
+        renderActiveView();
         renderNotifications();
         if (historyOverlay.classList.contains('active')) renderHistory();
 
@@ -4795,7 +5125,7 @@
                 const d = getDateFromKey(dateKey);
                 currentYear = d.getFullYear();
                 currentMonth = d.getMonth();
-                renderCalendar();
+                renderActiveView();
                 setTimeout(() => openDayListModal(dateKey), 120);
             }
         });
@@ -5287,25 +5617,66 @@
     }
 
     // ============================================================
-    // EVENT LISTENERS
+    // EVENT LISTENERS — view-aware navigation
     // ============================================================
     prevMonthBtn.addEventListener('click', () => {
-        currentMonth--;
-        if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-        renderCalendar();
+        if (currentView === 'month') {
+            currentMonth--;
+            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+            renderMonthCalendar();
+            updateHeaderMonthYearLabel();
+            renderUpcomingTable();
+            return;
+        }
+
+        const step = currentView === 'day' ? 1
+                   : currentView === '3days' ? 3
+                   : 7;
+        viewAnchorDate.setDate(viewAnchorDate.getDate() - step);
+        currentYear = viewAnchorDate.getFullYear();
+        currentMonth = viewAnchorDate.getMonth();
+        renderTimeGridView();
+        renderUpcomingTable();
     });
 
     nextMonthBtn.addEventListener('click', () => {
-        currentMonth++;
-        if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-        renderCalendar();
+        if (currentView === 'month') {
+            currentMonth++;
+            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+            renderMonthCalendar();
+            updateHeaderMonthYearLabel();
+            renderUpcomingTable();
+            return;
+        }
+
+        const step = currentView === 'day' ? 1
+                   : currentView === '3days' ? 3
+                   : 7;
+        viewAnchorDate.setDate(viewAnchorDate.getDate() + step);
+        currentYear = viewAnchorDate.getFullYear();
+        currentMonth = viewAnchorDate.getMonth();
+        renderTimeGridView();
+        renderUpcomingTable();
     });
 
     todayBtn.addEventListener('click', () => {
         const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        if (currentView === 'month') {
+            currentYear = now.getFullYear();
+            currentMonth = now.getMonth();
+            renderMonthCalendar();
+            updateHeaderMonthYearLabel();
+            renderUpcomingTable();
+            return;
+        }
+
+        viewAnchorDate = now;
         currentYear = now.getFullYear();
         currentMonth = now.getMonth();
-        renderCalendar();
+        renderTimeGridView();
+        renderUpcomingTable();
     });
 
     monthYearTrigger.addEventListener('click', openDatePickerModal);
@@ -5422,7 +5793,7 @@
                 closeSortPopovers();
                 closeStatusPopup();
 
-                renderCalendar();
+                renderActiveView();
                 renderNotifications();
                 renderRecentImports();
             }
@@ -5557,10 +5928,14 @@
         });
     }
 
+    // ============================================================
+    // KEYBOARD ESCAPE HANDLER
+    // ============================================================
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (openStatusPopup) { closeStatusPopup(true); return; }
             if (importSuccessOverlay.classList.contains('active')) { closeImportSuccessModal(); return; }
+            if (viewDropdownMenu && viewDropdownMenu.classList.contains('open')) { closeViewDropdown(); return; }
             if (notifPanel && notifPanel.classList.contains('open')) { closeNotifPanel(); return; }
             if (validationOverlay.classList.contains('active')) { closeValidationModal(); return; }
             if (confirmOverlay.classList.contains('active')) { closeConfirmModal(); return; }
@@ -5584,7 +5959,8 @@
     // ============================================================
     function boot() {
         fetchHistoryLog();
-        renderCalendar();
+        updateViewDropdownUI();
+        renderActiveView();
         renderNotifications();
         renderRecentImports();
         loadFromApi(true);
