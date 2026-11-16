@@ -18,6 +18,8 @@
 <body>
 
 <!-- ============ CAT LOADER HOST ============ -->
+<!-- The loader markup is injected at runtime from cat/cat_loader.html
+     by cat/cat_loader.js. Nothing else in this file changed. -->
 <div id="catLoaderHost"></div>
 
 <div class="app-container">
@@ -33,32 +35,39 @@
 
         <div class="nav-buttons">
 
-            <!-- ===== VIEW SWITCHER (left of arrows) ===== -->
-            <div class="view-switch-wrap">
-                <button class="nav-btn view-switch-btn" id="viewSwitchBtn" aria-haspopup="true" aria-expanded="false" title="Change calendar view">
-                    <i class="fas fa-calendar-alt" id="viewSwitchIcon"></i>
-                    <span id="viewSwitchLabel">Month</span>
-                    <i class="fas fa-chevron-down view-switch-caret"></i>
+            <!-- ============ VIEW MODE DROPDOWN ============ -->
+            <div class="view-dropdown-wrap">
+                <button class="view-dropdown-btn" id="viewDropdownBtn" aria-haspopup="true" aria-expanded="false" title="Calendar view">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span id="viewDropdownLabel">Month</span>
+                    <i class="fas fa-chevron-down view-dd-caret"></i>
                 </button>
-                <div class="view-switch-menu" id="viewSwitchMenu" role="menu">
-                    <button class="view-option selected" data-view="month" role="menuitemradio">
-                        <i class="fas fa-calendar"></i> <span>Month</span> <i class="fas fa-check"></i>
+                <div class="view-dropdown-menu" id="viewDropdownMenu" role="menu">
+                    <button class="view-dd-option selected" data-view="month" role="menuitemradio">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>Month</span>
+                        <i class="fas fa-check view-dd-check"></i>
                     </button>
-                    <button class="view-option" data-view="day" role="menuitemradio">
-                        <i class="fas fa-sun"></i> <span>Day</span> <i class="fas fa-check"></i>
+                    <button class="view-dd-option" data-view="day" role="menuitemradio">
+                        <i class="fas fa-calendar-day"></i>
+                        <span>Day</span>
+                        <i class="fas fa-check view-dd-check"></i>
                     </button>
-                    <button class="view-option" data-view="3days" role="menuitemradio">
-                        <i class="fas fa-calendar-day"></i> <span>3 Days</span> <i class="fas fa-check"></i>
+                    <button class="view-dd-option" data-view="3days" role="menuitemradio">
+                        <i class="fas fa-calendar"></i>
+                        <span>3 Days</span>
+                        <i class="fas fa-check view-dd-check"></i>
                     </button>
-                    <button class="view-option" data-view="week" role="menuitemradio">
-                        <i class="fas fa-calendar-week"></i> <span>Week</span> <i class="fas fa-check"></i>
+                    <button class="view-dd-option" data-view="week" role="menuitemradio">
+                        <i class="fas fa-calendar-week"></i>
+                        <span>Week</span>
+                        <i class="fas fa-check view-dd-check"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- ===== MONTH NAVIGATION ===== -->
-            <button class="nav-btn" id="prevMonthBtn" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
-            <button class="nav-btn" id="nextMonthBtn" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
+            <button class="nav-btn" id="prevMonthBtn" aria-label="Previous"><i class="fas fa-chevron-left"></i></button>
+            <button class="nav-btn" id="nextMonthBtn" aria-label="Next"><i class="fas fa-chevron-right"></i></button>
             <button class="nav-btn" id="todayBtn" aria-label="Today">Today</button>
 
             <div class="notif-wrap">
@@ -116,15 +125,10 @@
         <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
     </div>
 
-    <!-- ===== MONTH CALENDAR (default view) ===== -->
     <div class="calendar-grid" id="calendarGrid"></div>
 
-    <!-- ===== TIME GRID (Day / 3 Days / Week views) ===== -->
-    <div class="time-grid-wrap" id="timeGridWrap" style="display:none;">
-        <div class="time-grid-scroll" id="timeGridScroll">
-            <div class="time-grid" id="timeGrid"></div>
-        </div>
-    </div>
+    <!-- ============ TIME-GRID VIEW (Day / 3 Days / Week) ============ -->
+    <div class="time-grid-view" id="timeGridView" style="display:none;"></div>
 
     <section class="upcoming-section" id="upcomingSection">
         <div class="upcoming-header">
@@ -246,6 +250,7 @@
             </button>
         </div>
 
+        <!-- Scrollable body: date badge + toolbar + list -->
         <div class="day-list-scroll-body">
             <div class="date-badge" id="dayListDateBadge">April 15, 2025</div>
 
@@ -260,13 +265,14 @@
             </div>
 
             <div class="day-schedule-list" id="dayScheduleList"></div>
-        </div>
+        </div><!-- /.day-list-scroll-body -->
 
+        <!-- Pinned footer with opaque backdrop behind the Add button -->
         <div class="day-list-footer">
             <button class="btn-add-schedule" id="addScheduleFromListBtn">
                 <i class="fas fa-plus-circle"></i> Add New Schedule
             </button>
-        </div>
+        </div><!-- /.day-list-footer -->
     </div>
 </div>
 
@@ -348,7 +354,7 @@
                 <div class="char-counter"><span id="charCount">0</span> / 200</div>
             </div>
 
-        </div>
+        </div><!-- /.modal-scroll-body -->
 
         <div class="modal-actions">
             <button class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
@@ -861,7 +867,8 @@
     window.dispatchEvent(new Event('supabase-ready'));
 </script>
 
-<!-- External cat loader logic -->
+<!-- External cat loader logic — fetches cat/cat_loader.html,
+     injects into #catLoaderHost, exposes window.CatLoader -->
 <script src="cat/cat_loader.js"></script>
 
 <script src="sms/script.js"></script>
