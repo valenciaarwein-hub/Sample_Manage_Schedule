@@ -1,4 +1,8 @@
-// sms/script.js — PART 1 of 3
+// ============================================================
+// sms/script.js
+// PART 1 of 4 — Config, constants, PH time helpers, recent
+// imports, Supabase I/O, helpers, history-log layer.
+// ============================================================
 (function() {
     'use strict';
 
@@ -264,7 +268,7 @@
     }
 
     // ============================================================
-    // SUPABASE
+    // SUPABASE I/O
     // ============================================================
     function getSupabase() {
         if (!window.supabaseClient) {
@@ -690,6 +694,11 @@
             console.error('logHistory error:', err);
         }
     }
+        // ============================================================
+    // PART 2 of 4 — UI state, DOM refs, scroll lock, time picker,
+    // notifications, confirm/validation, type buttons,
+    // sort popovers, view-dropdown controller.
+    // ============================================================
 
     // ============================================================
     // STATE (UI)
@@ -742,7 +751,7 @@
     const logoutBtn = document.getElementById('logoutBtn');
     const settingsBtn = document.getElementById('settingsBtn');
 
-    /* NEW: view-mode dropdown + time-grid container */
+    /* view-mode dropdown + time-grid container */
     const timeGridView = document.getElementById('timeGridView');
     const viewDropdownBtn = document.getElementById('viewDropdownBtn');
     const viewDropdownMenu = document.getElementById('viewDropdownMenu');
@@ -1017,8 +1026,6 @@
             }
         });
 
-        /* AM/PM buttons must NOT focus the input — otherwise the dropdown
-           opens and the mobile keyboard pops. Just toggle the state. */
         ampmBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -1609,6 +1616,236 @@
     }
 
     // ============================================================
+    // SORT POPOVERS (history / trash)
+    // ============================================================
+    function closeSortPopovers() {
+        [historySortPopover, trashSortPopover].forEach(p => p.classList.remove('open'));
+        [historySortBtn, trashSortBtn].forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-expanded', 'false');
+        });
+    }
+
+    function toggleSortPopover(popover, btn) {
+        const willOpen = !popover.classList.contains('open');
+        closeSortPopovers();
+        if (willOpen) {
+            popover.classList.add('open');
+            btn.classList.add('active');
+            btn.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    function wireSortPopover(popover, sortRef, onChange) {
+        popover.querySelectorAll('[data-sort-kind]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const kind = btn.dataset.sortKind;
+                if (!kind) return;
+                sortRef.kind = kind;
+                syncSortPopover(popover, sortRef);
+                onChange();
+                closeSortPopovers();
+            });
+        });
+
+        popover.querySelectorAll('[data-sort-order]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const order = btn.dataset.sortOrder;
+                if (!order) return;
+                sortRef.order = order;
+                syncSortPopover(popover, sortRef);
+                onChange();
+                closeSortPopovers();
+            });
+        });
+    }
+
+    // ============================================================
+    // VIEW DROPDOWN CONTROLLER
+    // NOTE: adds .open to viewDropdownMenu (matches CSS
+    //       `.view-dropdown-menu.open { display: flex; }`)
+    // ============================================================
+    function updateViewDropdownUI() {
+        if (!viewDropdownMenu) return;
+        viewDropdownMenu.querySelectorAll('[data-view]').forEach(el => {
+            el.classList.toggle('selected', el.dataset.view === currentView);
+        });
+        if (viewDropdownLabel) viewDropdownLabel.textContent = formatViewLabel(currentView);
+        if (viewDropdownBtn) {
+            viewDropdownBtn.classList.toggle('active',
+                viewDropdownMenu.classList.contains('open'));
+            viewDropdownBtn.setAttribute('aria-expanded',
+                viewDropdownMenu.classList.contains('open') ? 'true' : 'false');
+        }
+    }
+
+    function setViewMode(view) {
+        if (!['month', 'day', '3days', 'week'].includes(view)) return;
+        if (view === currentView) {
+            closeViewDropdown();
+            return;
+        }
+
+        currentView = view;
+        viewAnchorDate = new Date();
+        viewAnchorDate.setHours(0, 0, 0, 0);
+
+        currentYear = viewAnchorDate.getFullYear();
+        currentMonth = viewAnchorDate.getMonth();
+
+        updateViewDropdownUI();
+        renderActiveView();
+        closeViewDropdown();
+    }
+
+    function openViewDropdown() {
+        if (!viewDropdownMenu) return;
+        viewDropdownMenu.classList.add('open');
+        viewDropdownBtn.classList.add('active');
+        viewDropdownBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeViewDropdown() {
+        if (!viewDropdownMenu) return;
+        viewDropdownMenu.classList.remove('open');
+        viewDropdownBtn.classList.remove('active');
+        viewDropdownBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    if (viewDropdownBtn && viewDropdownMenu) {
+        viewDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (viewDropdownMenu.classList.contains('open')) closeViewDropdown();
+            else openViewDropdown();
+        });
+
+        viewDropdownMenu.querySelectorAll('[data-view]').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setViewMode(opt.dataset.view);
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.view-dropdown-wrap')) closeViewDropdown();
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeViewDropdown();
+        });
+    }
+        // ============================================================
+    // PART 3 of 4 — Upcoming table, recent imports render, month
+    // calendar, view-mode + time grid, day list, status popup,
+    // create/edit form, review modal, view modal.
+    // ============================================================
+
+    // ============================================================
+    // VIEW-MODE HELPERS + FORMAT
+    // ============================================================
+    function formatViewLabel(view) {
+        switch (view) {
+            case 'day':    return 'Day';
+            case '3days':  return '3 Days';
+            case 'week':   return 'Week';
+            default:       return 'Month';
+        }
+    }
+
+    function updateHeaderMonthYearLabel() {
+        if (!monthYearText) return;
+
+        if (currentView === 'month') {
+            monthYearText.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+            return;
+        }
+
+        const dates = getViewDates();
+        const first = dates[0];
+        const last  = dates[dates.length - 1];
+
+        if (currentView === 'day') {
+            monthYearText.textContent = first.toLocaleDateString('en-US', {
+                month: 'long', day: 'numeric', year: 'numeric'
+            });
+            return;
+        }
+
+        const sameMonth = first.getMonth() === last.getMonth() &&
+                          first.getFullYear() === last.getFullYear();
+        if (sameMonth) {
+            monthYearText.textContent =
+                `${monthNames[first.getMonth()]} ${first.getDate()} – ${last.getDate()}, ${first.getFullYear()}`;
+        } else {
+            const a = first.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const b = last.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            monthYearText.textContent = `${a} – ${b}`;
+        }
+    }
+
+    function getViewDates() {
+        const anchor = new Date(viewAnchorDate);
+        anchor.setHours(0, 0, 0, 0);
+
+        if (currentView === 'day') {
+            return [new Date(anchor)];
+        }
+        if (currentView === '3days') {
+            const out = [];
+            for (let i = 0; i < 3; i++) {
+                const d = new Date(anchor);
+                d.setDate(anchor.getDate() + i);
+                out.push(d);
+            }
+            return out;
+        }
+        // week — Monday → Sunday
+        const dow = anchor.getDay();
+        const mondayOffset = (dow === 0) ? -6 : 1 - dow;
+        const monday = new Date(anchor);
+        monday.setDate(anchor.getDate() + mondayOffset);
+        const out = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            out.push(d);
+        }
+        return out;
+    }
+
+    function buildHourRangeForDay(dateKey) {
+        const list = schedules[dateKey] || [];
+        let minStart = null;
+        let maxEnd = null;
+
+        list.forEach(s => {
+            const range = parseScheduleTimeRange(s.time);
+            if (!range) return;
+            if (minStart === null || range.startMin < minStart) minStart = range.startMin;
+            if (maxEnd === null || range.endMin > maxEnd) maxEnd = range.endMin;
+        });
+
+        let startHour = 0;
+        let endHour = 24;
+
+        if (minStart !== null && maxEnd !== null) {
+            startHour = Math.max(0, Math.floor(minStart / 60));
+            endHour = Math.min(24, Math.ceil(maxEnd / 60));
+            if (endHour <= startHour) endHour = Math.min(24, startHour + 1);
+        }
+
+        return { startHour, endHour };
+    }
+
+    function formatHourLabel(h) {
+        if (h === 0)  return '12 AM';
+        if (h === 12) return '12 PM';
+        if (h < 12)   return `${h} AM`;
+        return `${h - 12} PM`;
+    }
+
+    // ============================================================
     // UPCOMING 7 DAYS TABLE
     // ============================================================
     function renderUpcomingTable() {
@@ -1865,7 +2102,7 @@
     }
 
     // ============================================================
-    // CALENDAR RENDERER (auto-priority within 3 days)
+    // MONTH CALENDAR RENDERER
     // ============================================================
     function renderMonthCalendar() {
         monthYearText.textContent = `${monthNames[currentMonth]} ${currentYear}`;
@@ -1999,136 +2236,8 @@
     }
 
     // ============================================================
-    // VIEW MODE HELPERS + TIME-GRID RENDERER
+    // TIME GRID RENDERER
     // ============================================================
-    function formatViewLabel(view) {
-        switch (view) {
-            case 'day':    return 'Day';
-            case '3days':  return '3 Days';
-            case 'week':   return 'Week';
-            default:       return 'Month';
-        }
-    }
-
-    function updateHeaderMonthYearLabel() {
-        if (!monthYearText) return;
-
-        if (currentView === 'month') {
-            monthYearText.textContent = `${monthNames[currentMonth]} ${currentYear}`;
-            return;
-        }
-
-        const dates = getViewDates();
-        const first = dates[0];
-        const last  = dates[dates.length - 1];
-
-        if (currentView === 'day') {
-            monthYearText.textContent = first.toLocaleDateString('en-US', {
-                month: 'long', day: 'numeric', year: 'numeric'
-            });
-            return;
-        }
-
-        const sameMonth = first.getMonth() === last.getMonth() &&
-                          first.getFullYear() === last.getFullYear();
-        if (sameMonth) {
-            monthYearText.textContent =
-                `${monthNames[first.getMonth()]} ${first.getDate()} – ${last.getDate()}, ${first.getFullYear()}`;
-        } else {
-            const a = first.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const b = last.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            monthYearText.textContent = `${a} – ${b}`;
-        }
-    }
-
-    function renderCalendar() {
-        if (currentView === 'month') {
-            renderMonthCalendar();
-            updateHeaderMonthYearLabel();
-        } else {
-            renderTimeGridView();
-        }
-    }
-
-    function renderActiveView() {
-        const isMonth = currentView === 'month';
-
-        calendarGrid.style.display = isMonth ? '' : 'none';
-        if (timeGridView) timeGridView.style.display = isMonth ? 'none' : '';
-
-        const weekdayHeaders = document.querySelector('.weekdays');
-        if (weekdayHeaders) weekdayHeaders.style.display = isMonth ? '' : 'none';
-
-        if (isMonth) {
-            renderMonthCalendar();
-            updateHeaderMonthYearLabel();
-        } else {
-            renderTimeGridView();
-        }
-        renderUpcomingTable();
-    }
-
-    function getViewDates() {
-        const anchor = new Date(viewAnchorDate);
-        anchor.setHours(0, 0, 0, 0);
-
-        if (currentView === 'day') {
-            return [new Date(anchor)];
-        }
-        if (currentView === '3days') {
-            const out = [];
-            for (let i = 0; i < 3; i++) {
-                const d = new Date(anchor);
-                d.setDate(anchor.getDate() + i);
-                out.push(d);
-            }
-            return out;
-        }
-        // week — Monday → Sunday
-        const dow = anchor.getDay();
-        const mondayOffset = (dow === 0) ? -6 : 1 - dow;
-        const monday = new Date(anchor);
-        monday.setDate(anchor.getDate() + mondayOffset);
-        const out = [];
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + i);
-            out.push(d);
-        }
-        return out;
-    }
-
-    function buildHourRangeForDay(dateKey) {
-        const list = schedules[dateKey] || [];
-        let minStart = null;
-        let maxEnd = null;
-
-        list.forEach(s => {
-            const range = parseScheduleTimeRange(s.time);
-            if (!range) return;
-            if (minStart === null || range.startMin < minStart) minStart = range.startMin;
-            if (maxEnd === null || range.endMin > maxEnd) maxEnd = range.endMin;
-        });
-
-        let startHour = 0;
-        let endHour = 24;
-
-        if (minStart !== null && maxEnd !== null) {
-            startHour = Math.max(0, Math.floor(minStart / 60));
-            endHour = Math.min(24, Math.ceil(maxEnd / 60));
-            if (endHour <= startHour) endHour = Math.min(24, startHour + 1);
-        }
-
-        return { startHour, endHour };
-    }
-
-    function formatHourLabel(h) {
-        if (h === 0)  return '12 AM';
-        if (h === 12) return '12 PM';
-        if (h < 12)   return `${h} AM`;
-        return `${h - 12} PM`;
-    }
-
     function renderTimeGridView() {
         if (!timeGridView) return;
         const dates = getViewDates();
@@ -2239,6 +2348,48 @@
             const scrollTo = Math.max(0, (offsetMin / 60) * 60);
             bodyEl.scrollTop = Math.min(scrollTo, bodyEl.scrollHeight - bodyEl.clientHeight);
         }
+    }
+
+    // ============================================================
+    // RENDER DISPATCHER  (mobile scroll glue lives here)
+    // ============================================================
+    function renderCalendar() {
+        if (currentView === 'month') {
+            renderMonthCalendar();
+            updateHeaderMonthYearLabel();
+        } else {
+            renderTimeGridView();
+        }
+    }
+
+    function scrollGridToToday() {
+        if (window.innerWidth > 600) return;
+        if (currentView !== 'month') return;
+        const todayCell = calendarGrid.querySelector('.day-cell.today');
+        if (!todayCell) return;
+        const target = Math.max(0, todayCell.offsetTop - 40);
+        calendarGrid.scrollTo({ top: target, behavior: 'smooth' });
+    }
+
+    function renderActiveView() {
+        const isMonth = currentView === 'month';
+
+        calendarGrid.style.display = isMonth ? '' : 'none';
+        if (timeGridView) timeGridView.style.display = isMonth ? 'none' : '';
+
+        const weekdayHeaders = document.querySelector('.weekdays');
+        if (weekdayHeaders) weekdayHeaders.style.display = isMonth ? '' : 'none';
+
+        if (isMonth) {
+            renderMonthCalendar();
+            updateHeaderMonthYearLabel();
+        } else {
+            renderTimeGridView();
+        }
+        renderUpcomingTable();
+
+        // MOBILE SCROLL GLUE — after render, snap today's row into view
+        requestAnimationFrame(scrollGridToToday);
     }
 
     // ============================================================
@@ -2373,7 +2524,8 @@
         lastLateSnapshot = buildLateSnapshot();
         lateTicker = setInterval(tickLate, 1000);
     }
-        // ============================================================
+
+    // ============================================================
     // DAY LIST MODAL
     // ============================================================
     function openDayListModal(dateKey) {
@@ -2931,7 +3083,7 @@
         viewStatusRow.style.display = 'block';
         recoverFromViewBtn.style.display = 'none';
         if (changeStatusFromViewBtn) changeStatusFromViewBtn.style.display = 'inline-flex';
-        viewModalTitle.innerHTML = '<i class="fas fa-eye" style="color:#3b82f6;"></i> Schedule Details';
+        viewModalTitle.innerHTML = '<i class="fas fa-eye"></i> Schedule Details';
 
         viewTitle.textContent = schedule.title;
         viewType.innerHTML = schedule.type ? renderTypeBadge(schedule.type) : '<span style="color:#94a3b8;">—</span>';
@@ -2962,7 +3114,7 @@
 
         viewContext = { kind: 'trash', trashId, dateKey: null, id: null };
         viewOverlay.classList.add('trash-context');
-        viewModalTitle.innerHTML = '<i class="fas fa-eye" style="color:#dc2626;"></i> Deleted Schedule Details';
+        viewModalTitle.innerHTML = '<i class="fas fa-eye"></i> Deleted Schedule Details';
 
         viewTitle.textContent = item.title;
         viewType.innerHTML = item.type ? renderTypeBadge(item.type) : '<span style="color:#94a3b8;">—</span>';
@@ -3027,7 +3179,7 @@
         document.getElementById('selectedDate').value = dateKey;
 
         const dateObj = getDateFromKey(dateKey);
-        modalTitle.innerHTML = '<i class="fas fa-calendar-plus" style="color:#3b82f6;"></i> New Schedule';
+        modalTitle.innerHTML = '<i class="fas fa-calendar-plus"></i> New Schedule';
         modalDateBadge.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
         });
@@ -3056,7 +3208,7 @@
         document.getElementById('selectedDate').value = dateKey;
 
         const dateObj = getDateFromKey(dateKey);
-        modalTitle.innerHTML = '<i class="fas fa-pen" style="color:#3b82f6;"></i> Edit Schedule';
+        modalTitle.innerHTML = '<i class="fas fa-pen"></i> Edit Schedule';
         modalDateBadge.textContent = dateObj.toLocaleDateString('en-US', {
             weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
         });
@@ -3430,9 +3582,9 @@
         editingScheduleId = pendingSave.id || null;
 
         if (pendingSave.mode === 'edit') {
-            modalTitle.innerHTML = '<i class="fas fa-pen" style="color:#3b82f6;"></i> Edit Schedule';
+            modalTitle.innerHTML = '<i class="fas fa-pen"></i> Edit Schedule';
         } else {
-            modalTitle.innerHTML = '<i class="fas fa-calendar-plus" style="color:#3b82f6;"></i> New Schedule';
+            modalTitle.innerHTML = '<i class="fas fa-calendar-plus"></i> New Schedule';
         }
 
         const dateObj = getDateFromKey(pendingSave.dateKey);
@@ -3535,6 +3687,10 @@
 
         if (shouldReopenHistory) openHistoryModal();
     }
+        // ============================================================
+    // PART 4 of 4 — Date picker, history, bulk delete, settings,
+    // trash, export, import, navigation, boot, escape handler.
+    // ============================================================
 
     // ============================================================
     // DATE PICKER
@@ -4516,124 +4672,6 @@
     }
 
     // ============================================================
-    // SORT POPOVERS (history / trash)
-    // ============================================================
-    function closeSortPopovers() {
-        [historySortPopover, trashSortPopover].forEach(p => p.classList.remove('open'));
-        [historySortBtn, trashSortBtn].forEach(b => {
-            b.classList.remove('active');
-            b.setAttribute('aria-expanded', 'false');
-        });
-    }
-
-    function toggleSortPopover(popover, btn) {
-        const willOpen = !popover.classList.contains('open');
-        closeSortPopovers();
-        if (willOpen) {
-            popover.classList.add('open');
-            btn.classList.add('active');
-            btn.setAttribute('aria-expanded', 'true');
-        }
-    }
-
-    function wireSortPopover(popover, sortRef, onChange) {
-        popover.querySelectorAll('[data-sort-kind]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const kind = btn.dataset.sortKind;
-                if (!kind) return;
-                sortRef.kind = kind;
-                syncSortPopover(popover, sortRef);
-                onChange();
-                closeSortPopovers();
-            });
-        });
-
-        popover.querySelectorAll('[data-sort-order]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const order = btn.dataset.sortOrder;
-                if (!order) return;
-                sortRef.order = order;
-                syncSortPopover(popover, sortRef);
-                onChange();
-                closeSortPopovers();
-            });
-        });
-    }
-
-    // ============================================================
-    // VIEW DROPDOWN
-    // ============================================================
-    function updateViewDropdownUI() {
-        if (!viewDropdownMenu) return;
-        viewDropdownMenu.querySelectorAll('[data-view]').forEach(el => {
-            el.classList.toggle('selected', el.dataset.view === currentView);
-        });
-        if (viewDropdownLabel) viewDropdownLabel.textContent = formatViewLabel(currentView);
-        if (viewDropdownBtn) {
-            viewDropdownBtn.classList.toggle('active',
-                viewDropdownMenu.classList.contains('open'));
-            viewDropdownBtn.setAttribute('aria-expanded',
-                viewDropdownMenu.classList.contains('open') ? 'true' : 'false');
-        }
-    }
-
-    function setViewMode(view) {
-        if (!['month', 'day', '3days', 'week'].includes(view)) return;
-        if (view === currentView) {
-            closeViewDropdown();
-            return;
-        }
-
-        currentView = view;
-        viewAnchorDate = new Date();
-        viewAnchorDate.setHours(0, 0, 0, 0);
-
-        currentYear = viewAnchorDate.getFullYear();
-        currentMonth = viewAnchorDate.getMonth();
-
-        updateViewDropdownUI();
-        renderActiveView();
-        closeViewDropdown();
-    }
-
-    function openViewDropdown() {
-        if (!viewDropdownMenu) return;
-        viewDropdownMenu.classList.add('open');
-        viewDropdownBtn.classList.add('active');
-        viewDropdownBtn.setAttribute('aria-expanded', 'true');
-    }
-
-    function closeViewDropdown() {
-        if (!viewDropdownMenu) return;
-        viewDropdownMenu.classList.remove('open');
-        viewDropdownBtn.classList.remove('active');
-        viewDropdownBtn.setAttribute('aria-expanded', 'false');
-    }
-
-    if (viewDropdownBtn && viewDropdownMenu) {
-        viewDropdownBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (viewDropdownMenu.classList.contains('open')) closeViewDropdown();
-            else openViewDropdown();
-        });
-
-        viewDropdownMenu.querySelectorAll('[data-view]').forEach(opt => {
-            opt.addEventListener('click', (e) => {
-                e.stopPropagation();
-                setViewMode(opt.dataset.view);
-            });
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.view-dropdown-wrap')) closeViewDropdown();
-        });
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeViewDropdown();
-        });
-    }
-        // ============================================================
     // EXPORT
     // ============================================================
     const MONTH_NAMES_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -4656,8 +4694,8 @@
     const exportMonthsNone = document.getElementById('exportMonthsNone');
 
     function getExportYearRange() {
-        const currentYear = new Date().getFullYear();
-        const end = Math.max(currentYear, EXPORT_START_YEAR);
+        const currentYr = new Date().getFullYear();
+        const end = Math.max(currentYr, EXPORT_START_YEAR);
         const years = [];
         for (let y = EXPORT_START_YEAR; y <= end; y++) years.push(y);
         return years;
@@ -5617,7 +5655,7 @@
     }
 
     // ============================================================
-    // EVENT LISTENERS — view-aware navigation
+    // NAVIGATION
     // ============================================================
     prevMonthBtn.addEventListener('click', () => {
         if (currentView === 'month') {
@@ -5761,6 +5799,14 @@
             okText: 'Log Out',
             iconClass: 'warning',
             onConfirm: async () => {
+                // Sign out of Supabase auth if configured
+                try {
+                    const sb = getSupabase();
+                    if (sb.auth && typeof sb.auth.signOut === 'function') {
+                        await sb.auth.signOut();
+                    }
+                } catch (_) { /* auth not configured — fine */ }
+
                 await clearRemote();
                 schedules = {};
                 trash = [];
@@ -5944,12 +5990,12 @@
             if (bulkDeleteOverlay.classList.contains('active')) { bulkDeleteClose(); return; }
             if (trashOverlay.classList.contains('active')) { closeTrashModal(); return; }
             if (settingsOverlay.classList.contains('active')) { closeSettingsModal(); return; }
-            if (historyOverlay.classList.contains('active')) closeHistoryModal();
-            if (dayListOverlay.classList.contains('active')) closeDayListModal();
-            if (modalOverlay.classList.contains('active')) closeFormModal();
-            if (datePickerOverlay.classList.contains('active')) closeDatePickerModal();
-            if (exportOverlay.classList.contains('active')) closeExportModal();
-            if (importOverlay.classList.contains('active')) closeImportModal();
+            if (historyOverlay.classList.contains('active')) { closeHistoryModal(); return; }
+            if (dayListOverlay.classList.contains('active')) { closeDayListModal(); return; }
+            if (modalOverlay.classList.contains('active')) { closeFormModal(); return; }
+            if (datePickerOverlay.classList.contains('active')) { closeDatePickerModal(); return; }
+            if (exportOverlay.classList.contains('active')) { closeExportModal(); return; }
+            if (importOverlay.classList.contains('active')) { closeImportModal(); return; }
             closeSortPopovers();
         }
     });
